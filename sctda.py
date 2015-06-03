@@ -88,13 +88,6 @@ def ParseAyasdiGraph(lab, source, user, password, name):
         g.write('</gexf>\n')
 
 
-def worker(arg, **kwarg):
-    """
-    Required for multiprocessing within classes
-    """
-    return UnrootedGraph.connectivity_pvalue(*arg, **kwarg)
-
-
 def benjamini_hochberg(pvalues):
     """
     Benjamini-Hochberg adjusted p-values for multiple testing. Consistent with R
@@ -287,12 +280,15 @@ class UnrootedGraph(object):
         """
         Computes p-value of order ind connectivity of column genis performing permutation test with n permutations
         """
-        pool = multiprocessing.Pool(processes=c, maxtasksperchild=1000)
-        conn_async = [pool.apply_async(_flat_connectivity,
-                                       [self.get_gene(genis, True)[0], self.pl, self.adj, ind]) for _ in range(n)]
-        conn = [r.get() for r in conn_async]
-        pool.close()
-        pool.join()
+        if c > 1:
+            pool = multiprocessing.Pool(processes=c, maxtasksperchild=1000)
+            conn_async = [pool.apply_async(_flat_connectivity,
+                                           [self.get_gene(genis, True)[0], self.pl, self.adj, ind]) for _ in range(n)]
+            conn = [r.get() for r in conn_async]
+            pool.close()
+            pool.join()
+        else:
+            conn = [self.connectivity(genis, True, ind) for _ in range(n)]
         return float(sum(i > self.connectivity(genis) for i in conn))/float(n)
 
     def delta(self, genis):
@@ -326,9 +322,9 @@ class UnrootedGraph(object):
                 if po > 0:
                     pol.append(self.connectivity_pvalue(gi, ind=1, n=n, c=c))
             por = benjamini_hochberg(pol)
+            mj = 0
             for gi in sorted(self.dicgenes.keys()):
                 po = self.expr(gi)
-                mj = 0
                 if po > 0:
                     ggg.write(gi + '\t' + str(po) + '\t' + str(self.delta(gi)) + '\t' +
                               str(self.connectivity(gi, ind=1)) + '\t' +
