@@ -4,33 +4,63 @@ library(igraph)
 library(rgexf)
 library(jsonlite)
 library(parallel)
+  
+#Argument section handling
+arg<-list("name","matrix","1:10",500,4,TRUE,TRUE,"results")
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","output")
+#arg1<-list("a","b","1:5",10)
+arg1<-as.list(commandArgs(trailingOnly=TRUE))
+arg[1:length(arg1)]<-arg1
 
-arg1<-commandArgs(trailingOnly=TRUE)
 
-#arg[1]<-5
-arg<-as.list(arg1)
+#arg[1]<-0
+#arg[2]<-"6:10"
+#arg<-as.list(arg)
 
-#arg[[1]]<-5
-#arg[[2]]<-10:20
+if (grepl(":",arg$columns)==TRUE)
+  {  
+  arg$columns<-as.numeric(strsplit(arg$columns,":")[[1]][1]:strsplit(arg$columns,":")[[1]][2])
+} else arg$columns<-as.numeric(arg$columns)
 
-connectivity_pvalues_table<-function (graph_name,matrix_full_name,column,permutations,FDR,log_scale,cores)
+
+
+#Loading matrix file to memory and log transforming if log2=TRUE
+matrix_full_name<-arg$matrix
+print (paste0("[1] Loading ",matrix_full_name, " file to memory"))
+matrix1<-read.csv(matrix_full_name,row.names=1)
+if (arg$log2==TRUE) {matrix1<<-(2^matrix1)-1} 
+
+
+#Parsing and loading, gexf(edge file) and json (nodes file) to memory.
+print ("[2] Parsing json and gexf files")
+graph_name<-arg[1]
+json_file<-paste0(graph_name,".json")
+gexf_file<-paste0(graph_name,".gexf")
+graph_gexf<-read.gexf(gexf_file)
+graph_igraph<-gexf.to.igraph(graph_gexf)
+
+nodes<-fromJSON(json_file) #List of samples within nodes
+edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
+
+
+
+
+#connectivity_pvalues_table<-function (graph_name,matrix_full_name,column,permutations,FDR,cores)
+connectivity_pvalues_table<-function (column,permutations,FDR,cores)
   # Generates connectivity p_values tables. 
 {
-  n_permutations<<-permutations #Used for console printing only
-  n_columns<<-length(column) #Used for console printing only
-  print (paste0("[1] Loading ",matrix_full_name," file to memory"))
-  matrix1<<-read.csv(matrix_full_name,row.names=1)
-  #matrix1<<-matrix1[,1:500]
-  if (log_scale) {matrix1<<-(2^matrix1)-1} 
+  #print (paste0("[1] Loading ",matrix_full_name," file to memory"))
+  #matrix1<<-read.csv(matrix_full_name,row.names=1)
+  #if (log_scale) {matrix1<<-(2^matrix1)-1} 
   
-  print ("[2] Parsing json and gexf files")
-  json_file<-paste0(graph_name,".json")
-  gexf_file<-paste0(graph_name,".gexf")
-  graph_gexf<-read.gexf(gexf_file)
-  graph_igraph<-gexf.to.igraph(graph_gexf)
+  #print ("[2] Parsing json and gexf files")
+  #json_file<-paste0(graph_name,".json")
+  #gexf_file<-paste0(graph_name,".gexf")
+  #graph_gexf<-read.gexf(gexf_file)
+  #graph_igraph<-gexf.to.igraph(graph_gexf)
   
-  nodes<-fromJSON(json_file) #List of samples within nodes
-  edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
+  #nodes<-fromJSON(json_file) #List of samples within nodes
+  #edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
   
   #parallel computing prep
   print ("Acquiring cpu cores")
@@ -157,7 +187,7 @@ write.table(col1,"results.csv",sep=",",col.names=FALSE,row.names=FALSE)
 
 #This is the RUN command:
 
-ans<-connectivity_pvalues_table("LUAD_Neigh_45_3","TPM.matrix.light.csv",column=as.numeric(arg[[2]]),permutations=arg[[1]],FDR=TRUE,log_scale=TRUE,cores=4)
+ans<-connectivity_pvalues_table(column=arg$columns,permutations=arg$permutations,FDR=TRUE,cores=4)
 #ans<-connectivity_pvalues_table("LUAD_MDS_30_3","TPM.matrix.csv",column=1:2,permutations=100,FDR=TRUE,cores=4)
 
 ##########################################################
@@ -184,6 +214,6 @@ print ("[4] Writing results_FDR.csv file to disk")
 write.csv(ans,"results_FDR.csv")
 
 print(paste("Runtime in seconds:",run_t[3]))
-print(paste("Number of columns:",n_columns))
-print(paste("Number of permutations:",n_permutations))
-print(paste("Average p_value calc per column:",run_t[3]/n_columns))
+print(paste("Number of columns:",length(arg$columns)))
+print(paste("Number of permutations:",arg$permutations))
+print(paste("Average p_value calc per column:",run_t[3]/length(arg$columns)))
