@@ -1,3 +1,4 @@
+#Preping environment, loading necessary libraries
 #setwd(".")
 #setwd("C:/Users/Udi/Downloads/LUAD_3.1.14.0")
 library(igraph)
@@ -6,17 +7,13 @@ library(jsonlite)
 library(parallel)
   
 #Argument section handling
-arg<-list("name","matrix","1:10",500,4,TRUE,TRUE,"results")
+arg<-list("name","matrix","1:10",500,detectCores(),TRUE,TRUE,"results")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","output")
-#arg1<-list("a","b","1:5",10)
+#arg1<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:5",10)
 arg1<-as.list(commandArgs(trailingOnly=TRUE))
 arg[1:length(arg1)]<-arg1
 
-
-#arg[1]<-0
-#arg[2]<-"6:10"
-#arg<-as.list(arg)
-
+#Extracting columns to analyze from arguments
 if (grepl(":",arg$columns)==TRUE)
   {  
   arg$columns<-as.numeric(strsplit(arg$columns,":")[[1]][1]:strsplit(arg$columns,":")[[1]][2])
@@ -28,12 +25,11 @@ if (grepl(":",arg$columns)==TRUE)
 matrix_full_name<-arg$matrix
 print (paste0("[1] Loading ",matrix_full_name, " file to memory"))
 matrix1<-read.csv(matrix_full_name,row.names=1)
-if (arg$log2==TRUE) {matrix1<<-(2^matrix1)-1} 
-
-
+if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
+  
 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
-print ("[2] Parsing json and gexf files")
-graph_name<-arg[1]
+print ("Parsing json and gexf files")
+graph_name<-arg$name
 json_file<-paste0(graph_name,".json")
 gexf_file<-paste0(graph_name,".gexf")
 graph_gexf<-read.gexf(gexf_file)
@@ -43,58 +39,49 @@ nodes<-fromJSON(json_file) #List of samples within nodes
 edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 
 
+#Initializing rolling file
+p_table<-NULL
+col1<<-t(c("Row","c-score","p-value"))
+write.table(col1,paste0(arg$name,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
-#connectivity_pvalues_table<-function (graph_name,matrix_full_name,column,permutations,FDR,cores)
-connectivity_pvalues_table<-function (column,permutations,FDR,cores)
+
+
+connectivity_pvalues_table<-function (column,permutations,cores)
   # Generates connectivity p_values tables. 
 {
-  #print (paste0("[1] Loading ",matrix_full_name," file to memory"))
-  #matrix1<<-read.csv(matrix_full_name,row.names=1)
-  #if (log_scale) {matrix1<<-(2^matrix1)-1} 
-  
-  #print ("[2] Parsing json and gexf files")
-  #json_file<-paste0(graph_name,".json")
-  #gexf_file<-paste0(graph_name,".gexf")
-  #graph_gexf<-read.gexf(gexf_file)
-  #graph_igraph<-gexf.to.igraph(graph_gexf)
-  
-  #nodes<-fromJSON(json_file) #List of samples within nodes
-  #edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
   
   #parallel computing prep
   print ("Acquiring cpu cores")
-  cl <- makeCluster(cores)
-  varlist=c("permutations","column","parSapply","p_value","permute","c_vector","edges","nodes","matrix1","p_connectivity","cl","pii_calc","c_calc")
+  cl <- makeCluster(as.numeric(cores))
+  varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc")
   clusterExport(cl=cl, varlist=varlist,envir=environment())
   
-  ptm<<-proc.time()
-  chunk_size<-50
-  #Spliting job into chunks of 20(chunk) columns
+  ptm<<-proc.time() #Sytem time stamp for running calculation
+  chunk_size<-50    #Size of column chunk
+  
+  #Spliting job into chunks of chunk_size columns
   split.column<-split(column,ceiling(seq_along(column)/chunk_size))
   
   sapply(split.column,function (chunk) 
-  #p_table<-parSapply(cl,split.column,function (chunk) 
+  #calculating c-scores and p-values for each chunk of columns
   {
     print (paste0(Sys.time()," Calculating C-scores and P-values for rows: ",chunk[1],"-",chunk[chunk_size]))
     partial_table<-parSapply(cl,chunk,function(x) 
-    #partial_table<-sapply(chunk,function(x)   
           {
              p_connectivity(nodes,x,permutations)
           })
     
-    #print (paste0(Sys.time(),"Updating results.csv for rows: ",chunk[1],"-",chunk[20]))
     partial_table<-t(partial_table)
     rownames(partial_table)<-colnames(matrix1)[chunk]
     p_table<<-rbind(p_table,partial_table)
-    write.table(partial_table,"results.csv",append=TRUE,sep=",",col.names=FALSE)
+    write.table(partial_table,paste0(arg$name,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
     
   })
   
-  
   print("Releasing cores")
-  stopCluster(cl)
   
+  stopCluster(cl) # Releasing acquired CPU cores
   return (p_table)
 }
 
@@ -127,11 +114,10 @@ c_vector<-function(nodes,column,permutations)
 pii_calc<-function(nodes,column)
 {  #Calculate pi value(mean) for a particular column in a particular node.
   # Input: nodes list and one specific column(i) of interest, output: pi
-  #if (log_scale==TRUE) 
-    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[x+1,column])))
-  #else
-   # ei<-sapply(nodes,function (x) mean(TPM.matrix[x+1,column]))
-  #ei<-parSapply(cl,nodes,function (x) mean(TPM.matrix[x+1,column]))
+  if (arg$log2==TRUE) {
+    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[x+1,column]))) 
+  } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
+  
   total_ei<-sum(ei)  
   pii<-ei/total_ei
   return(pii)
@@ -157,7 +143,7 @@ c_calc<-function(edges,pii)
 
 
 permute<-function(nodes)
-  #Permuting rows within nodes, maintaining skeleton
+  #Permuting rows within nodes, maintaining skeleton and samples labels
 {
   a<-unlist(nodes,use.names=FALSE)
   original<-unique(a)
@@ -176,10 +162,6 @@ permute<-function(nodes)
 
 
 
-p_table<<-NULL
-col1<<-t(c("Row","c-score","p-value","q-value"))
-write.table(col1,"results.csv",sep=",",col.names=FALSE,row.names=FALSE)
-
 ##########################################################
 ##########################################################
 ##########################################################
@@ -187,8 +169,8 @@ write.table(col1,"results.csv",sep=",",col.names=FALSE,row.names=FALSE)
 
 #This is the RUN command:
 
-ans<-connectivity_pvalues_table(column=arg$columns,permutations=arg$permutations,FDR=TRUE,cores=4)
-#ans<-connectivity_pvalues_table("LUAD_MDS_30_3","TPM.matrix.csv",column=1:2,permutations=100,FDR=TRUE,cores=4)
+ans<-connectivity_pvalues_table(column=arg$columns,permutations=arg$permutations,cores=arg$cores)
+
 
 ##########################################################
 ###########################################################
@@ -198,21 +180,30 @@ ans<-connectivity_pvalues_table(column=arg$columns,permutations=arg$permutations
 ###########################################################
 
 
-run_t<-proc.time()-ptm #Calculationg run time
+
 
 
 print ("Correcting for multiple testings:")
+#Writing file_fdr if TRUE, otherwise just sorting p-values
+if (arg$fdr==TRUE)
+{
+  p_values<-ans[,2]
+  q_values<-p.adjust(p_values,"fdr")
+  ans<-cbind(ans,q_values)
+  colnames(ans)<-c("c-score","p-value","q-value")
+  ans<-ans[order(ans[,"q-value"]),]
+  } else 
+      {
+        colnames(ans)<-c("c-score","p-value")
+        ans<-ans[order(ans[,"p-value"]),]
+        
+      }
+  print ("Writing results_final.csv file to disk:")
+  write.csv(ans,paste0(arg$name,"_results_final.csv"))
 
-p_values<-ans[,2]
-q_values<-p.adjust(p_values,"fdr")
-ans<-cbind(ans,q_values)
-colnames(ans)<-c("c-score","p-value","q-value")
-ans<-ans[order(ans[,"q-value"]),]
 
 
-print ("[4] Writing results_FDR.csv file to disk")
-write.csv(ans,"results_FDR.csv")
-
+run_t<-proc.time()-ptm #Calculationg run time
 print(paste("Runtime in seconds:",run_t[3]))
 print(paste("Number of columns:",length(arg$columns)))
 print(paste("Number of permutations:",arg$permutations))
