@@ -149,7 +149,7 @@ write.table(col1,"results.csv",sep=",",col.names=FALSE,row.names=FALSE)
 
 #This is the RUN command:
 
-ans<-connectivity_pvalues_table("LUAD_Neigh_45_3","TPM.matrix.csv",column=1:1000,permutations=500,FDR=TRUE,log_scale=TRUE,cores=4)
+ans<-connectivity_pvalues_table("LUAD_Neigh_45_3","TPM.matrix.light.csv",column=1:5,permutations=10,FDR=TRUE,log_scale=TRUE,cores=4)
 #ans<-connectivity_pvalues_table("LUAD_MDS_30_3","TPM.matrix.csv",column=1:2,permutations=100,FDR=TRUE,cores=4)
 
 ##########################################################
