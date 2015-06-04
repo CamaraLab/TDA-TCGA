@@ -2,7 +2,8 @@
 setwd("C:/Users/Udi/Downloads/LUAD_3.1.14.0")
 library(org.Hs.eg.db)
 library(plyr)
-library(stringr) 
+library(stringr)
+library(parallel)
 
 #Raw file list.
 LUAD.files<-list.files("./rsem.genes.results/",full.names=T)
@@ -81,17 +82,27 @@ clinical<-rbind(clinical,delta.zero.matrix(TPM.matrix,clinical))
 #Creating Big matrix
 TPM.matrix<-TPM.matrix[order(rownames(TPM.matrix)),]
 cnv<-cnv[order(rownames(cnv)),]
+
 mut<-mut[order(rownames(mut)),]
 
 colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
 colnames(mut)<-paste0("mut_",colnames(mut))
 colnames(cnv)<-paste0("cnv_",colnames(cnv))
-
 BIG.matrix<-cbind(TPM.matrix,mut,cnv)
+
+#Splitting cnv matrix to apmplification only and deletion only
+#In cnv_amp all deletions are zerod, in cnv_del all amplifications are zerod and values are absolute.
+cnv_amp<-cnv
+cnv_amp[cnv<0]<-0
+cnv_del<-cnv
+cnv_del[cnv>0]<-0
+cnv_del<-abs(cnv_del)
 
 #Matrix output to file
 write.csv(TPM.matrix,"TPM.matrix.csv")
-write.csv(cnv,"CNV.matrix.csv")
+write.csv(cnv_amp,"CNV_AMP.matrix.csv")
+write.csv(cnv_del,"CNV_DEL.matrix.csv")
+
 write.csv(mut,"Mut.matrix.csv")
 write.csv(BIG.matrix,"BIG.matrix3.csv")
 
