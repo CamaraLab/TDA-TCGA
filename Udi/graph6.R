@@ -1,32 +1,63 @@
 #Preping environment, loading necessary libraries
-#setwd(".")
-#setwd("C:/Users/Udi/Downloads/LUAD_3.1.14.0")
+
 library(igraph)
 library(rgexf)
 library(jsonlite)
 library(parallel)
+library(getopt)
   
-#Argument section handling
-arg<-list("name","matrix","1:10",500,detectCores(),TRUE,TRUE,"results")
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","output")
+
+#Setting defaults
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","10",20,detectCores(),TRUE,TRUE)
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr")
 #arg1<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:5",10)
-arg1<-as.list(commandArgs(trailingOnly=TRUE))
-arg[1:length(arg1)]<-arg1
+#arg1<-as.list(commandArgs(trailingOnly=TRUE))
+#arg[1:length(arg1)]<-arg1
+
+#Argument section handling
+spec = matrix(c(
+  "name", "n", 1, "character",
+  "matrix", "m",1,"character",
+  "columns", "c",1,"character",
+  "genes", "g",1,"character",
+  "permutations","p",2,"integer",
+  "cores","q",1,"integer",
+  "log2","l",2,"logical",
+  "fdr","f",2,"logical"
+), byrow=TRUE, ncol=4)
+
+arg<-getopt(spec)
+
+if ( is.null(arg$permutations ) ) {arg$permutations= 500}
+if ( is.null(arg$columns ) ) {arg$columns= 1}
+
 
 #Extracting columns to analyze from arguments
+
 if (grepl(":",arg$columns)==TRUE)
   {  
-  arg$columns<-as.numeric(strsplit(arg$columns,":")[[1]][1]:strsplit(arg$columns,":")[[1]][2])
-} else arg$columns<-as.numeric(arg$columns)
-
-
+  columns<-as.numeric(strsplit(arg$columns,":")[[1]][1]:strsplit(arg$columns,":")[[1]][2])
+} else 
+    columns<-as.numeric(arg$columns)
 
 #Loading matrix file to memory and log transforming if log2=TRUE
 matrix_full_name<-arg$matrix
 print (paste0("[1] Loading ",matrix_full_name, " file to memory"))
 matrix1<-read.csv(matrix_full_name,row.names=1)
 if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
-  
+
+#Translating gene name to collumn number
+if (!is.null(arg$genes)) 
+{
+  columns<-which(colnames(matrix1)==arg$genes)
+}
+
+
+
+
+
+
+
 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
 print ("Parsing json and gexf files")
 graph_name<-arg$name
@@ -41,7 +72,7 @@ edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 
 #Initializing rolling file
 p_table<-NULL
-col1<<-t(c("Row","c-score","p-value"))
+col1<-t(c("Row","c-score","p-value"))
 write.table(col1,paste0(arg$name,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
@@ -119,7 +150,8 @@ pii_calc<-function(nodes,column)
   } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
   
   total_ei<-sum(ei)  
-  pii<-ei/total_ei
+  if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
+  #pii<-ei/total_ei
   return(pii)
 }
 
@@ -169,7 +201,7 @@ permute<-function(nodes)
 
 #This is the RUN command:
 
-ans<-connectivity_pvalues_table(column=arg$columns,permutations=arg$permutations,cores=arg$cores)
+ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
 
 
 ##########################################################
@@ -205,6 +237,6 @@ if (arg$fdr==TRUE)
 
 run_t<-proc.time()-ptm #Calculationg run time
 print(paste("Runtime in seconds:",run_t[3]))
-print(paste("Number of columns:",length(arg$columns)))
+print(paste("Number of columns:",length(columns)))
 print(paste("Number of permutations:",arg$permutations))
-print(paste("Average p_value calc per column:",run_t[3]/length(arg$columns)))
+print(paste("Average p_value calc per column:",run_t[3]/length(columns)))
