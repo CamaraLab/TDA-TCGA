@@ -9,7 +9,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","10",20,detectCores(),TRUE,TRUE)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","10",20,detectCores(),TRUE,TRUE,200)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr")
 
 #Argument section handling
@@ -21,7 +21,8 @@ spec = matrix(c(
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
   "log2","l",2,"logical",
-  "fdr","f",2,"logical"
+  "fdr","f",2,"logical",
+  "chunk","k",2,"integer"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec)
@@ -31,6 +32,7 @@ if ( is.null(arg$columns ) ) {arg$columns= 1}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
+if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 
 #Extracting columns to analyze from arguments
 
@@ -49,12 +51,9 @@ if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
 #Translating gene name to collumn number
 if (!is.null(arg$genes)) 
 {
-  columns<-which(colnames(matrix1)==arg$genes)
+  if (!is.na(match(arg$genes,colnames(matrix1)))) #Check if gene name exist
+    {columns<-which(colnames(matrix1)==arg$genes)} else stop("Column name not found")
 }
-
-
-
-
 
 
 
@@ -73,7 +72,6 @@ edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 cluster_list<-clusters(graph_igraph)
 largest_cluster_id<-which.max(cluster_list$csize)
 largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
-#new_graph<-induced.subgraph(graph_igraph,largest_cluster_nodes)
 edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
 
 
@@ -97,7 +95,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   clusterExport(cl=cl, varlist=varlist,envir=environment())
   
   ptm<<-proc.time() #Sytem time stamp for running calculation
-  chunk_size<-2    #Size of column chunk
+  chunk_size<-arg$chunk    #Size of column chunk
   
   #Spliting job into chunks of chunk_size columns
   split.column<-split(column,ceiling(seq_along(column)/chunk_size))
@@ -128,11 +126,15 @@ connectivity_pvalues_table<-function (column,permutations,cores)
 p_connectivity<-function(nodes,column,permutations)
   #Given, nodes,column of interest, and n permutations, return c value and it's p-value
 {
+  if (sum(matrix1[,column]==0)==nrow(matrix1)) #If column is all zeros Skip all permutations 
+  {p_table<-c(0,0)} else 
+  {
   pii<-pii_calc(nodes,column) #Pi values of particular columns
   c1<-c_calc(edges,pii) #Connectivity value (c) before permuting
   c1<-c1*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Fine tunning c-value
   c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
   p_table<-c(c1,p_value(c1,c))
+  }   
   return(p_table)
 } 
 
@@ -178,6 +180,7 @@ c_calc<-function(edges,pii)
   #pi values,based on current edges structure. (sim Adjacency matrix)
   #c=pi*pj*Aij()
 {
+  
   c<-apply(edges,1,function (x) pii[x[1]]*pii[x[2]])
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
   return(c)
