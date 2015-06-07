@@ -81,7 +81,7 @@ edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
 #Initializing rolling results file
 p_table<-NULL
 col1<-t(c("Row","c-score","p-value"))
-write.table(col1,paste0(arg$name,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+write.table(col1,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
 
@@ -97,7 +97,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   clusterExport(cl=cl, varlist=varlist,envir=environment())
   
   ptm<<-proc.time() #Sytem time stamp for running calculation
-  chunk_size<-50    #Size of column chunk
+  chunk_size<-2    #Size of column chunk
   
   #Spliting job into chunks of chunk_size columns
   split.column<-split(column,ceiling(seq_along(column)/chunk_size))
@@ -114,7 +114,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
     partial_table<-t(partial_table)
     rownames(partial_table)<-colnames(matrix1)[chunk]
     p_table<<-rbind(p_table,partial_table)
-    write.table(partial_table,paste0(arg$name,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
+    write.table(partial_table,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
     
   })
   
@@ -243,7 +243,7 @@ if (arg$fdr==TRUE)
         
       }
   print ("Writing results_final.csv file to disk:")
-  write.csv(ans,paste0(arg$name,"_results_final.csv"))
+  write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
 
 
