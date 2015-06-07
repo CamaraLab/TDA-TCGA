@@ -1,3 +1,4 @@
+setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
 
 library(igraph)
@@ -7,12 +8,9 @@ library(parallel)
 library(getopt)
   
 
-#Setting defaults
+#Setting defaults for debug mode
 arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","10",20,detectCores(),TRUE,TRUE)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr")
-#arg1<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:5",10)
-#arg1<-as.list(commandArgs(trailingOnly=TRUE))
-#arg[1:length(arg1)]<-arg1
 
 #Argument section handling
 spec = matrix(c(
@@ -30,7 +28,9 @@ arg<-getopt(spec)
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$columns ) ) {arg$columns= 1}
-
+if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
+if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
+if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 
 #Extracting columns to analyze from arguments
 
@@ -42,7 +42,7 @@ if (grepl(":",arg$columns)==TRUE)
 
 #Loading matrix file to memory and log transforming if log2=TRUE
 matrix_full_name<-arg$matrix
-print (paste0("[1] Loading ",matrix_full_name, " file to memory"))
+print (paste0("Loading ",matrix_full_name, " file to memory"))
 matrix1<-read.csv(matrix_full_name,row.names=1)
 if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
 
@@ -69,8 +69,16 @@ graph_igraph<-gexf.to.igraph(graph_gexf)
 nodes<-fromJSON(json_file) #List of samples within nodes
 edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 
+#Subsetting for the largest connected subgraph
+cluster_list<-clusters(graph_igraph)
+largest_cluster_id<-which.max(cluster_list$csize)
+largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
+#new_graph<-induced.subgraph(graph_igraph,largest_cluster_nodes)
+edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
 
-#Initializing rolling file
+
+
+#Initializing rolling results file
 p_table<-NULL
 col1<-t(c("Row","c-score","p-value"))
 write.table(col1,paste0(arg$name,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
@@ -85,7 +93,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   #parallel computing prep
   print ("Acquiring cpu cores")
   cl <- makeCluster(as.numeric(cores))
-  varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc")
+  varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes")
   clusterExport(cl=cl, varlist=varlist,envir=environment())
   
   ptm<<-proc.time() #Sytem time stamp for running calculation
@@ -122,6 +130,7 @@ p_connectivity<-function(nodes,column,permutations)
 {
   pii<-pii_calc(nodes,column) #Pi values of particular columns
   c1<-c_calc(edges,pii) #Connectivity value (c) before permuting
+  c1<-c1*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Fine tunning c-value
   c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
   p_table<-c(c1,p_value(c1,c))
   return(p_table)
@@ -147,6 +156,7 @@ pii_calc<-function(nodes,column)
   # Input: nodes list and one specific column(i) of interest, output: pi
   if (arg$log2==TRUE) {
     ei<-sapply(nodes,function (x) log2(1+mean(matrix1[x+1,column]))) 
+        
   } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
   
   total_ei<-sum(ei)  
@@ -166,10 +176,12 @@ p_value<-function (c1,c_vec)
 c_calc<-function(edges,pii)
   #Calculate connectivity value of a prticular column, 
   #pi values,based on current edges structure. (sim Adjacency matrix)
-  #c=pi*pj*Aij
+  #c=pi*pj*Aij()
 {
   c<-apply(edges,1,function (x) pii[x[1]]*pii[x[2]])
-  con<-sum(c)*2 #Multiple by 2 for 2 way edges.
+  c<-sum(c)*2 #Multiple by 2 for 2 way edges.
+  return(c)
+  
 }
 
 
