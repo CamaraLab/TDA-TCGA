@@ -45,11 +45,7 @@ if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
 
 
 
-#Extracting columns to analyze from arguments
 
-#arg$columns<-"all"
-#column<-column_range(arg$columns)
-#column   
 column_range<-function(col_range)
   #Gets column range from arg$column and parse it.
 {
@@ -78,27 +74,8 @@ column_range<-function(col_range)
   return(x)
 }
 
+#Extracting columns from arguments
 columns<-column_range(arg$columns)
-#column   
-    
-##if (grepl(":",arg$columns)==TRUE) #If range x:x is supplied
-  ##{  
-  #columns<-as.numeric(strsplit(arg$columns,":")[[1]][1]:strsplit(arg$columns,":")[[1]][2])
-#} else 
-#    columns<-as.numeric(arg$columns)
-
-
-
-
-
-#if gene name to column number
-#if (!is.null(arg$genes)) 
-#{
-#  if (!is.na(match(arg$genes,colnames(matrix1)))) #Check if gene name exist
-##    {columns<-which(colnames(matrix1)==arg$genes)} else stop("Column name not found")
-#}
-
-#}
 
 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
 print ("Parsing json and gexf files")
@@ -123,6 +100,7 @@ edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
 p_table<-NULL
 col1<-t(c("Gene","c-score","p-value"))
 write.table(col1,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+#write.table(col1,paste0(arg$name,"_",arg$matrix,"_results_final.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
 
@@ -167,19 +145,32 @@ connectivity_pvalues_table<-function (column,permutations,cores)
 
 
 p_connectivity<-function(nodes,column,permutations)
-  #Given, nodes,column of interest, and n permutations, return c value and it's p-value
+  #Given, nodes,column of interest, and n permutations, return c value and it's corresponding p-value
 {
   if (sum(matrix1[,column]==0)==nrow(matrix1)) #If column is all zeros Skip all permutations 
   {p_table<-c(0,0)} else 
   {
-  pii<-pii_calc(nodes,column) #Pi values of particular columns
-  c1<-c_calc(edges,pii) #Connectivity value (c) before permuting
-  c1<-c1*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Fine tunning c-value
+  pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
+  c1<-c_calc(edges,pii) # Connectivity value for specific column across the graph
   c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
   p_table<-c(c1,p_value(c1,c))
   }   
   return(p_table)
 } 
+
+pii_calc<-function(nodes,column)
+{  #Calculate pi value(mean) for a particular column in a particular node.
+  # Input: nodes list and one specific column(i) of interest, output: pi
+  if (arg$log2==TRUE) {
+    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[x+1,column]))) 
+    
+  } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
+  
+  total_ei<-sum(ei)  
+  if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
+  return(pii)
+}
+
 
 c_vector<-function(nodes,column,permutations)
   #Generate vector of connectivity values each element is connectivity value for each permutation
@@ -196,19 +187,6 @@ c_vector<-function(nodes,column,permutations)
   
 }
 
-pii_calc<-function(nodes,column)
-{  #Calculate pi value(mean) for a particular column in a particular node.
-  # Input: nodes list and one specific column(i) of interest, output: pi
-  if (arg$log2==TRUE) {
-    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[x+1,column]))) 
-        
-  } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
-  
-  total_ei<-sum(ei)  
-  if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
-  #pii<-ei/total_ei
-  return(pii)
-}
 
 
 
@@ -226,10 +204,10 @@ c_calc<-function(edges,pii)
   
   c<-apply(edges,1,function (x) pii[x[1]]*pii[x[2]])
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
+  c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1)
   return(c)
   
 }
-
 
 
 permute<-function(nodes)
@@ -281,13 +259,14 @@ if (arg$fdr==TRUE)
   q_values<-p.adjust(p_values,"fdr")
   ans<-cbind(ans,q_values)
   colnames(ans)<-c("c-score","p-value","q-value")
-  ans<-ans[order(ans[,"q-value"]),]
+  if ((length(columns))>1) #Patch fixing for 1 gene run
+    ans<-ans[order(ans[,"q-value"]),]
   } else 
       {
         colnames(ans)<-c("c-score","p-value")
-        ans<-ans[order(ans[,"p-value"]),]
-        
-      }
+        if ((length(columns))>1) #Patch fixing for 1 gene run
+          ans<-ans[order(ans[,"p-value"]),]
+       }
   print ("Writing results_final.csv file to disk:")
   write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
