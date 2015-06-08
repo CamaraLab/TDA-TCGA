@@ -82,7 +82,6 @@ clinical<-rbind(clinical,delta.zero.matrix(TPM.matrix,clinical))
 #Creating Big matrix
 TPM.matrix<-TPM.matrix[order(rownames(TPM.matrix)),]
 cnv<-cnv[order(rownames(cnv)),]
-
 mut<-mut[order(rownames(mut)),]
 
 colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
@@ -90,7 +89,7 @@ colnames(mut)<-paste0("mut_",colnames(mut))
 colnames(cnv)<-paste0("cnv_",colnames(cnv))
 BIG.matrix<-cbind(TPM.matrix,mut,cnv)
 
-#Splitting cnv matrix to apmplification only and deletion only
+#Splitting cnv matrix to amplification only and deletion only
 #In cnv_amp all deletions are zerod, in cnv_del all amplifications are zerod and values are absolute.
 cnv_amp<-cnv
 cnv_amp[cnv<0]<-0
@@ -102,106 +101,5 @@ cnv_del<-abs(cnv_del)
 write.csv(TPM.matrix,"TPM.matrix.csv")
 write.csv(cnv_amp,"CNV_AMP.matrix.csv")
 write.csv(cnv_del,"CNV_DEL.matrix.csv")
-
 write.csv(mut,"Mut.matrix.csv")
 write.csv(BIG.matrix,"BIG.matrix3.csv")
-
-
-
-########################
-# Many bulshit down from here#
-#####################33
-
-
-
-
-
-
-
-
-
-#cnv[]<-lapply(cnv,as.numeric)
-#colnames(cnv)<-cnv[1,]
-#cnv<-cnv[-1,]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#a<-read.table("BIG.matrix2.txt")
-#b<-read.csv("BIG.matrix2.csv")
-
-#inter.genes<-intersect(TPM.mut.gene.intersect,colnames(cnv))
-#inter.samples<-intersect(TPM.mut.sample.intersect,rownames(cnv))#
-
-#BIG.matrix<-cbind(TPM.matrix[inter.samples,inter.genes],cnv[inter.samples,inter.genes],mut.aut[inter.samples,inter.genes])
-#n.genes<-length(inter.genes)
-#colnames(BIG.matrix)[1:n.genes]<-paste0("exp_",inter.genes)
-#colnames(BIG.matrix)[(n.genes+1):(n.genes*2)]<-paste0("cnv_",inter.genes)
-#colnames(BIG.matrix)[(n.genes*2+1):ncol(BIG.matrix)]<-paste0("mut_",inter.genes)
-#g<-cbind(TPM.matrix[inter.samples,inter.genes],cnv[inter.samples,inter.genes])
-# Read clinical file
-##clinical<-read.delim("./clinical/clinical/Biotab/nationwidechildrens.org_clinical_patient_luad.txt",stringsAsFactors=FALSE)
-#clinical<-clinical[3:nrow(clinical),c("bcr_patient_barcode","death_days_to")]
-#rownames(clinical)<-NULL
-#clinical<-arrange(clinical,bcr_patient_barcode)
-#clinical
-#Add clinical data to TPM.matrix
-
-#x<-match(strtrim(rownames(BIG.matrix),12),clinical[,1])
-#death_days_to<-clinical$death_days_to[x]
-#BIG.matrix<-cbind(death_days_to,BIG.matrix)
-
-
-#write.csv(BIG.matrix,"BIG.matrix.csv")
-#write.csv(t(BIG.matrix),"tBIG.matrix.csv")
-
-  
-#Validate matrix
-#rand.patient<-LUAD.files[sample(1:10,5, replace=F)]
-#rand.gene<-sample(1:20531,5,replace=F)
-#TPM.matrix[rand.gene,rand.patient]
-#gene_id<-read.table(LUAD.files[1],header=T,stringsAsFactors=F)[,"gene_id"]
-#split.gene.name<-t(as.data.frame(strsplit(gene_id[1:10],"|",fixed=T)))
-#rownames(split.gene.name)<-NULL
-
-
-
-
-
-
-#library("biomaRt")
-#entrez=c("673","837")
-# ensembl=useMart("ensembl")
-#filters = listFilters(ensembl)
-#ensembl = useDataset("hsapiens_gene_ensembl",mart=ensembl)
-#attributes = listAttributes(ensembl)
-# goids=getBM(attributes=c('entrezgene','go_id'),values="672", mart=ensembl,fiters=filters)
- 
-#head(goids)
-
-
-##big<-read.csv("BIG.matrix11.csv")
-#colnames(big)[3:17926]<-paste0("exp_",inter.genes)
-#write.csv(BIG.matrix,"BIG.matrix.csv")
-#?write
-
-
-
-#Adding missing samples from TPM with zeroes
-
-
-#colnames(mut.cur)<-gsub(".","-",colnames(mut.cur),fixed=TRUE)
-#Locations of genes in mut.cur that overlap gene_id
-#gene.overlap<-match(gene_id[,"Symbol"],mut.cur[,1])
-#sample.overlap<-match(strtrim(index$PatientID,15),colnames(mut.cur))
-#Big.matrix<-cbind(TPM.matrix,t(mut.cur[which(gene.overlap!="NA"),which(sample.overlap!="NA")]))

@@ -24,10 +24,11 @@ intersect.mat<-function(mat.A,mat.B)
   #mat.B is intersection of genes and samples
 {
   samples<-rownames(mat.A)
-  genes<-colnames(mat.A)
+  #genes<-colnames(mat.A)
   sample.intersect<-intersect(samples,rownames(mat.B))
-  gene.intersect<-intersect(genes,colnames(mat.B))
-  mat<-mat.B[sample.intersect,gene.intersect]
+  #gene.intersect<-intersect(genes,colnames(mat.B))
+  #mat<-mat.B[sample.intersect,gene.intersect]
+  mat<-mat.B[sample.intersect,]
   
 }
 
@@ -36,7 +37,6 @@ delta.zero.matrix<-function (mat.A,mat.B)
   #nrow(mut.B+Delta)=mut.A - filled with zeros
 {
   samples<-rownames(mat.A)
-  genes<-colnames(mat.A)
   missing_samples<-setdiff(samples,rownames(mat.B))
   delta<-matrix(0,nrow(mat.A)-nrow(mat.B),ncol(mat.B))
   rownames(delta)<-missing_samples
@@ -65,34 +65,4 @@ remove.after<-function(string,character)
 
 
 
-
-
-
-
-m_join<-function (matrix1,matrix2,rows,cols)
-  matrix2<-sample.intersect<-intersect(rownames(TPM.matrix),colnames(mut.aut))
-  gene.intersect<-intersect(gene_id_cur[,"Symbol"],mut.aut[,1])
-  BIG.matrix<-cbind(TPM.matrix[sample.intersect,gene.intersect]
-#Read mutation data
-mut.aut<-read.delim("./MUTATIONS/UCSC/genomicMatrix.automated",stringsAsFactors=FALSE)
-#mut.cur<-read.delim("./MUTATIONS/UCSC/genomicMatrix.curated",stringsAsFactors=FALSE)
-mut.aut<-as.data.frame(mut.aut,stringsAsFactors=FALSE)
-colnames(mut.aut)<-gsub(".","-",colnames(mut.aut),fixed=TRUE)
-#colnames(mut.cur)<-gsub(".","-",colnames(mut.cur),fixed=TRUE)
-#Locations of genes in mut.cur that overlap gene_id
-#gene.overlap<-match(gene_id[,"Symbol"],mut.cur[,1])
-#sample.overlap<-match(strtrim(index$PatientID,15),colnames(mut.cur))
-#Big.matrix<-cbind(TPM.matrix,t(mut.cur[which(gene.overlap!="NA"),which(sample.overlap!="NA")]))
-
-sample.intersect<-intersect(rownames(TPM.matrix),colnames(mut.aut))
-gene.intersect<-intersect(gene_id_cur[,"Symbol"],mut.aut[,1])
-BIG.matrix<-cbind(TPM.matrix[sample.intersect,gene.intersect],t(mut.aut[gene.intersect,sample.intersect]))
-colnames(BIG.matrix)[17925:35848]<-gene.intersect
-
-
-
-
-
-r<-fix_symbols(gene_id_split)
-}
 
