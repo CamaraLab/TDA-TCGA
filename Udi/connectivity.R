@@ -268,6 +268,7 @@ if (arg$fdr==TRUE)
           ans<-ans[order(ans[,"p-value"]),]
        }
   print ("Writing results_final.csv file to disk:")
+  ans<-ans[which(ans[,"c-score"]!=0),] #removing nodes with zero c-score in final file
   write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
 
