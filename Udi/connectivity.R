@@ -1,4 +1,4 @@
-setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
+#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
 
 library(igraph)
@@ -22,20 +22,19 @@ spec = matrix(c(
   "cores","q",1,"integer",
   "log2","l",2,"logical",
   "fdr","f",2,"logical",
-  "chunk","k",2,"integer"
+  "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec)
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
-if ( is.null(arg$columns ) ) {arg$columns= 1}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 
-
+      
 
 #Loading matrix file to memory and log transforming if log2=TRUE
 matrix_full_name<-arg$matrix
@@ -98,8 +97,8 @@ edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
 
 #Initializing rolling results file
 p_table<-NULL
-col1<-t(c("Gene","c-score","p-value"))
-write.table(col1,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+col_rolling<-t(c("Gene","c_score","p_value","pi_mean","pi_sd","pi_fraction"))
+write.table(col_rolling,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 #write.table(col1,paste0(arg$name,"_",arg$matrix,"_results_final.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
@@ -109,14 +108,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   # Generates connectivity p_values tables. 
 {
   
-  #parallel computing prep
-  print ("Acquiring cpu cores")
-  cl <- makeCluster(as.numeric(cores))
-  varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes")
-  clusterExport(cl=cl, varlist=varlist,envir=environment())
   
-  ptm<<-proc.time() #Sytem time stamp for running calculation
-  chunk_size<-arg$chunk    #Size of column chunk
   
   #Spliting job into chunks of chunk_size columns
   split.column<-split(column,ceiling(seq_along(column)/chunk_size))
@@ -126,21 +118,23 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   {
     print (paste0(Sys.time()," Calculating C-scores and P-values for rows: ",chunk[1],"-",chunk[chunk_size]))
     partial_table<-parSapply(cl,chunk,function(x) 
-          {
+    #partial_table<-sapply(chunk,function(x)       
+    {
              p_connectivity(nodes,x,permutations)
           })
     
     partial_table<-t(partial_table)
     rownames(partial_table)<-colnames(matrix1)[chunk]
-    p_table<<-rbind(p_table,partial_table)
+    #p_table<<-rbind(p_table,partial_table)
     write.table(partial_table,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
     
   })
   
-  print("Releasing cores")
+  complete_table<-read.csv(paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),row.names=1,header=TRUE)
+  return(complete_table)
   
-  stopCluster(cl) # Releasing acquired CPU cores
-  return (p_table)
+ 
+  
 }
 
 
@@ -148,12 +142,15 @@ p_connectivity<-function(nodes,column,permutations)
   #Given, nodes,column of interest, and n permutations, return c value and it's corresponding p-value
 {
   if (sum(matrix1[,column]==0)==nrow(matrix1)) #If column is all zeros Skip all permutations 
-  {p_table<-c(0,0)} else 
+  {p_table<-rep(0,length(col_rolling)-1)} else 
   {
   pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
+  pii_mean<-mean(pii)
+  pii_sd<-sd(pii)
+  pii_frac<-sum(pii!=0)/length(pii)
   c1<-c_calc(edges,pii) # Connectivity value for specific column across the graph
   c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
-  p_table<-c(c1,p_value(c1,c))
+  p_table<-c(c1,p_value(c1,c),pii_mean,pii_sd,pii_frac)
   }   
   return(p_table)
 } 
@@ -230,6 +227,15 @@ permute<-function(nodes)
 
 
 
+#parallel computing prep
+print ("Acquiring cpu cores")
+cl <- makeCluster(as.numeric(arg$cores))
+varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling")
+clusterExport(cl=cl, varlist=varlist,envir=environment())
+
+ptm<<-proc.time() #Sytem time stamp for running calculation
+chunk_size<-arg$chunk    #Size of column chunk
+
 ##########################################################
 ##########################################################
 ##########################################################
@@ -247,6 +253,8 @@ ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cor
 ##########################################################
 ###########################################################
 
+print("Releasing cores")
+stopCluster(cl) # Releasing acquired CPU cores
 
 
 
@@ -258,18 +266,15 @@ if (arg$fdr==TRUE)
   p_values<-ans[,2]
   q_values<-p.adjust(p_values,"fdr")
   ans<-cbind(ans,q_values)
-  colnames(ans)<-c("c-score","p-value","q-value")
-  if ((length(columns))>1) #Patch fixing for 1 gene run
-    ans<-ans[order(ans[,"q-value"]),]
-  } else 
-      {
-        colnames(ans)<-c("c-score","p-value")
-        if ((length(columns))>1) #Patch fixing for 1 gene run
-          ans<-ans[order(ans[,"p-value"]),]
-       }
-  print ("Writing results_final.csv file to disk:")
-  ans<-ans[which(ans[,"c-score"]!=0),] #removing nodes with zero c-score in final file
-  write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
+  colnames(ans)[ncol(ans)]<-("q_value")
+  ans<-ans[order(ans[,"q_value"]),]
+} else  ans<-ans[order(ans[,"p_value"]),]
+
+
+print ("Writing results_final.csv file to disk:")
+ans<-ans[which(ans[,"c_score"]!=0),] #removing nodes with zero c-score in final file
+
+write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
 
 
