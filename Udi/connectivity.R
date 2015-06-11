@@ -227,7 +227,6 @@ permute<-function(nodes)
   rownames(conversion)<-conversion[,"original"]
   d<-sapply(a,function (original)
   {
-    print(original)
     a.value<-conversion[as.character(original),"permuted"]
     #a.value<-conversion[original+1,"permuted"]
   })
