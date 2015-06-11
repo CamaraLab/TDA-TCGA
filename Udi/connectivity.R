@@ -145,7 +145,7 @@ p_connectivity<-function(nodes,column,permutations)
   {p_table<-rep(0,length(col_rolling)-1)} else 
   {
   pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
-  pii_mean<-mean(pii)
+  pii_mean<-1/length(largest_cluster_nodes)
   pii_sd<-sd(pii)
   pii_frac<-sum(pii!=0)/length(pii)
   c1<-c_calc(edges,pii) # Connectivity value for specific column across the graph
@@ -201,7 +201,7 @@ c_calc<-function(edges,pii)
   
   c<-apply(edges,1,function (x) pii[x[1]]*pii[x[2]])
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
-  c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1)
+  c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Normalizing for graph size
   return(c)
   
 }
