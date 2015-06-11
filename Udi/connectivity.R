@@ -1,5 +1,6 @@
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
+#debug(permute)
 
 library(igraph)
 library(rgexf)
@@ -9,8 +10,8 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","10",20,detectCores(),TRUE,TRUE,200)
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr")
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",20,detectCores(),TRUE,TRUE,4)
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
 spec = matrix(c(
@@ -25,7 +26,7 @@ spec = matrix(c(
   "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec)
+arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -85,6 +86,7 @@ graph_gexf<-read.gexf(gexf_file)
 graph_igraph<-gexf.to.igraph(graph_gexf)
 
 nodes<-fromJSON(json_file) #List of samples within nodes
+names(nodes)<-as.numeric(names(nodes))+1 # Starting node is 1 - rownames
 edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 
 #Subsetting for the largest connected subgraph
@@ -92,7 +94,14 @@ cluster_list<-clusters(graph_igraph)
 largest_cluster_id<-which.max(cluster_list$csize)
 largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
 edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
+nodes<-nodes[largest_cluster_nodes]
 
+#relabling nodes and updating edges accordingly
+nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
+rownames(nodes_relabling_table)<-largest_cluster_nodes
+colnames(nodes_relabling_table)<-c("original","new")
+edges<-apply(edges,2,function(x) sapply(x,function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"]))
+names(nodes)<-sapply(names(nodes),function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"])
 
 
 #Initializing rolling results file
@@ -145,7 +154,7 @@ p_connectivity<-function(nodes,column,permutations)
   {p_table<-rep(0,length(col_rolling)-1)} else 
   {
   pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
-  pii_mean<-1/length(largest_cluster_nodes)
+  pii_mean<-mean(pii)
   pii_sd<-sd(pii)
   pii_frac<-sum(pii!=0)/length(pii)
   c1<-c_calc(edges,pii) # Connectivity value for specific column across the graph
@@ -208,17 +217,19 @@ c_calc<-function(edges,pii)
 
 
 permute<-function(nodes)
-  #Permuting rows within nodes, maintaining skeleton and samples labels
+  #Permuting samples within nodes, maintaining skeleton and samples labels
 {
   a<-unlist(nodes,use.names=FALSE)
   original<-unique(a)
   permuted<-sample(original)
   conversion<-cbind(original,permuted)
   conversion<-conversion[order(conversion[,"original"]),]
-  
+  rownames(conversion)<-conversion[,"original"]
   d<-sapply(a,function (original)
   {
-    a.value<-conversion[original+1,"permuted"]
+    print(original)
+    a.value<-conversion[as.character(original),"permuted"]
+    #a.value<-conversion[original+1,"permuted"]
   })
   
   l<-relist(d,skeleton=nodes)
