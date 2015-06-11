@@ -10,7 +10,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",20,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",2,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -26,7 +26,7 @@ spec = matrix(c(
   "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -254,6 +254,7 @@ chunk_size<-arg$chunk    #Size of column chunk
 #This is the RUN command:
 
 ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
+ans<-ans[which(ans[,"c_score"]!=0),] #removing nodes with zero c-score in final file
 
 
 ##########################################################
@@ -262,6 +263,17 @@ ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cor
 ###########################################################
 ##########################################################
 ###########################################################
+
+
+#Recalculating pii_values for divergence calculations
+pii_values <-sapply(seq_along(columns),function (x) pii_calc (nodes,columns[x]))
+pii_values<-cbind(1:length(nodes),pii_values)
+colnames(pii_values)<-c("Node",colnames(matrix1)[columns])
+print("Writing pii_values file:")
+write.table(pii_values,paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
+
+
+
 
 print("Releasing cores")
 stopCluster(cl) # Releasing acquired CPU cores
@@ -282,7 +294,7 @@ if (arg$fdr==TRUE)
 
 
 print ("Writing results_final.csv file to disk:")
-ans<-ans[which(ans[,"c_score"]!=0),] #removing nodes with zero c-score in final file
+
 
 write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
