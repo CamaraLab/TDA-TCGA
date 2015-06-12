@@ -25,12 +25,12 @@ JSD1<-function(P,Q)
 
 #Generating pii_file
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","genes_of_interest")
+varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 
-
-genes_of_interest<-rownames(results[results$q.value<.05,])  
+genes_of_interest<-rownames(results3)[1:100] 
+#genes_of_interest<-rownames(results[results$q.value<.05,])[1:100] 
 pii_values<-pii_values_table(nodes,genes_of_interest)  
 
 dim(pii_values)
@@ -39,7 +39,35 @@ JSD(pii_values[,2],pii_values[,3])
 
 
 matrix1<-read.csv("TPM.matrix.LUAD.csv",row.names = 1)
-results<-read.csv("LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names = 1)
+results1<-read.csv("LUAD_Neigh_45_3_TPM.matrix.csv_results_rolling.csv",row.names = 1)
 rownames(results)
 #results
 
+d<-ncol(pii_values)
+
+a<-matrix(0,d,d)
+for (i in 1:(d-1)) 
+  for (j in (i+1):d)
+      a[i,j]<-JSD1(pii_values[,i],pii_values[,j])
+
+    
+sapply(seq_along(pii_values),function (x) sapply (pii_values[x],JSD) pii_values)
+
+final<-read.csv("~/Desktop/Merging file/LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names=1)
+rolling<-read.csv("~/Desktop/Merging file/LUAD_Neigh_45_3_TPM.matrix.csv_results_rolling.csv",row.names=1)
+x<-cbind(final,rolling[genes,3:5])
+x1<-x[x$pi_fraction!=1,]
+x2<-x[x$q.value!<.05,]
+x3<-x[intersect(rownames(x1),rownames(x2)),]
+write.csv(x3,"~/Desktop/Merging file/combined.csv",row.names=TRUE)
+pii_values<-read.csv("~/Desktop/Merging file/LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv",row.names=1)
+pii_values<-t(pii_values)
+pii_values<-pii_values[rownames(x3),]
+rownames(pii_values)
+dim(pii_values)
+
+
+
+
+genes<-rownames(final)
+x<-cbind(final,rolling[genes,3:5])
