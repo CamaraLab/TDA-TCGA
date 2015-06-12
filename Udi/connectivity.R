@@ -240,7 +240,7 @@ permute<-function(nodes)
 #parallel computing prep
 print ("Acquiring cpu cores")
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","genes_of_interest")
+varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 ptm<<-proc.time() #Sytem time stamp for running calculation
