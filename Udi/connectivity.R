@@ -10,7 +10,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",2,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:20",2,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -240,7 +240,7 @@ permute<-function(nodes)
 #parallel computing prep
 print ("Acquiring cpu cores")
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling")
+varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","columns_of_interest")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 ptm<<-proc.time() #Sytem time stamp for running calculation
@@ -254,7 +254,8 @@ chunk_size<-arg$chunk    #Size of column chunk
 #This is the RUN command:
 
 ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
-ans<-ans[which(ans[,"c_score"]!=0),] #removing nodes with zero c-score in final file
+genes_of_interest<-rownames(ans)[which(ans[,"c_score"]!=0)] #Filtering for non-zero c-value columns
+ans<-ans[genes_of_interest,] #removing nodes with zero c-score in final file
 
 
 ##########################################################
@@ -265,12 +266,17 @@ ans<-ans[which(ans[,"c_score"]!=0),] #removing nodes with zero c-score in final 
 ###########################################################
 
 
-#Recalculating pii_values for divergence calculations
-pii_values <-sapply(seq_along(columns),function (x) pii_calc (nodes,columns[x]))
-pii_values<-cbind(1:length(nodes),pii_values)
-colnames(pii_values)<-c("Node",colnames(matrix1)[columns])
+pii_values_table<-function(nodes,genes_of_interest) {
+  #Returns pii_values of requested columns
+  
+  pii_values <-parSapply(cl,seq_along(genes_of_interest),function (x) pii_calc (nodes,genes_of_interest[x]))
+  pii_values<-cbind(1:length(nodes),pii_values)
+  colnames(pii_values)<-c("Node",genes_of_interest)
+  return(pii_values)
+}
+
 print("Writing pii_values file:")
-write.table(pii_values,paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
+write.table(pii_values_table(nodes,genes_of_interest),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
 
 
 
@@ -282,7 +288,7 @@ stopCluster(cl) # Releasing acquired CPU cores
 
 
 print ("Correcting for multiple testings:")
-#Writing final file if TRUE, otherwise just sorting p-values
+#Writing final file if TRUE sorting by q-values, otherwise just sorting p-values
 if (arg$fdr==TRUE)
 {
   p_values<-ans[,2]
@@ -294,8 +300,6 @@ if (arg$fdr==TRUE)
 
 
 print ("Writing results_final.csv file to disk:")
-
-
 write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
 
