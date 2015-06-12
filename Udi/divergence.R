@@ -4,10 +4,8 @@
 KLD<-function(P,Q){
   
   #Measures Kullback–Leibler divergence between P and Q
-  LR<-log2(P/Q)
-  KL<-sum(P*LR)
   
-  return(KL)
+  KL<-sum(P*log2i(P/Q))
 }
 
 JSD<-function(P,Q){
@@ -17,27 +15,31 @@ JSD<-function(P,Q){
   return(jsd)
 }
 
+log2i<-function(p) 
+  # Special function that returns 0  if log2 argument is 0
+  ifelse(log2(p)=="-Inf",0,p)
+
 JSD1<-function(P,Q)
   
-  -0.5*sum(p*log2p)+
-  JSDi<-function(p,q) -0.5*(p+q)*log2((p+q)/2)+0.5*p*log2p 
-  jsd<-sapply(seq_along(P),)
+  0.5*sum(P*log2i(P))+0.5*sum(Q*log2i(Q))-0.5*sum((P+Q)*log2i((P+Q)/2))  
 
 #Generating pii_file
+cl <- makeCluster(as.numeric(arg$cores))
+varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","genes_of_interest")
+clusterExport(cl=cl, varlist=varlist,envir=environment())
 
-pii_values <-parSapply(cl,seq_along(columns),function (x) pii_calc (nodes,columns[x]))
-pii_values<-cbind(1:length(nodes),pii_values)
-colnames(pii_values)<-c("Node",colnames(matrix1)[columns])
-print("Writing pii_values file:")
-write.table(pii_values,paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
 
+
+genes_of_interest<-rownames(results[results$q.value<.05,])  
+pii_values<-pii_values_table(nodes,genes_of_interest)  
 
 dim(pii_values)
 
 JSD(pii_values[,2],pii_values[,3])
 
 
-#matrix1<-read.csv("TPM.matrix.LUAD.csv",row.names = 1)
-#results<-read.csv("LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names = 1)
+matrix1<-read.csv("TPM.matrix.LUAD.csv",row.names = 1)
+results<-read.csv("LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names = 1)
+rownames(results)
 #results
 
