@@ -1,6 +1,6 @@
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
-debug(permute)
+#debug(permute)
 
 library(igraph)
 library(rgexf)
@@ -10,7 +10,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",20,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","5",2,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -26,7 +26,7 @@ spec = matrix(c(
   "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment his line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -93,9 +93,9 @@ edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 cluster_list<-clusters(graph_igraph)
 largest_cluster_id<-which.max(cluster_list$csize)
 largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
-edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
-#nodes<-nodes[largest_cluster_nodes]
-
+edges<-subset(edges,edges[,1] %in% (largest_cluster_nodes))
+nodes<-nodes[largest_cluster_nodes]
+#nodes
 #relabling nodes and updating edges accordingly
 #nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
 #rownames(nodes_relabling_table)<-largest_cluster_nodes
@@ -172,8 +172,10 @@ pii_calc<-function(nodes,column)
     
   } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
   
-  total_ei<-sum(ei)  
+  #total_ei<-sum(ei)
+  total_ei<-3500.799
   if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
+  #pii<-ei/total_ei
   return(pii)
 }
 
@@ -208,7 +210,11 @@ c_calc<-function(edges,pii)
   #c=pi*pj*Aij()
 {
   
-  c<-apply(edges,1,function (x) pii[x[1]]*pii[x[2]])
+  c<-apply(edges,1,function (x) {
+                                 x<-as.character(x)
+                                 return(pii[x[1]]*pii[x[2]])
+  })  
+    
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
   c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Normalizing for graph size
   return(c)
@@ -227,9 +233,8 @@ permute<-function(nodes)
   rownames(conversion)<-conversion[,"original"]
   d<-sapply(a,function (original)
   {
-    print(original)
-    #a.value<-conversion[as.character(original),"permuted"]
-    a.value<-conversion[original+1,"permuted"]
+    a.value<-conversion[as.character(original),"permuted"]
+    #a.value<-conversion[original+1,"permuted"]
   })
   
   l<-relist(d,skeleton=nodes)
@@ -241,7 +246,7 @@ permute<-function(nodes)
 #parallel computing prep
 print ("Acquiring cpu cores")
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling")
+varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","nodes_bad","nodes_good")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 ptm<<-proc.time() #Sytem time stamp for running calculation
@@ -255,6 +260,8 @@ chunk_size<-arg$chunk    #Size of column chunk
 #This is the RUN command:
 
 ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
+genes_of_interest<-rownames(ans)[which(ans[,"c_score"]!=0)] #Filtering for non-zero c-value columns
+ans<-ans[genes_of_interest,] #removing nodes with zero c-score in final file
 
 
 ##########################################################
@@ -263,6 +270,22 @@ ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cor
 ###########################################################
 ##########################################################
 ###########################################################
+
+
+pii_values_table<-function(nodes,genes_of_interest) {
+  #Returns pii_values of requested columns
+  
+  pii_values <-parSapply(cl,seq_along(genes_of_interest),function (x) pii_calc (nodes,genes_of_interest[x]))
+  pii_values<-cbind(1:length(nodes),pii_values)
+  colnames(pii_values)<-c("Node",genes_of_interest)
+  return(pii_values)
+}
+
+print("Writing pii_values file:")
+write.table(pii_values_table(nodes,genes_of_interest),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
+
+
+
 
 print("Releasing cores")
 stopCluster(cl) # Releasing acquired CPU cores
@@ -271,7 +294,7 @@ stopCluster(cl) # Releasing acquired CPU cores
 
 
 print ("Correcting for multiple testings:")
-#Writing final file if TRUE, otherwise just sorting p-values
+#Writing final file if TRUE sorting by q-values, otherwise just sorting p-values
 if (arg$fdr==TRUE)
 {
   p_values<-ans[,2]
@@ -283,8 +306,6 @@ if (arg$fdr==TRUE)
 
 
 print ("Writing results_final.csv file to disk:")
-ans<-ans[which(ans[,"c_score"]!=0),] #removing nodes with zero c-score in final file
-
 write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
 
