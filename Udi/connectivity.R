@@ -180,7 +180,7 @@ pii_calc<-function(nodes,column)
 
 
 p_value<-function (column,permutations,c_score) {
-  
+#Retunrs p-value of a specific c-score of a specific column  
   if (permutations==0) {return(0)} else {
     c_vec<-NULL
     for (i in 1:permutations)
