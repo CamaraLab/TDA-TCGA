@@ -10,7 +10,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",5,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:100",5,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -275,8 +275,8 @@ pii_values_table<-function(nodes,non_zero_columns) {
   
   #pii_values <-parSapply(cl,seq_along(genes_of_interest),function (x) pii_calc (nodes,x))
   pii_values <-parSapply(cl,non_zero_columns,function (x) pii_calc (nodes,x))
-  pii_values<-cbind(1:length(nodes),pii_values)
-  colnames(pii_values)<-c("Node",colnames(matrix1)[non_zero_columns])
+  colnames(pii_values)<-colnames(matrix1)[non_zero_columns]
+  rownames(pii_values)<-(1:length(nodes))
   return(pii_values)
 }
 
@@ -309,7 +309,7 @@ print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$per
 
 print("Writing pii_values file:")
 pii_values<-pii_values_table(nodes,non_zero_columns)
-write.table(pii_values,paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
+write.table(cbind(1:length(nodes),pii_values),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
 
 print("Releasing cores")
 stopCluster(cl) # Releasing acquired CPU cores
