@@ -10,7 +10,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:100",5,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","exp_LOC553137",300,detectCores(),TRUE,TRUE,10)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -26,7 +26,7 @@ spec = matrix(c(
   "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -95,7 +95,7 @@ largest_cluster_id<-which.max(cluster_list$csize)
 largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
 edges<-subset(edges,edges[,1] %in% (largest_cluster_nodes))
 nodes<-nodes[largest_cluster_nodes]
-#nodes_table<-as.numeric(names(nodes))
+
 
 #relabling nodes and updating edges accordingly
 nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
@@ -144,8 +144,6 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   complete_table<-read.csv(paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),row.names=1,header=TRUE)
   return(complete_table)
   
- 
-  
 }
 
 
@@ -159,9 +157,9 @@ p_connectivity<-function(nodes,column,permutations)
   pii_mean<-mean(pii)
   pii_sd<-sd(pii)
   pii_frac<-sum(pii!=0)/length(pii)
-  c1<-c_calc(edges,pii) # Connectivity value for specific column across the graph
-  c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
-  p_table<-c(c1,p_value(c1,c),pii_mean,pii_sd,pii_frac)
+  c_score<-c_calc(edges,pii) # Connectivity value for specific column across the graph
+  #c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
+  p_table<-c(c_score,p_value(column,permutations,c_score),pii_mean,pii_sd,pii_frac)
   }   
   return(p_table)
 } 
@@ -181,29 +179,22 @@ pii_calc<-function(nodes,column)
 }
 
 
-c_vector<-function(nodes,column,permutations)
-  #Generate vector of connectivity values each element is connectivity value for each permutation
-{
-  c_vec<-NULL
-  for (i in 1:permutations)
-  {
-    permutation<-permute(nodes) #Permuted nodes 0.02
-    pii_perm<-pii_calc(permutation,column) #Pi vector of specific column in permuted nodes 0.12
-    c<-c_calc(edges,pii_perm) #0.2
-    c_vec[i]<-round(c,5)
-  }
-  return(c_vec)
+p_value<-function (column,permutations,c_score) {
   
+  if (permutations==0) {return(0)} else {
+    c_vec<-NULL
+    for (i in 1:permutations)
+    {
+      permutation<-permute(nodes) #Permuted nodes 0.02
+      pii_perm<-pii_calc(permutation,column) #Pi vector of specific column in permuted nodes 0.12
+      c_perm<-c_calc(edges,pii_perm) #0.2
+      c_vec[i]<-round(c_perm,5)
+    }
+    p<-length(which (c_vec>c_score))/length(c_vec)
+    
+  }
 }
 
-
-
-
-p_value<-function (c1,c_vec)
-{
-  # Given pi value and connectivity vector it returns p-value for the pi
-  p<-length(which (c_vec>c1))/length(c_vec)
-}
 
 c_calc<-function(edges,pii)
   #Calculate connectivity value of a prticular column, 
@@ -212,7 +203,6 @@ c_calc<-function(edges,pii)
 {
   
   c<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]]))  
-    
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
   c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Normalizing for graph size
   return(c)
@@ -244,7 +234,7 @@ permute<-function(nodes)
 #parallel computing prep
 print ("Acquiring cpu cores")
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns")
+varlist=c("p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 ptm<<-proc.time() #Sytem time stamp for running calculation
