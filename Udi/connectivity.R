@@ -10,7 +10,7 @@ library(getopt)
   
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:20",2,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:10",5,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -93,8 +93,9 @@ edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
 cluster_list<-clusters(graph_igraph)
 largest_cluster_id<-which.max(cluster_list$csize)
 largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
-edges<-subset(edges,edges[,1] %in% largest_cluster_nodes)
+edges<-subset(edges,edges[,1] %in% (largest_cluster_nodes))
 nodes<-nodes[largest_cluster_nodes]
+#nodes_table<-as.numeric(names(nodes))
 
 #relabling nodes and updating edges accordingly
 nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
@@ -126,6 +127,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   #calculating c-scores and p-values for each chunk of columns
   {
     print (paste0(Sys.time()," Calculating C-scores and P-values for rows: ",chunk[1],"-",chunk[chunk_size]))
+    
     partial_table<-parSapply(cl,chunk,function(x) 
     #partial_table<-sapply(chunk,function(x)       
     {
@@ -172,8 +174,9 @@ pii_calc<-function(nodes,column)
     
   } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
   
-  total_ei<-sum(ei)  
+  total_ei<-sum(ei)
   if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
+  #pii<-ei/total_ei
   return(pii)
 }
 
@@ -208,7 +211,8 @@ c_calc<-function(edges,pii)
   #c=pi*pj*Aij()
 {
   
-  c<-apply(edges,1,function (x) pii[x[1]]*pii[x[2]])
+  c<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]]))  
+    
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
   c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Normalizing for graph size
   return(c)
@@ -254,8 +258,8 @@ chunk_size<-arg$chunk    #Size of column chunk
 #This is the RUN command:
 
 ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
-genes_of_interest<-rownames(ans)[which(ans[,"c_score"]!=0)] #Filtering for non-zero c-value columns
-ans<-ans[genes_of_interest,] #removing nodes with zero c-score in final file
+non_zero_columns<-which(ans[,"c_score"]!=0) #Filtering for non-zero c-value columns
+ans<-ans[non_zero_columns,] #removing nodes with zero c-score in final file
 
 
 ##########################################################
@@ -266,24 +270,15 @@ ans<-ans[genes_of_interest,] #removing nodes with zero c-score in final file
 ###########################################################
 
 
-pii_values_table<-function(nodes,genes_of_interest) {
+pii_values_table<-function(nodes,non_zero_columns) {
   #Returns pii_values of requested columns
   
-  pii_values <-parSapply(cl,seq_along(genes_of_interest),function (x) pii_calc (nodes,genes_of_interest[x]))
+  #pii_values <-parSapply(cl,seq_along(genes_of_interest),function (x) pii_calc (nodes,x))
+  pii_values <-parSapply(cl,non_zero_columns,function (x) pii_calc (nodes,x))
   pii_values<-cbind(1:length(nodes),pii_values)
-  colnames(pii_values)<-c("Node",genes_of_interest)
+  colnames(pii_values)<-c("Node",colnames(matrix1)[non_zero_columns])
   return(pii_values)
 }
-
-print("Writing pii_values file:")
-write.table(pii_values_table(nodes,genes_of_interest),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
-
-
-
-
-print("Releasing cores")
-stopCluster(cl) # Releasing acquired CPU cores
-
 
 
 
@@ -309,3 +304,12 @@ print(paste("Runtime in seconds:",run_t[3]))
 print(paste("Number of columns:",length(columns)))
 print(paste("Number of permutations:",arg$permutations))
 print(paste("Average p_value calc per column:",run_t[3]/length(columns)))
+print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$permutations/length(columns)))
+
+
+print("Writing pii_values file:")
+pii_values<-pii_values_table(nodes,non_zero_columns)
+write.table(pii_values,paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
+
+print("Releasing cores")
+stopCluster(cl) # Releasing acquired CPU cores
