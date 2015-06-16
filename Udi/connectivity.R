@@ -7,10 +7,11 @@ library(rgexf)
 library(jsonlite)
 library(parallel)
 library(getopt)
+library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","40:41",0,detectCores(),TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","40:41",0,detectCores(),TRUE,TRUE,10)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -40,7 +41,9 @@ if ( is.null(arg$columns ) ) {arg$columns= "all"}
 #Loading matrix file to memory and log transforming if log2=TRUE
 matrix_full_name<-arg$matrix
 print (paste0("Loading ",matrix_full_name, " file to memory"))
-matrix1<-read.csv(matrix_full_name,row.names=1)
+matrix1<-fread(matrix_full_name,data.table=FALSE)
+rownames(matrix1)<-matrix1[,1]
+matrix1<-matrix1[,-1]
 if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
 
 
