@@ -7,10 +7,10 @@ library(rgexf)
 library(jsonlite)
 library(parallel)
 library(getopt)
-  
+
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","exp_LOC553137",300,detectCores(),TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:20",50,detectCores(),TRUE,TRUE,10)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -26,7 +26,7 @@ spec = matrix(c(
   "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -35,7 +35,7 @@ if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 
-      
+
 
 #Loading matrix file to memory and log transforming if log2=TRUE
 matrix_full_name<-arg$matrix
@@ -49,27 +49,27 @@ if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
 column_range<-function(col_range)
   #Gets column range from arg$column and parse it.
 {
-
+  
   if (col_range=="all") #Check if all is supplied
   {
     x<-1:ncol(matrix1)
-   
+    
   } else if (grepl(":",col_range)==TRUE) { #If range x:x is supplied
-      
-        x<-as.numeric(strsplit(col_range,":")[[1]][1]:strsplit(col_range,":")[[1]][2])
+    
+    x<-as.numeric(strsplit(col_range,":")[[1]][1]:strsplit(col_range,":")[[1]][2])
     
   } else if (suppressWarnings(!is.na(as.numeric(col_range)))) { # If column is all numbers  
-        x<-as.numeric(col_range)  
+    x<-as.numeric(col_range)  
   } else if (!is.na(match(col_range,colnames(matrix1)))) { #If Gene name exist, convert to column number
-        x<-which(colnames(matrix1)==col_range)       
+    x<-which(colnames(matrix1)==col_range)       
   } else stop ("Column name not found")
-        
+  
   
   
   #Validating column in range:
   if (max(x)>ncol(matrix1)) 
   {
-  stop (paste0("Columns out of range"," Available range: 1:",ncol(matrix1)))
+    stop (paste0("Columns out of range"," Available range: 1:",ncol(matrix1)))
   }
   return(x)
 }
@@ -104,12 +104,18 @@ colnames(nodes_relabling_table)<-c("original","new")
 edges<-apply(edges,2,function(x) sapply(x,function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"]))
 names(nodes)<-sapply(names(nodes),function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"])
 
+#Relabling samples
+nodes<-lapply(nodes,function(x) x+1) #Adding one to each smaple label min(sample)==1 
+samples<-unique(unlist(nodes))
+samples_relabling_table<-cbind(samples,1:length(samples)) #Creating relabling table
+rownames(samples_relabling_table)<-samples
+colnames(samples_relabling_table)<-c("original","new")
+nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
 
 #Initializing rolling results file
 p_table<-NULL
 col_rolling<-t(c("Gene","c_score","p_value","pi_mean","pi_sd","pi_fraction"))
 write.table(col_rolling,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
-#write.table(col1,paste0(arg$name,"_",arg$matrix,"_results_final.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
 
@@ -124,19 +130,18 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   split.column<-split(column,ceiling(seq_along(column)/chunk_size))
   
   sapply(split.column,function (chunk) 
-  #calculating c-scores and p-values for each chunk of columns
+    #calculating c-scores and p-values for each chunk of columns
   {
     print (paste0(Sys.time()," Calculating C-scores and P-values for rows: ",chunk[1],"-",chunk[chunk_size]))
     
     partial_table<-parSapply(cl,chunk,function(x) 
-    #partial_table<-sapply(chunk,function(x)       
+      #partial_table<-sapply(chunk,function(x)       
     {
-             p_connectivity(nodes,x,permutations)
-          })
+      p_connectivity(nodes,x,permutations)
+    })
     
     partial_table<-t(partial_table)
     rownames(partial_table)<-colnames(matrix1)[chunk]
-    #p_table<<-rbind(p_table,partial_table)
     write.table(partial_table,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
     
   })
@@ -153,13 +158,12 @@ p_connectivity<-function(nodes,column,permutations)
   if (sum(matrix1[,column]==0)==nrow(matrix1)) #If column is all zeros Skip all permutations 
   {p_table<-rep(0,length(col_rolling)-1)} else 
   {
-  pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
-  pii_mean<-mean(pii)
-  pii_sd<-sd(pii)
-  pii_frac<-sum(pii!=0)/length(pii)
-  c_score<-c_calc(edges,pii) # Connectivity value for specific column across the graph
-  #c<-c_vector(nodes,column,permutations) #Connectivity vector - all c values across all permutations
-  p_table<-c(c_score,p_value(column,permutations,c_score),pii_mean,pii_sd,pii_frac)
+    pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
+    pii_mean<-mean(pii)
+    pii_sd<-sd(pii)
+    pii_frac<-sum(pii!=0)/length(pii)
+    c_score<-c_calc(edges,pii) # Connectivity value for specific column across the graph
+    p_table<-c(c_score,p_value(column,permutations,c_score),pii_mean,pii_sd,pii_frac)
   }   
   return(p_table)
 } 
@@ -168,19 +172,18 @@ pii_calc<-function(nodes,column)
 {  #Calculate pi value(mean) for a particular column in a particular node.
   # Input: nodes list and one specific column(i) of interest, output: pi
   if (arg$log2==TRUE) {
-    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[x+1,column]))) 
+    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[samples_relabling_table[x,1],column]))) 
     
-  } else ei<-sapply(nodes,function (x) mean(matrix1[x+1,column]))
+  } else ei<-sapply(nodes,function (x) mean(matrix1[samples_relabling_table[x,1],column]))
   
   total_ei<-sum(ei)
   if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
-  #pii<-ei/total_ei
   return(pii)
 }
 
 
 p_value<-function (column,permutations,c_score) {
-#Retunrs p-value of a specific c-score of a specific column  
+  #Retunrs p-value of a specific c-score of a specific column  
   if (permutations==0) {return(0)} else {
     c_vec<-NULL
     for (i in 1:permutations)
@@ -214,17 +217,8 @@ permute<-function(nodes)
   #Permuting samples within nodes, maintaining skeleton and samples labels
 {
   a<-unlist(nodes,use.names=FALSE)
-  original<-unique(a)
-  permuted<-sample(original)
-  conversion<-cbind(original,permuted)
-  conversion<-conversion[order(conversion[,"original"]),]
-  rownames(conversion)<-conversion[,"original"]
-  d<-sapply(a,function (original)
-  {
-    a.value<-conversion[as.character(original),"permuted"]
-    #a.value<-conversion[original+1,"permuted"]
-  })
-  
+  permuted<-sample(unique(a))
+  d<-sapply(a,function (original) permuted[original])
   l<-relist(d,skeleton=nodes)
   return(l)
 }
@@ -234,7 +228,7 @@ permute<-function(nodes)
 #parallel computing prep
 print ("Acquiring cpu cores")
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns")
+varlist=c("p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 ptm<<-proc.time() #Sytem time stamp for running calculation
@@ -262,8 +256,6 @@ ans<-ans[non_zero_columns,] #removing nodes with zero c-score in final file
 
 pii_values_table<-function(nodes,non_zero_columns) {
   #Returns pii_values of requested columns
-  
-  #pii_values <-parSapply(cl,seq_along(genes_of_interest),function (x) pii_calc (nodes,x))
   pii_values <-parSapply(cl,non_zero_columns,function (x) pii_calc (nodes,x))
   colnames(pii_values)<-colnames(matrix1)[non_zero_columns]
   rownames(pii_values)<-(1:length(nodes))
