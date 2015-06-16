@@ -29,6 +29,24 @@ varlist=c("p_connectivity","arg","p_value","permute","c_vector","edges","nodes",
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 
+
+pii_val<-read.csv("LUAD_Neigh_45_3_TPM.matrix.csv_pii_values_x.csv",row.names=FALSE)
+columns_of_interest<-match(rownames(combined),colnames(pii_val))
+pii<--pii_val[,columns_of_interest]
+pi_val<--pii
+pii_values<-read.csv("~/Desktop/Merging file/LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv",row.names=1)
+combined<-read.csv("~/Desktop/Merging file/combined.csv",row.names=1)
+
+pii_values<-t(pii_values)
+pii_values<-pii_values[rownames(x3),]
+rownames(pii_values)
+dim(pii_values)
+
+
+
+
+
+
 genes_of_interest<-rownames(results3)[1:100] 
 #genes_of_interest<-rownames(results[results$q.value<.05,])[1:100] 
 pii_values<-pii_values_table(nodes,genes_of_interest)  
@@ -43,13 +61,39 @@ results1<-read.csv("LUAD_Neigh_45_3_TPM.matrix.csv_results_rolling.csv",row.name
 rownames(results)
 #results
 
-d<-ncol(pii_values)
+d<-ncol(pi_val)
 
 a<-matrix(0,d,d)
-for (i in 1:(d-1)) 
+for (i in 2:(d-1)) 
   for (j in (i+1):d)
-      a[i,j]<-JSD1(pii_values[,i],pii_values[,j])
+      a[i,j]<-JSD1(x[,i],x[,j])
 
+
+d<-1000
+mylist.names <- 1:d
+mylist <- as.list(rep(0, length(mylist.names)))
+
+
+a<-matrix(0,d,d)
+
+for (i in 1:(d-1))
+  for (j in (i+1):d)
+      a[i,j]<-identical(mat[,i],mat[,j])
+
+
+for (i in 1:nrow(a))
+{
+          y<-which(a[i,]==1)
+          mylist[[i]]<-c(i,y)
+          a[,y]<-0
+} 
+
+sum(sapply(mylist,function(x) length(x)-1))
+
+
+
+
+which 
     
 sapply(seq_along(pii_values),function (x) sapply (pii_values[x],JSD) pii_values)
 
@@ -60,12 +104,20 @@ x1<-x[x$pi_fraction!=1,]
 x2<-x[x$q.value!<.05,]
 x3<-x[intersect(rownames(x1),rownames(x2)),]
 write.csv(x3,"~/Desktop/Merging file/combined.csv",row.names=TRUE)
+combined<-read.csv("~/Desktop/Merging file/combined.csv",row.names=1)
+colnames(pii_val)==rownames(combined)
+
+columns_of_interest<-match(rownames(combined),colnames(pii_val))
+pii<--pii_val[,columns_of_interest]
+pi_val<--pii
 pii_values<-read.csv("~/Desktop/Merging file/LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv",row.names=1)
 pii_values<-t(pii_values)
 pii_values<-pii_values[rownames(x3),]
 rownames(pii_values)
 dim(pii_values)
 
+
+y<-apply(a,1,function(x) which(x==1))
 
 
 
