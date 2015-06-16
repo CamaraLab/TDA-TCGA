@@ -10,7 +10,7 @@ library(getopt)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:20",50,detectCores(),TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","40:41",0,detectCores(),TRUE,TRUE,10)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -137,6 +137,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
     partial_table<-parSapply(cl,chunk,function(x) 
       #partial_table<-sapply(chunk,function(x)       
     {
+      #Check for identica
       p_connectivity(nodes,x,permutations)
     })
     
@@ -290,7 +291,9 @@ print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$per
 
 
 print("Writing pii_values file:")
-pii_values<-pii_values_table(nodes,non_zero_columns)
+columns_of_interest<-match(rownames(ans)[non_zero_columns],colnames(matrix1))
+pii_values<-pii_values_table(nodes,columns_of_interest)
+#pii_values<-pii_values_table(nodes,non_zero_columns)
 write.table(cbind(1:length(nodes),pii_values),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
 
 print("Releasing cores")
