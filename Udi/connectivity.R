@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","40:41",0,detectCores(),TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:20",0,detectCores(),TRUE,TRUE,10)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -44,7 +44,8 @@ print (paste0("Loading ",matrix_full_name, " file to memory"))
 matrix1<-fread(matrix_full_name,data.table=FALSE)
 rownames(matrix1)<-matrix1[,1]
 matrix1<-matrix1[,-1]
-if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1}
+matrix1<-as.matrix(matrix1) #Converting to matrix from data.frame -> increases speed dramatically
+if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} else matrix1<-as.matrix(matrix1)
 
 
 
@@ -135,7 +136,7 @@ connectivity_pvalues_table<-function (column,permutations,cores)
   sapply(split.column,function (chunk) 
     #calculating c-scores and p-values for each chunk of columns
   {
-    print (paste0(Sys.time()," Calculating C-scores and P-values for rows: ",chunk[1],"-",chunk[chunk_size]))
+    print (paste0(Sys.time()," Calculating c-scores and p-values for rows: ",chunk[1],"-",chunk[chunk_size]))
     
     partial_table<-parSapply(cl,chunk,function(x) 
       #partial_table<-sapply(chunk,function(x)       
@@ -229,14 +230,20 @@ permute<-function(nodes)
 
 
 
+print(paste("Number of columns:",length(columns)))
+print(paste("Number of permutations:",arg$permutations))
+
+
 #parallel computing prep
-print ("Acquiring cpu cores")
+print (paste("Acquiring",arg$cores,"cpu cores"))
 cl <- makeCluster(as.numeric(arg$cores))
 varlist=c("p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
+
 ptm<<-proc.time() #Sytem time stamp for running calculation
 chunk_size<-arg$chunk    #Size of column chunk
+
 
 ##########################################################
 ##########################################################
@@ -246,6 +253,7 @@ chunk_size<-arg$chunk    #Size of column chunk
 #This is the RUN command:
 
 ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
+ans<-as.matrix(ans)
 non_zero_columns<-which(ans[,"c_score"]!=0) #Filtering for non-zero c-value columns
 ans<-ans[non_zero_columns,] #removing nodes with zero c-score in final file
 
@@ -287,16 +295,13 @@ write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
 
 run_t<-proc.time()-ptm #Calculationg run time
 print(paste("Runtime in seconds:",run_t[3]))
-print(paste("Number of columns:",length(columns)))
-print(paste("Number of permutations:",arg$permutations))
 print(paste("Average p_value calc per column:",run_t[3]/length(columns)))
 print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$permutations/length(columns)))
 
 
 print("Writing pii_values file:")
-columns_of_interest<-match(rownames(ans)[non_zero_columns],colnames(matrix1))
+columns_of_interest<-match(rownames(ans),colnames(matrix1))
 pii_values<-pii_values_table(nodes,columns_of_interest)
-#pii_values<-pii_values_table(nodes,non_zero_columns)
 write.table(cbind(1:length(nodes),pii_values),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
 
 print("Releasing cores")
