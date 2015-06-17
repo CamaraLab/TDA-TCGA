@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:20",0,detectCores(),TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:10",0,detectCores(),TRUE,TRUE,10)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -119,7 +119,11 @@ nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-sam
 #Initializing rolling results file
 p_table<-NULL
 col_rolling<-t(c("Gene","c_score","p_value","pi_mean","pi_sd","pi_fraction"))
-write.table(col_rolling,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+unique_id<-round(runif(1, min = 111111, max = 222222),0)
+file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
+
+print(paste("File unique identifier:",unique_id))
+write.table(col_rolling,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
 
@@ -147,11 +151,11 @@ connectivity_pvalues_table<-function (column,permutations,cores)
     
     partial_table<-t(partial_table)
     rownames(partial_table)<-colnames(matrix1)[chunk]
-    write.table(partial_table,paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
+    write.table(partial_table,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE)
     
   })
   
-  complete_table<-read.csv(paste0(arg$name,"_",arg$matrix,"_results_rolling.csv"),row.names=1,header=TRUE)
+  complete_table<-read.csv(paste0(file_prefix,"_results_rolling.csv"),row.names=1,header=TRUE)
   return(complete_table)
   
 }
@@ -253,7 +257,7 @@ chunk_size<-arg$chunk    #Size of column chunk
 #This is the RUN command:
 
 ans<-connectivity_pvalues_table(column=columns,permutations=arg$permutations,cores=arg$cores)
-ans<-as.matrix(ans)
+#ans<-as.matrix(ans) # Do not transform ans to matrix - in that case n=1 columns file is bad
 non_zero_columns<-which(ans[,"c_score"]!=0) #Filtering for non-zero c-value columns
 ans<-ans[non_zero_columns,] #removing nodes with zero c-score in final file
 
@@ -289,7 +293,7 @@ if (arg$fdr==TRUE)
 
 
 print ("Writing results_final.csv file to disk:")
-write.csv(ans,paste0(arg$name,"_",arg$matrix,"_results_final.csv"))
+write.csv(ans,paste0(file_prefix,"_results_final.csv"))
 
 
 
@@ -302,7 +306,8 @@ print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$per
 print("Writing pii_values file:")
 columns_of_interest<-match(rownames(ans),colnames(matrix1))
 pii_values<-pii_values_table(nodes,columns_of_interest)
-write.table(cbind(1:length(nodes),pii_values),paste0(arg$name,"_",arg$matrix,"_pii_values.csv"),sep=",",row.names=FALSE)
+write.table(cbind(1:length(nodes),pii_values),paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE)
 
 print("Releasing cores")
 stopCluster(cl) # Releasing acquired CPU cores
+print(paste("File unique identifier:",unique_id))
