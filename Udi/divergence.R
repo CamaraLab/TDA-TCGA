@@ -35,31 +35,37 @@ columns_cutoff<-function (final_results,q_value_cutoff=.05,min_frac=0,max_frac=1
 JSD_matrix<-function (pii_values,genes_of_interest,cores,d=0,fast=TRUE) {
   
   pii_values<-pii_values[,-1] #Subsetting pii matrix
-  if (d==0) d<-length(gene_of_interest)
+  if (d==0) d<-length(genes_of_interest)
   
   if (!fast) {
     print ("Building matrix the slow way (no parallel):")
     mat<-matrix(0,d,d)
-    for (i in 1:(d-1)) 
-        for (j in (i+1):d) {
-          mat[i,j]<-JSD2(pii_values[,i],pii_values[,j])
-          mat[j,i]<-mat[i,j]
-         }
+    for (i in 1:(d-1)) {
+      print (paste("working on row",i,"of",d))
+      for (j in (i+1):d) {
+        mat[i,j]<-JSD2(pii_values[,i],pii_values[,j])
+        mat[j,i]<-mat[i,j]
+      }
+    }
+        
   } else {
     
     print ("Preparing parallel environment")
-    print("Building matrix the fast way")
+    
     cl <- makeCluster(cores)
     pool<-clusterSplit(cl,1:d)
     varlist=c("JSD2","d","pool","pii_values","log2i")
     clusterExport(cl=cl, varlist=varlist,envir=environment())
     
-    
+    print("Building matrix the fast way")
+    write.table(0,"row.csv",col.names=FALSE,row.names=FALSE)
     ans<-parLapply(cl,seq_along(pool),function (x) {
     #ans<-lapply(seq_along(pool), function(x) {
       a1<-matrix(0,d,length(pool[[x]])) #Auxilary matrix split big matrix into cores size matrices
-      for (j in min(pool[[x]]):max(pool[[x]]))
+      for (j in min(pool[[x]]):max(pool[[x]])) {
+        write.table(j,"row.csv",append=TRUE,col.names=FALSE,row.names=FALSE)
         for (i in (1:d)) {
+          
           if (i>=j) {
             cols<-j-(x-1)*length(pool[[1]])
             a1[i,cols]<-JSD2(pii_values[,i],pii_values[,j])
@@ -67,6 +73,8 @@ JSD_matrix<-function (pii_values,genes_of_interest,cores,d=0,fast=TRUE) {
             
           }
         }
+      }
+        
       return(a1)
     })
     
@@ -80,19 +88,19 @@ JSD_matrix<-function (pii_values,genes_of_interest,cores,d=0,fast=TRUE) {
   return(mat)
   
 }
-results<-read.csv("/Users/uer2102/Desktop/Merging2/LUAD_Neigh_45_3_TPM.matrix.csv_results_final-3.csv",row.names=1)
-genes_of_interest<-columns_cutoff(results,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=FALSE)
+results<-read.csv("E:/Merging2/LUAD_Neigh_45_3_TPM.matrix.csv_results_final-3.csv",row.names=1)
+genes_of_interest<-columns_cutoff(results,q_value_cutoff=.05,min_frac=-1,max_frac=1,equal=FALSE)
 genes_of_interest
 
-pii1<-as.matrix(fread("/Users/uer2102/Desktop/Merging2/LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv",data.table=FALSE))
+#pii1<-as.matrix(fread("E:/Merging2/LUAD_Neigh_45_3_TPM.matrix.csv-192553-2015-06-17_pii_values.csv",data.table=FALSE))
 #pii1<-pii1[,-1]
 
-e<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 2,d = 100,fast =FALSE)
-e<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 2,d = 100,fast =TRUE)
+e_slow<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 2,d = 25,fast =FALSE)
+e_fast<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 2,d = 0,fast =TRUE)
   
-e1<-e
-dim(e)
-identical(e,e1)
+dim(e_slow)
+dim(e_fast)
+identical(e_slow,e_fast)
 
 
 
