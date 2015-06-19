@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:10",0,detectCores(),TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:16",100,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -213,8 +213,8 @@ c_calc<-function(edges,pii)
   #pi values,based on current edges structure. (sim Adjacency matrix)
   #c=pi*pj*Aij()
 {
-  
-  c<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]]))  
+  c<-pii[edges[,1]]*pii[edges[,2]]
+  #c<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]]))  
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
   c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Normalizing for graph size
   return(c)
