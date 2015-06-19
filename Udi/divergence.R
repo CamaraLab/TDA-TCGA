@@ -17,7 +17,7 @@ JSD2<-function(P,Q) {
 
 columns_cutoff<-function (final_results,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=FALSE){
  #Recives final_results matrix,q_value,min_frac, and max_frac. And retreives columns of interest
- 
+  parameters<<-paste("q_value_cut_off=",q_value_cutoff," ",min_frac, " <frac< ",max_frac, "equal=",equal)
   if (equal) {
     final_results<-subset(final_results,q_value<=q_value_cutoff)
     final_results<-subset(final_results,pi_fraction<=max_frac)
@@ -36,6 +36,12 @@ JSD_matrix<-function (pii_values,genes_of_interest,cores,d=0,fast=TRUE) {
   #This function takes  matrix and can do JSD calculation on it paralleli by splitting
   #The matrix to cores size lements and then rejoin. This function also has slow mode with no parallel
   
+  
+  ##Initializing log file
+  log_file<-paste0("JSD_matrix-",Sys.Date(),".log")
+  write.table(parameters,log_file,col.names=FALSE)
+  write.table(results_file_location,log_file,append = TRUE,col.names=FALSE)
+  write.table(pii_values_file_location,log_file,append = TRUE,col.names=FALSE)
   
   pii_values<-pii_values[,-1] #Subsetting pii matrix
   if (d==0) d<-length(genes_of_interest)
@@ -106,30 +112,28 @@ JSD_matrix<-function (pii_values,genes_of_interest,cores,d=0,fast=TRUE) {
   return(mat)
   
 }
-results<-read.csv("C:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv",row.names=1)
+
+results_file_location<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
+pii_values_file_location<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
+
+results<-read.csv(results_file_location,row.names=1)
+pii1<-as.matrix(fread(pii_values_file_location,data.table=FALSE))
+
 genes_of_interest<-columns_cutoff(results,q_value_cutoff=.05,min_frac=-1,max_frac=1,equal=TRUE)
 print(paste("Numer of genes selected:",length(genes_of_interest)))
-#genes_of_interest
 
-pii1<-as.matrix(fread("C:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv",data.table=FALSE))
-
-##Initializing log file
-
-log_file<-paste0("JSD_matrix-",Sys.Date(),".log")
-write.table(0,log_file,col.name=TRUE,row.names=TRUE)
-
-jsd_mat_slow<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 4,d = 10,fast =FALSE)
-jsd_mat_fast<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 4,d = 10,fast =TRUE)
+#jsd_mat_slow<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 4,d = 10,fast =FALSE)
+jsd_mat_fast<-JSD_matrix(pii_values = pii1,genes_of_interest = genes_of_interest,cores = 4,d = 0,fast =TRUE)
 
 colnames(jsd_mat_fast)<-genes_of_interest[1:ncol(jsd_mat_fast)]
 rownames(jsd_mat_fast)<-genes_of_interest[1:ncol(jsd_mat_fast)]
 
 print("Are slow and fast matrices the same?:")
-print(identical(as.numeric(jsd_mat_slow),as.numeric(jsd_mat_fast)))
+#print(identical(as.numeric(jsd_mat_slow),as.numeric(jsd_mat_fast)))
 
 
-results_file<-paste0("JSD_matrix-",Sys.Date(),".csv")
-write.csv(jsd_mat_fast,results_file,row.names=TRUE) #Initializing rolling log file
+JSD_results_file<-paste0("JSD_matrix-",Sys.Date(),".csv")
+write.csv(jsd_mat_fast,JSD_results_file,row.names=TRUE) #Initializing rolling log file
 
 
 
