@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:10",200,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:16",100,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -198,17 +198,17 @@ p_value<-function (column,permutations,c_score) {
     
     all_samples<-unlist(nodes,use.names=FALSE)
     samples<-unique(all_samples)
-    perm_dic<-matrix(NA,length(samples),permutations) #rows=  cols=
+    perm_dic<-matrix(NA,length(samples),permutations) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
     perm_dic<-apply(perm_dic,2,function(x) x<-sample(samples))
-    permuted_samples<-matrix(NA,length(all_samples),permutations) # rows= #cols =
     
     
-    
+    permuted_samples<-matrix(NA,length(all_samples),permutations) # rows= samples across graph,cols = permutation ID,flash= corresponding permuted sample ID from perm_dic
     for (i in seq_along(samples)) {
       samples_to_replace<-which (all_samples==i)
       for (j in seq_along(samples_to_replace))
         permuted_samples[samples_to_replace[j],]<-perm_dic[i,]   
     }
+    
     
     for (i in 1:permutations)
     {
