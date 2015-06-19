@@ -100,22 +100,27 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE) {
     pool<-l
   
     cl <- makeCluster(cores)  
-    varlist=c("log_file","JSD2","d","d1","d2","pool","pii_values","log2i","mat1","mat2")
+    varlist=c("log_file","JSD2","d","d1","d2","pool","log2i","mat1","mat2","f")
     clusterExport(cl=cl, varlist=varlist,envir=environment())
     
     print("Building matrix the fast way")
     
     ans<-parLapply(cl,seq_along(pool),function (x) {
-
-      a1<-matrix(0,d1,length(pool[[x]])) #Auxilary matrix split big matrix into cores size matrices
+    #ans<-lapply(seq_along(pool),function (x) {
+      a1<-matrix(0,d2,length(pool[[x]])) #Auxilary matrix split big matrix into cores size matrices
       for (j in min(pool[[x]]):max(pool[[x]])) {
         write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
         for (i in (1:d2)) {
-          
-          if (i>=j) {
+          if (f!=1) {
+            if (i>=j) {
+              cols<-j-(x-1)*length(pool[[1]])
+              a1[i,cols]<-JSD2(mat1[,i],mat2[,j])
+              
+            } 
+          } else {
             cols<-j-(x-1)*length(pool[[1]])
-            a1[i,cols]<-JSD2(pii_values[,i],pii_values[,j])
-       
+            a1[i,cols]<-JSD2(mat1[,j],mat2[,i])
+          
             
           }
         }
@@ -127,15 +132,18 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE) {
     stopCluster(cl)
     
     mat<-NULL #Combining splited matrices and mirroring values
-    for (i in 1:length(ans)) mat<-cbind(mat,ans[[i]])
-    for (i in 1:(d-1))
-      for (j in (i+1):d) mat[i,j]<-mat[j,i]
+    if (f!=1) {
+      
+      for (i in 1:(d-1))
+        for (j in (i+1):d) mat[i,j]<-mat[j,i]  
+    } else for (i in 1:length(ans)) mat<-cbind(mat,ans[[i]])
+    
   
   }
   
   print("done")
-  rownames(mat)<-genes_of_interest_1[1:nrow(mat)]
-  colnames(mat)<-genes_of_interest_2[1:ncol(mat)]
+  rownames(mat)<-genes_of_interest_2[1:nrow(mat)]
+  colnames(mat)<-genes_of_interest_1[1:ncol(mat)]
   return(mat)
   
 }
@@ -156,12 +164,12 @@ print(paste("Numer of genes selected 1:",length(genes_of_interest_1)))
 print(paste("Numer of genes selected 2:",length(genes_of_interest_2)))
 
 
-intersect(colnames(mat2),genes_of_interest_2)
-mat2[,intersect(colnames(mat2),genes_of_interest_2)]
+#intersect(colnames(mat2),genes_of_interest_2)
+#mat2[,intersect(colnames(mat2),genes_of_interest_2)]
 
 
-jsd_mat_slow<-JSD_matrix(mat1,mat2,cores = 4,d = 3,fast =FALSE)
-#jsd_mat_fast<-JSD_matrix(pii_values = mat1,genes_of_interest = genes_of_interest,cores = 4,d = 0,fast =TRUE)
+jsd_mat_slow<-JSD_matrix(mat1,mat2,cores = 2,d = 20,fast =FALSE)
+jsd_mat_fast<-JSD_matrix(mat1,mat2,cores = 2,d = 20,fast =TRUE)
 
 #colnames(jsd_mat_fast)<-genes_of_interest_1[1:ncol(jsd_mat_fast)]
 #rownames(jsd_mat_fast)<-genes_of_interest_2[1:nrow(jsd_mat_fast)]
@@ -171,9 +179,14 @@ print("Are slow and fast matrices the same?:")
 
 
 JSD_results_file<-paste0("JSD_matrix-",Sys.Date(),".csv")
-#write.csv(jsd_mat_fast,JSD_results_file,row.names=TRUE) #Initializing rolling log file
-write.csv(jsd_mat_slow,JSD_results_file,row.names=TRUE) #Initializing rolling log file
+write.csv(jsd_mat_fast,JSD_results_file,row.names=TRUE) #Initializing rolling log file
+#write.csv(jsd_mat_slow,JSD_results_file,row.names=TRUE) #Initializing rolling log file
 
+colnames(jsd_mat_fast)<-NULL
+rownames(jsd_mat_fast)<-NULL
+
+colnames(jsd_mat_slow)<-NULL
+rownames(jsd_mat_slow)<-NULL
 
 
 
