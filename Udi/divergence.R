@@ -113,7 +113,7 @@ print(paste("Numer of genes selected:",length(genes_of_interest)))
 
 pii1<-as.matrix(fread("C:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv",data.table=FALSE))
 
-#Initializing log file
+##Initializing log file
 
 log_file<-paste0("JSD_matrix-",Sys.Date(),".log")
 write.table(0,log_file,col.name=TRUE,row.names=TRUE)
