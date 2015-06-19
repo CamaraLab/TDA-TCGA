@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:20",500,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:20",100,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -194,6 +194,7 @@ pii_calc<-function(nodes,column)
 
 p_value<-function (column,permutations,c_score) {
   #Retunrs p-value of a specific c-score of a specific column  
+  matrix2<-matrix1[,column]
   if (permutations==0) {return(0)} else {
   
     
@@ -214,9 +215,9 @@ p_value<-function (column,permutations,c_score) {
     
     
     
-    system.time(e_matrix<-sapply(nodes,function (x) 
-      #apply(permuted_samples,2, function (i) e<-mean(matrix1[permuted_samples[x,i],column])))
-      colMeans(permuted_samples,x)))
+    e_matrix<-sapply(nodes,function (x) 
+      apply(permuted_values[x,],2,mean))
+      #colMeans(permuted_values,x)))
     
     e_matrix<-t(e_matrix)
     pii_matrix<-apply(e_matrix,2,function (ei) if (sum(ei)==0) {pii<-ei} else pii<-ei/sum(ei))
@@ -234,7 +235,7 @@ p_value<-function (column,permutations,c_score) {
       c_perm[i]<-c_calc(edges,pii_matrix[,i]) #0.2
       c_vec<-round(c_perm,5)
     }
-    p<-sum(which (c_vec>c_score))/length(c_vec)
+    p<-sum(c_vec>c_score)/length(c_vec)
     
   }
 }
@@ -281,7 +282,7 @@ print(paste("Number of permutations:",arg$permutations))
 #parallel computing prep
 print (paste("Acquiring",arg$cores,"cpu cores"))
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("matrix2","permuted_samples","file_prefix","p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
+varlist=c("file_prefix","p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 
