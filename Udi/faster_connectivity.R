@@ -1,4 +1,4 @@
-setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
+#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
 #debug(permute)
 
@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:50",500,detectCores(),TRUE,TRUE,8)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:10",200,detectCores(),TRUE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -198,9 +198,9 @@ p_value<-function (column,permutations,c_score) {
     
     all_samples<-unlist(nodes,use.names=FALSE)
     samples<-unique(all_samples)
-    perm_dic<-matrix(NA,length(samples),permutations)
+    perm_dic<-matrix(NA,length(samples),permutations) #rows=  cols=
     perm_dic<-apply(perm_dic,2,function(x) x<-sample(samples))
-    permuted_samples<-matrix(NA,length(all_samples),permutations)
+    permuted_samples<-matrix(NA,length(all_samples),permutations) # rows= #cols =
     
     
     
@@ -234,7 +234,11 @@ c_calc<-function(edges,pii)
   #c=pi*pj*Aij()
 {
   
-  c<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]]))  
+  #microbenchmark(c1<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]])))
+  #c1<-apply(edges,1,function (x) return (pii[x[1]]*pii[x[2]]))
+  c<-pii[edges[,1]]*pii[edges[,2]]
+  
+  #microbenchmark(c2<-pii[edges[,1]]*pii[edges[,2]])
   c<-sum(c)*2 #Multiple by 2 for 2 way edges.
   c<-c*length(largest_cluster_nodes)/(length(largest_cluster_nodes)-1) #Normalizing for graph size
   return(c)
