@@ -1,6 +1,6 @@
 library(parallel)
 library(data.table)
-
+setwd("/Users/uer2102/Documents/Lab/GIT/SC-TDA/Udi/Results/")
 log2i<-function(p)  {
   # Special function that returns 0  if log2 argument is 0
   w<-log2(p)
@@ -44,9 +44,11 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
   
   ##Initializing log file
   log_file<-paste0("JSD_matrix-",Sys.Date(),".log")
-  write.table(parameters,log_file,col.names=FALSE)
-  write.table(results_file_location,log_file,append = TRUE,col.names=FALSE)
-  write.table(pii_values_file_location,log_file,append = TRUE,col.names=FALSE)
+  write.table(parameters,log_file,col.names=FALSE) #paramters taken from cutoff function
+  write.table(paste("Results_file_1:",results_file1_name),log_file,append = TRUE,col.names=FALSE)
+  write.table(paste("Results_file_2:",results_file2_name),log_file,append = TRUE,col.names=FALSE)
+  write.table(paste("pii_values1:",pii_values1),log_file,append = TRUE,col.names=FALSE)
+  write.table(paste("pii_values2:",pii_values2),log_file,append = TRUE,col.names=FALSE)
   
   if (d==0) {
     d1<-length(genes_of_interest_1) # Interesting columns of matrix1
@@ -61,7 +63,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
       print ("It's the  same matrix")
       for (i in 1:(d1-1)) {
         print (paste("working on Column",i,"of",d1))
-        #write.table(paste0(Sys.time(),i),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
+        write.table(paste0(Sys.time(),i),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
         for (j in (i+1):d2) {
           print(j)
           mat[j,i]<-JSD2(mat1[,i],mat2[,j])
@@ -74,8 +76,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
         print (paste("working on col",i,"of",d1))
         write.table(paste0(Sys.time(),i),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
         for (j in 1:d2) {
-          #print(i)
-          #print(j)
+          
           mat[j,i]<-JSD2(mat1[,i],mat2[,j])
           }
       }
@@ -99,17 +100,17 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
     pool<-l # Contains element_size elements and put number of cols inside
   
     cl <- makeCluster(cores)  
-    varlist=c("JSD2","d1","d2","pool","log2i","mat1","mat2")
+    varlist=c("JSD2","d1","d2","pool","log2i","mat1","mat2","log_file")
     clusterExport(cl=cl, varlist=varlist,envir=environment())
     
     print("Building matrix the fast way")
     
-    #ans<-parLapply(cl,seq_along(pool),function (x) {
-    ans<-lapply(seq_along(pool),function (x) {
+    ans<-parLapply(cl,seq_along(pool),function (x) {
+    #ans<-lapply(seq_along(pool),function (x) {
       a1<-matrix(0,d2,length(pool[[x]])) #Auxilary matrix split big matrix into cores size matrices
       if (identical_matrix) {
         for (j in min(pool[[x]]):max(pool[[x]])) {
-          #write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
+          write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
           for (i in (1:d2)) {
             
             if (i>=j) {
@@ -123,15 +124,15 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
       } else { #If not identical matrices
         
         for (j in min(pool[[x]]):max(pool[[x]])) {
-          #write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
+          write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
           for (i in (1:d2)) {
             
-            #if (i>=j) {
+         
               cols<-j-(x-1)*length(pool[[1]])
               a1[i,cols]<-JSD2(mat1[,j],mat2[,i])
               
               
-            #}
+        
           }
         }
         
@@ -158,40 +159,37 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
   }
   
   print("done")
-  #rownames(mat)<-genes_of_interest_2[1:nrow(mat)]
-  #colnames(mat)<-genes_of_interest_1[1:ncol(mat)]
+  rownames(mat)<-genes_of_interest_2[1:nrow(mat)]
+  colnames(mat)<-genes_of_interest_1[1:ncol(mat)]
   return(mat)
   
 }
 
-results_file_location<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
-pii_values_file_location<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
+results_file1_name<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
+results_file2_name<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
+pii_values1<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
+pii_values2<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
+  
+results1<-read.csv(results_file1_name,row.names=1)
+results2<-read.csv(results_file2_name,row.names=1)
+#results_tpm<-read.csv("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names=1)
 
-results1<-read.csv("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv",row.names=1)
-#results2<-read.csv("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv",row.names=1)
-results2<-read.csv("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names=1)
 
-mat1<-as.matrix(fread("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv",data.table=FALSE))
-#mat2<-as.matrix(fread("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv",data.table=FALSE))
-mat2<-as.matrix(fread("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_TPM.matrix.csv-133966-2015-06-20_pii_values.csv",data.table=FALSE))
+#PII_values matrices
+mat1<-as.matrix(fread(pii_values1,data.table=FALSE))
+mat2<-as.matrix(fread(pii_values2,data.table=FALSE))
+#mat2<-as.matrix(fread("LUAD_Neigh_45_3_TPM.matrix.csv-133966-2015-06-20_pii_values.csv",data.table=FALSE))
 
-dim(mat2)
-dim(mat1)  
-#mat1<-mat1[,1:10]
-mat2<-mat2[,100:200]
 
-genes_of_interest_1<<-columns_cutoff(results1,q_value_cutoff=.05,min_frac=-1,max_frac=1.1,equal=FALSE)
-genes_of_interest_2<<-columns_cutoff(results2,q_value_cutoff=.05,min_frac=-1,max_frac=1.1,equal=FALSE)
+genes_of_interest_1<<-columns_cutoff(results1,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=TRUE)
+genes_of_interest_2<<-columns_cutoff(results2,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=TRUE)
 print(paste("Numer of genes selected 1:",length(genes_of_interest_1)))
 print(paste("Numer of genes selected 2:",length(genes_of_interest_2)))
 
 
-#intersect(colnames(mat2),genes_of_interest_2)
-#mat2[,intersect(colnames(mat2),genes_of_interest_2)]
 
-
-jsd_mat_slow<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =FALSE,identical_matrix=FALSE)
-jsd_mat_fast<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =TRUE,identical_matrix=FALSE)
+#jsd_mat_slow<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =FALSE,identical_matrix=TRUE)
+jsd_mat_fast<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =TRUE,identical_matrix=TRUE)
 
 #colnames(jsd_mat_fast)<-genes_of_interest_1[1:ncol(jsd_mat_fast)]
 #rownames(jsd_mat_fast)<-genes_of_interest_2[1:nrow(jsd_mat_fast)]
@@ -201,14 +199,10 @@ print(identical(as.numeric(jsd_mat_slow),as.numeric(jsd_mat_fast)))
 
 
 JSD_results_file<-paste0("JSD_matrix-",Sys.Date(),".csv")
-write.csv(jsd_mat_fast,JSD_results_file,row.names=TRUE) #Initializing rolling log file
+write.csv(jsd_mat_fast,JSD_results_file,row.names=TRUE) #Initializing rolling results file
 #write.csv(jsd_mat_slow,JSD_results_file,row.names=TRUE) #Initializing rolling log file
 
-colnames(jsd_mat_fast)<-NULL
-rownames(jsd_mat_fast)<-NULL
 
-colnames(jsd_mat_slow)<-NULL
-rownames(jsd_mat_slow)<-NULL
 
-f<-1
+
 
