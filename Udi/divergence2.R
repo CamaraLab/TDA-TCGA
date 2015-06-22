@@ -61,7 +61,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
     if (identical_matrix) { # If mat1=mat2 only half matrix calculated
       print ("It's the  same matrix")
       for (i in 1:(d1-1)) {
-        print (paste("working on Column",i,"of",d1))
+        print (paste("working on Column",i,"of ",d1))
         write.table(paste0(Sys.time(),i),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
         for (j in (i+1):d2) {
           print(j)
@@ -72,7 +72,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
     } else {  #mat != mat2 In this case all columns need to calculated against all
       for (i in 1:d1) {
         print("Its a differnet matrix")
-        print (paste("working on col",i,"of",d1))
+        print (paste("working on col",i,"of ",d1))
         write.table(paste0(Sys.time(),i),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
         for (j in 1:d2) {
           
@@ -109,7 +109,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
       a1<-matrix(0,d2,length(pool[[x]])) #Auxilary matrix split big matrix into cores size matrices
       if (identical_matrix) {
         for (j in min(pool[[x]]):max(pool[[x]])) {
-          write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
+          write.table(paste0(Sys.time(),"Working on column: ",j, "of " ,d1),log_file,append=TRUE,col.names=FALSE,row.names=TRUE)
           for (i in (1:d2)) {
             
             if (i>=j) {
@@ -123,7 +123,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
       } else { #If not identical matrices
         
         for (j in min(pool[[x]]):max(pool[[x]])) {
-          write.table(paste0(Sys.time(),j),log_file,append=TRUE,col.names=FALSE,row.names=FALSE)
+          write.table(paste0(Sys.time(),"Working on column: ",j, "of " ,d1),log_file,append=TRUE,col.names=FALSE,row.names=TRUE)
           for (i in (1:d2)) {
             
          
@@ -169,6 +169,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
 pii_values1<-"LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv"
 pii_values2<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
   
+
 results1<-read.csv(results_file1_name,row.names=1)
 results2<-read.csv(results_file2_name,row.names=1)
 #results_tpm<-read.csv("c:/Users/Udi/Desktop/test/LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv",row.names=1)
@@ -206,7 +207,7 @@ mat2<-mat2[,genes_of_interest_2] # Subsetting for genes of interest
 
 
 #jsd_mat_slow<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =FALSE,identical_matrix=TRUE)
-jsd_mat_fast<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =TRUE,identical_matrix=TRUE)
+jsd_mat_fast<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =TRUE,identical_matrix=FALSE)
 
 #colnames(jsd_mat_fast)<-genes_of_interest_1[1:ncol(jsd_mat_fast)]
 #rownames(jsd_mat_fast)<-genes_of_interest_2[1:nrow(jsd_mat_fast)]
