@@ -1,16 +1,20 @@
 translate_values<-function(dict_matrix,all_samples) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
-  for (i in samples) {
+  for (i in 1:length(samples)) {
     samples_to_replace<-which (all_samples==i)
-    for (j in samples_to_replace) {
-      #permuted_samples[j,]<-perm_dict[i,]   
-      permuted_values[samples_to_replace[j],]<-matrix2[dict_matrix[i,]]   
-    
-      #permuted_values[j,]<-matrix1[perm_dict[i,],column]
-    }
+      for (j in samples_to_replace) 
+        permuted_values[j,]<-matrix2[dict_matrix[i,]]
   }
+      #permuted_samples[j,]<-perm_dict[i,]   
+    
+    #permuted_values[samples_to_replace[j],]<-matrix2[dict_matrix[i,]]   
+      
+      #permuted_values[j,]<-matrix1[perm_dict[i,],column]
+    
   return<-permuted_values
-}
+  }
+  
+
 
 
 e_matrix1<-function(nodes,translated_values) {
@@ -80,8 +84,8 @@ perm_dict<-lapply(perm_dict,function(x) {
 
 
 permuted_values<-matrix(NA,length(all_samples),permutations+1) # rows= samples across graph,cols = permutation ID,flash= corresponding permuted sample ID from perm_dic
-permuted_samples<-matrix(NA,length(all_samples),permutations+1) # rows= samples across graph,cols = permutation ID,flash= corresponding permuted sample ID from perm_di
-permuted_samples[,1]<-1:length(all_samples)
+#permuted_samples<-matrix(NA,length(all_samples),permutations+1) # rows= samples across graph,cols = permutation ID,flash= corresponding permuted sample ID from perm_di
+#permuted_samples[,1]<-1:length(all_samples)
 
 for (i in seq_along(samples)) {
   samples_to_replace<-which (all_samples==i)
