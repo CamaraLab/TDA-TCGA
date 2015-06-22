@@ -35,11 +35,10 @@ columns_cutoff<-function (final_results,q_value_cutoff=.05,min_frac=0,max_frac=1
 JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
   #This function takes  matrix and can do JSD calculation on it paralleli by splitting
   #The matrix to cores size lements and then rejoin. This function also has slow mode with no parallel
+   
+ #genes_of_interest_1<-intersect(colnames(mat1),genes_of_interest_1)
+ #genes_of_interest_2<-intersect(colnames(mat2),genes_of_interest_2)
   
- genes_of_interest_1<-intersect(colnames(mat1),genes_of_interest_1)
- genes_of_interest_2<-intersect(colnames(mat2),genes_of_interest_2)
-  mat1<-mat1[,genes_of_interest_1] # Subsetting for genes of interest
-  mat2<-mat2[,genes_of_interest_2] # Subsetting for genes of interest
   
   
   ##Initializing log file
@@ -165,9 +164,9 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
   
 }
 
-results_file1_name<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
-results_file2_name<<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
-pii_values1<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
+  results_file1_name<-"LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv"
+  results_file2_name<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
+pii_values1<-"LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv"
 pii_values2<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
   
 results1<-read.csv(results_file1_name,row.names=1)
@@ -181,11 +180,29 @@ mat2<-as.matrix(fread(pii_values2,data.table=FALSE))
 #mat2<-as.matrix(fread("LUAD_Neigh_45_3_TPM.matrix.csv-133966-2015-06-20_pii_values.csv",data.table=FALSE))
 
 
-genes_of_interest_1<<-columns_cutoff(results1,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=TRUE)
-genes_of_interest_2<<-columns_cutoff(results2,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=TRUE)
+genes_of_interest_1<-columns_cutoff(results1,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=TRUE)
+genes_of_interest_2<-columns_cutoff(results2,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=TRUE)
 print(paste("Numer of genes selected 1:",length(genes_of_interest_1)))
 print(paste("Numer of genes selected 2:",length(genes_of_interest_2)))
 
+gene_diff1<-setdiff(genes_of_interest_1,colnames(mat1)) #Checking for unmatched gene names
+gene_diff2<-setdiff(genes_of_interest_2,colnames(mat2)) #Checking for unmatched gene names
+
+print("Checking for genes conflicts between matrix and pi_table:")
+if (length(gene_diff1)!=0) {
+  print ("Matrix1: These genes exist in results file but not in pi_table :")
+  print (gene_diff1)
+  stop()
+}
+if (length(gene_diff2)!=0)  {
+  print ("Matrix2: These genes exist in results file but not in pi_table :")
+  print (gene_diff2)
+  stop()
+}
+print("No genes conflicts. Proceeding.")
+
+mat1<-mat1[,genes_of_interest_1] # Subsetting for genes of interest
+mat2<-mat2[,genes_of_interest_2] # Subsetting for genes of interest
 
 
 #jsd_mat_slow<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =FALSE,identical_matrix=TRUE)
