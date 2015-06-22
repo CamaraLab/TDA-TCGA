@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","8",10,detectCores(),FALSE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1",10,detectCores(),FALSE,TRUE,4)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -125,56 +125,31 @@ file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
 print(paste("File unique identifier:",unique_id))
 write.table(col_rolling,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
-translate_values<-function(dict_matrix,all_samples) {
+
+
+perm_values<-function(dict_matrix,samples_relabling_table,column) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
-  for (i in 1:length(samples)) {
-    samples_to_replace<-which (all_samples==i)
-      for (j in samples_to_replace) 
-        permuted_values[j,]<-matrix2[dict_matrix[i,]]
-  }
- return(permuted_values) 
+  #z<-apply(y,2,function (x) x<-matrix2[samples_relabling_table[x,1]])
+  y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix1[samples_relabling_table[perm_column,1],column])
+  #y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix2[samples_relabling_table[perm_column,1]])
+  
 }
   
-translate_samples<-function(dict_matrix,all_samples) {
-    #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
-    for (i in 1:length(samples)) {
-      samples_to_replace<-which (all_samples==i)
-      for (j in samples_to_replace) 
-          permuted_samples[j,]<-dict_matrix[i,]
-      
-    }
-  return<-permuted_samples
-}
 
-perm_values<-function(dict_matrix) {
-  #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
-  y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix2[perm_column])
-}
-  
-perm_values
-
-
-e_matrix1<-function(nodes,translated_values) {
-  e_matrix1<-sapply(nodes,function (x) {
+e_matrix<-function(nodes,translated_values) {
+  e_matrix<-sapply(nodes,function (x) {
     s<-0
     for (i in 1:length(x)) {
+      #s<-s+translated_values[x,][i,]
+
       s<-s+translated_values[x,][i,]
     }
     #e<-log2(1+s/length(x))
     e<-s/length(x)
   })
-  e_matrix1<-t(e_matrix1) #Transposing to keep permutations as columns
+  e_matrix<-t(e_matrix) #Transposing to keep permutations as columns
 }
   
-
-
-
-e_matrix<-function(nodes,perm_values) {
-  e_matrix<-sapply(nodes,function (x)
-    y<-apply(perm_values[x,],2,mean))
-  e_matrix<-t(e_matrix)
-}
-
 
 
 pii_matrix<-function(e_matrix){ #Gets e_matrix retuens pii
@@ -183,8 +158,6 @@ pii_matrix<-function(e_matrix){ #Gets e_matrix retuens pii
       pii_column<-e_column/sum(e_column)
   )
 }
-
-
 
 
 c_calc_fast<-function(pi_matrix)
@@ -199,8 +172,8 @@ c_calc_fast<-function(pi_matrix)
 } 
   
 library(microbenchmark)
-permutations<-20
-columns<-1
+permutations<-10
+columns<-10
 #nodes
 all_samples<-unlist(nodes,use.names=FALSE)
 samples<-unique(all_samples)
@@ -208,84 +181,58 @@ edges1<-edges[,1]
 edges2<-edges[,2]
 num_nodes<-length(nodes)
 matrix2<-matrix1[,8]
+column<-8
 
 dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
 #dict[,1]<-seq_along(samples) #
-perm_dict<-as.list(rep(NA,columns))
-perm_dict<-lapply(perm_dict,function(x) {
+perm_dict_list<-as.list(rep(NA,columns)) #Creating list of "column" elements
+perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
   x<-apply(dict,2,function(x) x<-sample(samples))
   x[,1]<-1:length(samples)
   return(x)
 }) 
 
 
-perm_values_list<-lapply(perm_dict,perm_values) #Translate permuted sample to corresponding value in matrix2
+#system.time(perm_values_list<-lapply(perm_dict_list,function (x) x<-perm_values(x,samples_relabling_table))) #Translate permuted sample to corresponding value in matrix2
 
 
+#perm_values_list<-lapply(perm_dict_list,function (x) x<-perm_values(x,samples_relabling_table))
 
-#permuted_values<-matrix(NA,length(all_samples),permutations+1) # rows= samples across graph,cols = permutation ID,flash= corresponding permuted sample ID from perm_dic
-#permuted_samples<-matrix(NA,length(all_samples),permutations+1) # rows= samples across graph,cols = permutation ID,flash= corresponding permuted sample ID from perm_di
-#permuted_samples[,1]<-1:length(all_samples)
+perm_values_list<-as.list(rep(NA,columns)) #Creating list of "column" elements
 
+for (column in 1:columns) {
+  perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],samples_relabling_table,column)
+}
 
-
-#translated_samples<-as.list(rep(NA,columns))
-#translated_values<-as.list(rep(NA,columns))
-##e_list<-as.list(rep(NA,columns))
-#pi_list<-as.list(rep(NA,columns))
-#c_list<-as.list(rep(NA,columns))
-
-#translated_samples<-lapply(perm_dict,function(x) translate_samples(x,all_samples))
-#column<-0
-#translated_values<-lapply(perm_dict,function(x) {
-  #column<-column+1
-  #translate_values(x,all_samples,column)
-#  translate_values(as.matrix(x),all_samples)
-    
-#})
-
-#translated_samples<-lapply(perm_dict,function(x) {
-  #column<-column+1
-  #translate_values(x,all_samples,column)
-#  translate_samples(as.matrix(x),all_samples)
-  
-#})
-
-#microbenchmark(matrix2<-matrix1[,1])
-#x2<-translate_samples(perm_dict[[2]],all_samples)
-
-
-
+#perm_values_list<-lapply(perm_dict_list,function (x) x<-perm_values(x,samples_relabling_table,column))
 
 
 #cl <- makeCluster(as.numeric(arg$cores))
-#varlist=c("e_matrix1","p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
+#varlist=c("e_matrix","p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
 #clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 
+#system.time(e_list1<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x))))
 e_list1<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x)))
-#e_list1<-parLapply(cl,translated_values,function(x) e_matrix1(nodes,as.matrix(x)))
-#system.time(e_list1<-parLapply(cl,translated_values,function(x) e_matrix1(nodes,as.matrix(x))))
+#e_list1<-parLapply(cl,translated_values,function(x) e_matrix(nodes,as.matrix(x)))
+#system.time(e_list1<-parLapply(cl,translated_values,function(x) e_matrix(nodes,as.matrix(x))))
 
 
 
 
-#colMeans(permuted_values,x)))
-
+#system.time(pi_list<-lapply(e_list1,function(x) pii_matrix(as.matrix(x))))
+#system.time(c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))) # return a list where each element contains C_Vector for a column
 pi_list<-lapply(e_list1,function(x) pii_matrix(as.matrix(x)))
-system.time(c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))) # return a list where each element contains C_Vector for a column
-
+c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
 
 # Go over each pii_matrix columns 
 
+#system.time(c_scores<-sapply(c_vec_list,function (c_vec) c_vec[1]))
 c_scores<-sapply(c_vec_list,function (c_vec) c_vec[1])
+
 print(c_scores)
 length(c_scores)
 
-#hugh_translated<-matrix(NA,length(all_samples),columns*permutations)
-#hugh_translated<-NULL
-#system.time(for (i in seq_along(translated_values)) {
-#  hugh_translated<-cbind(hugh_translated,translated_values[[i]])
-#})
+
 
 
