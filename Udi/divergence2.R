@@ -1,6 +1,6 @@
 library(parallel)
 library(data.table)
-setwd("/Users/uer2102/Documents/Lab/GIT/SC-TDA/Udi/Results/")
+setwd("c:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/Udi/Results/")
 log2i<-function(p)  {
   # Special function that returns 0  if log2 argument is 0
   w<-log2(p)
@@ -123,7 +123,7 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
       } else { #If not identical matrices
         
         for (j in min(pool[[x]]):max(pool[[x]])) {
-          write.table(paste0(Sys.time(),"Working on column: ",j, "of " ,d1),log_file,append=TRUE,col.names=FALSE,row.names=TRUE)
+          write.table(paste(Sys.time(),"Working on column: ",j, "of " ,d1),log_file,append=TRUE,col.names=FALSE,row.names=TRUE)
           for (i in (1:d2)) {
             
          
@@ -164,9 +164,9 @@ JSD_matrix<-function (mat1,mat2,cores,d=0,fast=TRUE,identical_matrix=FALSE) {
   
 }
 
-  results_file1_name<-"LUAD_Neigh_45_3_TPM.matrix.csv_results_final.csv"
+  results_file1_name<-"LUAD_Neigh_45_3_CNV_DEL_LUAD.matrix.csv-161934-2015-06-19_results_final.csv"
   results_file2_name<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_results_final.csv"
-pii_values1<-"LUAD_Neigh_45_3_TPM.matrix.csv_pii_values.csv"
+pii_values1<-"LUAD_Neigh_45_3_CNV_DEL_LUAD.matrix.csv-161934-2015-06-19_pii_values.csv"
 pii_values2<-"LUAD_Neigh_45_3_Mut.matrix.csv-180908-2015-06-17_pii_values.csv"
   
 
@@ -212,8 +212,12 @@ jsd_mat_fast<-JSD_matrix(mat1,mat2,cores = 4,d = 0,fast =TRUE,identical_matrix=F
 #colnames(jsd_mat_fast)<-genes_of_interest_1[1:ncol(jsd_mat_fast)]
 #rownames(jsd_mat_fast)<-genes_of_interest_2[1:nrow(jsd_mat_fast)]
 
+
+JSD_results_file_name<-paste0("JSD_matrix-",Sys.Date(),".csv")
+write.csv(jsd_mat_fast,JSD_results_file_name,row.names=TRUE) #Initializing rolling results file
+
 print("Are slow and fast matrices the same?:")
-print(identical(as.numeric(jsd_mat_slow),as.numeric(jsd_mat_fast)))
+#print(identical(as.numeric(jsd_mat_slow),as.numeric(jsd_mat_fast)))
 
 
 JSD_results_file<-paste0("JSD_matrix-",Sys.Date(),".csv")
