@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:4000",500,detectCores()-1,FALSE,TRUE,80)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:5",10,detectCores()-1,TRUE,TRUE,80)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -152,7 +152,8 @@ e_matrix<-function(nodes,translated_values) {
       s<-s+translated_values[x,][i,]
     }
     #e<-log2(1+s/length(x))
-    e<-s/length(x)
+    if (arg$log2==TRUE) {
+      e<-log2(1+s/length(x))} else e<-s/length(x)
   })
   e_matrix<-t(e_matrix) #Transposing to keep permutations as columns
 }
