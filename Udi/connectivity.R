@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:16",100,detectCores(),TRUE,TRUE,4)
+arg<-list("LUAD_Neigh_45_3","Mut.matrix.LUAD.csv","all",0,detectCores(),TRUE,TRUE,1000)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -27,7 +27,7 @@ spec = matrix(c(
   "chunk","k",2,"integer"  
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -118,7 +118,7 @@ nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-sam
 
 #Initializing rolling results file
 p_table<-NULL
-col_rolling<-t(c("Gene","c_score","p_value","pi_mean","pi_sd","pi_fraction"))
+col_rolling<-t(c("Gene","c_score","p_value","e_mean","e_sd","pi_fraction"))
 unique_id<-round(runif(1, min = 111111, max = 222222),0)
 file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
 
@@ -168,11 +168,16 @@ p_connectivity<-function(nodes,column,permutations)
   {p_table<-rep(0,length(col_rolling)-1)} else 
   {
     pii<-pii_calc(nodes,column) #Vector of Pi values for particular columns in every node
-    pii_mean<-mean(pii)
-    pii_sd<-sd(pii)
+    e_values<-e_calc(nodes,column)
+    e_mean<-mean(e_values)
+    e_sd<-sd(e_values)
+    #pii_mean<-mean(pii)
+    #pii_sd<-sd(pii)
     pii_frac<-sum(pii!=0)/length(pii)
     c_score<-c_calc(edges,pii) # Connectivity value for specific column across the graph
-    p_table<-c(c_score,p_value(column,permutations,c_score),pii_mean,pii_sd,pii_frac)
+    #p_table<-c(c_score,p_value(column,permutations,c_score),pii_mean,pii_sd,pii_frac)
+    p_table<-c(c_score,p_value(column,permutations,c_score),e_mean,e_sd,pii_frac)
+    
   }   
   return(p_table)
 } 
@@ -189,6 +194,17 @@ pii_calc<-function(nodes,column)
   if (total_ei==0) {pii<-ei} else pii<-ei/total_ei
   return(pii)
 }
+
+e_calc<-function(nodes,column)
+{  #Calculate pi value(mean) for a particular column in a particular node.
+  # Input: nodes list and one specific column(i) of interest, output: pi
+  if (arg$log2==TRUE) {
+    ei<-sapply(nodes,function (x) log2(1+mean(matrix1[samples_relabling_table[x,1],column]))) 
+    
+  } else ei<-sapply(nodes,function (x) mean(matrix1[samples_relabling_table[x,1],column]))
+  
+}
+
 
 
 p_value<-function (column,permutations,c_score) {
@@ -241,7 +257,7 @@ print(paste("Number of permutations:",arg$permutations))
 #parallel computing prep
 print (paste("Acquiring",arg$cores,"cpu cores"))
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
+varlist=c("e_calc","p_connectivity","arg","p_value","permute","edges","nodes","matrix1","pii_calc","c_calc","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 
@@ -278,6 +294,13 @@ pii_values_table<-function(nodes,non_zero_columns) {
   return(pii_values)
 }
 
+e_values_table<-function(nodes,non_zero_columns) {
+  #Returns pii_values of requested columns
+  e_values <-parSapply(cl,non_zero_columns,function (x) e_calc (nodes,x))
+  colnames(e_values)<-colnames(matrix1)[non_zero_columns]
+  rownames(e_values)<-(1:length(nodes))
+  return(e_values)
+}
 
 
 print ("Correcting for multiple testings:")
@@ -292,9 +315,6 @@ if (arg$fdr==TRUE)
 } else  ans<-ans[order(ans[,"p_value"]),]
 
 
-print ("Writing results_final.csv file to disk:")
-write.csv(ans,paste0(file_prefix,"_results_final.csv"))
-
 
 
 run_t<-proc.time()-ptm #Calculationg run time
@@ -302,11 +322,16 @@ print(paste("Runtime in seconds:",run_t[3]))
 print(paste("Average p_value calc per column:",run_t[3]/length(columns)))
 print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$permutations/length(columns)))
 
+print ("Writing results_final.csv file to disk:")
+write.csv(ans,paste0(file_prefix,"_results_final.csv"))
+
 
 print("Writing pii_values file:")
 columns_of_interest<-match(rownames(ans),colnames(matrix1))
 pii_values<-pii_values_table(nodes,columns_of_interest)
 write.table(cbind(1:length(nodes),pii_values),paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE)
+
+
 
 print("Releasing cores")
 stopCluster(cl) # Releasing acquired CPU cores
