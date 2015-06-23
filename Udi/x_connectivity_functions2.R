@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:8",500,detectCores(),FALSE,TRUE,2)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:4000",500,detectCores()-1,FALSE,TRUE,80)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -48,8 +48,6 @@ matrix1<-as.matrix(matrix1) #Converting to matrix from data.frame -> increases s
 if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} else matrix1<-as.matrix(matrix1)
 
 
-
-
 column_range<-function(col_range)
   #Gets column range from arg$column and parse it.
 {
@@ -80,6 +78,12 @@ column_range<-function(col_range)
 
 #Extracting columns from arguments
 columns<-column_range(arg$columns)
+
+#Removing zero columns from matrix
+zero_columns<-apply(matrix1,2,function (x) sum(x==0)==nrow(matrix1)) #If column is all zeros removing from later calcuations
+matrix_non_zero<-matrix1[,!zero_columns]
+
+
 
 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
 print ("Parsing json and gexf files")
@@ -192,7 +196,7 @@ split.column<-split(columns,ceiling(seq_along(columns)/chunk_size))
 split.column
 
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","chunk_size","perm_values","arg","nodes","matrix1","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
+varlist=c("c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","chunk_size","perm_values","arg","nodes","matrix_non_zero","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 
@@ -200,7 +204,7 @@ clusterExport(cl=cl, varlist=varlist,envir=environment())
 ans<-parLapply(cl,split.column,function (columns_range)  {
   #calculating c-scores and p-values for each chunk of columns
   writeLines(paste("Handling column:",min(columns_range),"out of",max(columns)),"log.txt")
-  matrix2<-matrix1[,columns_range]
+  matrix2<-matrix_non_zero[,columns_range]
   print (paste0(Sys.time()," Calculating c-scores and p-values for rows: ",columns_range[1],"-",columns_range[chunk_size]))
   dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
     #dict[,1]<-seq_along(samples) #
@@ -240,7 +244,7 @@ ans<-parLapply(cl,split.column,function (columns_range)  {
 
 
 finish_time<-Sys.time()
-print(Sys.time())
+print(finish_time)
 a<-(finish_time-starting_time)/max(columns)*500/permutations
 print(a)
 
@@ -249,6 +253,9 @@ stopCluster(cl) # Releasing acquired CPU cores
 
 
 
-finish_time
+#finish_time
 
-
+#FIX AVERAGE CALCULATION
+#ADD PRINT TO LOG
+#SORT FILE PRINT
+#REMOVE ZERO COLUMNS
