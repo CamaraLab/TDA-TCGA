@@ -1,4 +1,4 @@
-#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
+#1setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
 
 library(igraph)
