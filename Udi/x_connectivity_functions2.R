@@ -1,4 +1,4 @@
-setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
+#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
 #debug(permute)
 
@@ -11,7 +11,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.csv","1:100",50,detectCores()-1,TRUE,TRUE,10)
+arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:16",50,detectCores(),TRUE,TRUE,100)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
 
 #Argument section handling
@@ -121,25 +121,25 @@ rownames(samples_relabling_table)<-samples
 colnames(samples_relabling_table)<-c("original","new")
 nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
 samples<-unique(unlist(nodes))
-
+matrix1<-matrix1[samples_relabling_table[,1],] #Subsetting matrix to contain only samples in first connected graph 
 #Initializing rolling results file
-p_table<-NULL
-col_rolling<-t(c("Gene","c_score","p_value","pi_frac","e_mean","e_sd"))
+
 unique_id<-round(runif(1, min = 111111, max = 222222),0)
 file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
-
 print(paste("File unique identifier:",unique_id))
-write.table(col_rolling,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+
+#Info_cols is used to set inforation columns in output file as well as names for the variables that constitutes those columns
+info_cols<-t(c("Genes","c_scores","p_values","n_samples","pi_frac","n_samples","e_mean","e_sd")) 
+write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 
 
-perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
+#perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
+perm_values<-function(dict_matrix,column,matrix) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
-  #z<-apply(y,2,function (x) x<-matrix2[samples_relabling_table[x,1]])
-  y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix[samples_relabling_table[perm_column,1],column])
-  #y<-apply(perm_dict_list[[1]],2,function(perm_column) perm_column<-matrix1[samples_relabling_table[perm_column,1],column])
-  #perm_dict_list[[column]]
-  #y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix2[samples_relabling_table[perm_column,1]])
+  
+  #y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix[samples_relabling_table[perm_column,1],column])
+  y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix[perm_column,column])
   
 }
   
@@ -188,28 +188,27 @@ edges1<-edges[,1]
 edges2<-edges[,2]
 num_nodes<-length(nodes)
 
-starting_time<-Sys.time()
-print(Sys.time())
-
-chunk_size<-arg$chunk #How many columns each CPU will handle at once
+chunk_size<-arg$chunk #How many columns each CPU will be assigned at once
 split.column<-split(columns,ceiling(seq_along(columns)/chunk_size))
 
 
+print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","chunk_size","perm_values","arg","nodes","matrix_non_zero","largest_cluster_nodes","col_rolling","columns","samples_relabling_table")
+varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","chunk_size","perm_values","arg","nodes","matrix_non_zero","matrix1","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
-
+print (Sys.time())
 ptm<-proc.time()
+
 ans<-parLapply(cl,split.column,function (columns_range)  {
   #calculating c-scores and p-values for each chunk of columns
-  write.table(paste("Handling column:",min(columns_range),"out of",max(columns)),"log.txt",append=TRUE)
-  matrix2<-matrix_non_zero[,columns_range]
-  print (paste0(Sys.time()," Calculating c-scores and p-values for rows: ",columns_range[1],"-",columns_range[chunk_size]))
+    
+  matrix2<-matrix1[,columns_range]
   dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
-    #dict[,1]<-seq_along(samples) #
-    perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
-    perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
+  perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+  perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+  
+  perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
       x<-apply(dict,2,function(x) x<-sample(samples))
       x[,1]<-1:length(samples)
       return(x)
@@ -217,10 +216,11 @@ ans<-parLapply(cl,split.column,function (columns_range)  {
 
 
     
-    perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+    
     
     for (column in seq_along(columns_range)) {
-      perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],samples_relabling_table,column,matrix2)
+      #perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],samples_relabling_table,column,matrix2)
+      perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],column,matrix2)
     }
     
     
@@ -230,28 +230,19 @@ ans<-parLapply(cl,split.column,function (columns_range)  {
     
     
     #e_values<-sapply(e_list,function (x) x[,1]))
-  #system.time(  
+    
     e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
     e_sd<-sapply(e_list,function (x) sd(x[,1]))
     pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
     pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
+    n_samples<-apply(matrix2,2,function (x) sum(x!=0))
     c_scores<-sapply(c_vec_list,function (c_vec) c_vec[1])
     p_values<-sapply(c_vec_list,function(c_vec) {
-      p_value<-sum(c_vec>c_vec[1])/permutations})
-    
-  #)
+    p_value<-sum(c_vec>c_vec[1])/permutations})
+    Genes<-colnames(matrix2)  
   
-  Genes<-colnames(matrix2)  
-  list_names<-c("Genes","c_scores","p_values","pi_frac","e_mean","e_sd")
-  ans<-list(Genes,c_scores,pi_frac,p_values,e_mean,e_sd)
-  names(ans)<-list_names
-  
-  output<-cbind(Genes,c_scores,p_values,pi_frac,e_mean,e_sd)
-  
+  output<-cbind(Genes,c_scores,p_values,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
   write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
-  write.table(output,paste0(file_prefix,"_results_rolling2.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
-  
-  
   return(output)
   })
 
@@ -269,7 +260,7 @@ for (i in 1:length(ans))
 q_value<-p.adjust(final_results[,"p_values"],"fdr")
 final_results<-cbind(final_results,q_value)
 final_results<-final_results[order(final_results[,"q_value"]),]
-
+#final_ZEROSSSSSS
 #pi_values_table<-NULL
 ##for (i in 1:length(ans))
 #  for (j in 1:chunk_size) {
