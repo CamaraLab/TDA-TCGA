@@ -37,8 +37,12 @@ TPM.matrix<-TPM.matrix[order(rownames(TPM.matrix)),]
 colnames(TPM.matrix)<-gene_id[,"Symbol"]
 
 #Read mutation data
-mut<-t(read.table("./MUTATIONS/UCSC/genomicMatrix.automated_fixed.txt",stringsAsFactors=FALSE,comment.char="",header=T,row.names=1))
+#mut<-t(read.table("./MUTATIONS/UCSC/genomicMatrix.automated_fixed.txt",stringsAsFactors=FALSE,comment.char="",header=T,row.names=1))
+mut<-t(read.table("./MUTATIONS/UCSC/genomicMatrix.curated",stringsAsFactors=FALSE,comment.char="",header=T))
+colnames(mut)<-mut[1,]
+mut<-mut[-1,]
 mut<-fix_patient_id(mut)
+mut_curated_samples<-rownames(mut)
 #Intersecting mut.aut with TPM.matrix
 mut<-intersect.mat(TPM.matrix,mut)
 
@@ -96,10 +100,17 @@ cnv_amp[cnv<0]<-0
 cnv_del<-cnv
 cnv_del[cnv>0]<-0
 cnv_del<-abs(cnv_del)
+colnames(cnv_amp)<-paste0("amp_",substring(colnames(cnv),4))
+colnames(cnv_del)<-paste0("del_",substring(colnames(cnv),4))
 
 #Matrix output to file
-write.csv(TPM.matrix,"TPM.matrix.csv")
-write.csv(cnv_amp,"CNV_AMP.matrix.csv")
-write.csv(cnv_del,"CNV_DEL.matrix.csv")
-write.csv(mut,"Mut.matrix.csv")
-write.csv(BIG.matrix,"BIG.matrix3.csv")
+#TPM.matrix<-TPM.matrix[mut_curated_samples,]
+#cnv_amp<-cnv_amp[mut_curated_samples,]
+#cnv_del<-cnv_del[mut_curated_samples,]
+#mut<-mut[mut_curated_samples,]
+#BIG.matrix<-BIG.matrix[mut_curated_samples,]
+write.csv(TPM.matrix,"TPM_matrix_Curated.csv")
+write.csv(cnv_amp,"CNV_AMP_matrix_Curated.csv")
+write.csv(cnv_del,"CNV_DEL_matrix_Curated.csv")
+write.csv(mut,"Mut_matrix_Curated.csv")
+write.csv(BIG.matrix,"BIG_matrix_Curated.csv")
