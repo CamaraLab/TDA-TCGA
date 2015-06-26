@@ -11,6 +11,7 @@ import random
 import requests
 import scipy.stats
 import scipy.cluster.hierarchy as sch
+import pandas
 import pickle
 import pylab
 import copy_reg
@@ -86,6 +87,13 @@ def ParseAyasdiGraph(lab, source, user, password, name):
         g.write('\t\t</edges>\n')
         g.write('\t</graph>\n')
         g.write('</gexf>\n')
+    r = session.get('https://core.ayasdi.com/v0/sources/' + source + '/networks/' + lab + '/node_groups')
+    sp = json.loads(r.content)
+    dicgroups = {}
+    for m in sp:
+        dicgroups[m['name']] = m['node_ids']
+    with open(name + '.groups.pickle', 'wb') as handle:
+        pickle.dump(dicgroups, handle)
 
 
 def benjamini_hochberg(pvalues):
@@ -205,6 +213,8 @@ class UnrootedGraph(object):
                 self.posg = pickle.load(handler)
         with open(name + '.pickle', 'r') as handler:
             self.dic = pickle.load(handler)
+        with open(name + '.groups.pickle', 'r') as handler:
+            self.dicgroups = pickle.load(handler)
         with open(table, 'r') as f:
             self.dicgenes = {}
             self.geneindex = {}
@@ -232,7 +242,7 @@ class UnrootedGraph(object):
                     for u, q in enumerate(poi):
                         self.dicgenes[self.geneindex[u]].append(float(q))
 
-    def get_gene(self, genin, permut=False, ignore_log=False):
+    def get_gene(self, genin, permut=False, ignore_log=False, con=True):
         """
         Returns a dictionary that asigns to each node ID the average value of the column genin in the raw table, for
          the rows contained in that column. If permut = True performs a reshuffling of rows. If log2 = True assumes
@@ -241,18 +251,25 @@ class UnrootedGraph(object):
         if type(genin) != list:
             genin = [genin]
         genecolor = {}
+        lista = []
         for i in self.dic.keys():
-            genecolor[str(i)] = 0.0
+            if con:
+                if str(i) in self.pl:
+                    genecolor[str(i)] = 0.0
+                    lista.append(i)
+            else:
+                genecolor[str(i)] = 0.0
+                lista.append(i)
         for mju in genin:
             if mju is None:
-                for i in sorted(self.dic.keys()):
+                for i in sorted(lista):
                     genecolor[str(i)] = 0.0
             else:
                 geys = self.dicgenes[mju]
                 kis = range(len(geys))
                 if permut:
                     random.shuffle(kis)
-                for i in sorted(self.dic.keys()):
+                for i in sorted(lista):
                     pol = 0.0
                     if self.log2 and not ignore_log:
                         for j in self.dic[i]:
@@ -291,23 +308,43 @@ class UnrootedGraph(object):
             conn = [self.connectivity(genis, True, ind) for _ in range(n)]
         return float(sum(i > self.connectivity(genis) for i in conn))/float(n)
 
-    def delta(self, genis):
+    def delta(self, genis, group=None):
         """
         Computes coefficient of variation of column genis in the graph
         """
-        dicgen = self.get_gene(genis)[0]
-        mi = [dicgen[node] for node in self.pl]
-        if numpy.mean(mi) > 0.0:
-            return numpy.std(mi)/numpy.mean(mi)
+        per = []
+        if type(group) == list:
+            for k in group:
+                per += self.dicgroups[k]
+            per = list(set(per))
         else:
-            return 0.0
+            per = self.dicgroups[group]
+        dicgen = self.get_gene(genis)[0]
+        if group is None:
+            mi = [dicgen[node] for node in self.pl]
+        else:
+            mi = [dicgen[str(node)] for node in per]
+        if numpy.mean(mi) > 0.0:
+            return numpy.mean(mi), numpy.std(mi)/numpy.mean(mi)
+        else:
+            return 0.0, 0.0
 
-    def expr(self, genis):
+    def expr(self, genis, group=None):
         """
         Computes fraction of expressed nodes for column genis
         """
+        per = []
+        if type(group) == list:
+            for k in group:
+                per += self.dicgroups[k]
+            per = list(set(per))
+        else:
+            per = self.dicgroups[group]
         dicgen = self.get_gene(genis)[0]
-        mi = [dicgen[node] for node in self.pl]
+        if group is None:
+            mi = [dicgen[node] for node in self.pl]
+        else:
+            mi = [dicgen[str(node)] for node in per]
         return float(len(mi) - mi.count(0.0))/float(len(mi))
 
     def save(self, n=500, c=2):
@@ -326,7 +363,7 @@ class UnrootedGraph(object):
             for gi in sorted(self.dicgenes.keys()):
                 po = self.expr(gi)
                 if po > 0:
-                    ggg.write(gi + '\t' + str(po) + '\t' + str(self.delta(gi)) + '\t' +
+                    ggg.write(gi + '\t' + str(po) + '\t' + str(self.delta(gi)[1]) + '\t' +
                               str(self.connectivity(gi, ind=1)) + '\t' +
                               str(pol[mj]) + '\t' + str(por[mj]) + '\n')
                     mj += 1
@@ -443,14 +480,14 @@ class UnrootedGraph(object):
         if table:
             if type(color) == str:
                 cell_text = [[str(min(values)*tol), str(max(values)*tol), str(numpy.median(values)*tol),
-                              str(self.expr(color)), str(self.delta(color)), str(self.connectivity(color, ind=1)),
+                              str(self.expr(color)), str(self.delta(color)[1]), str(self.connectivity(color, ind=1)),
                               str(self.connectivity_pvalue(color, ind=1, c=1, n=200))]]
                 columns = ['Min.', 'Max.', 'Median', 'Node fraction', 'Coeff. var.', 'Connectivity', 'p value']
                 rows = [color]
                 pylab.table(cellText=cell_text, rowLabels=rows, colLabels=columns, loc='bottom')
             elif type(color) == list and len(color) == 1:
                 cell_text = [[str(min(values)*tol), str(max(values)*tol), str(numpy.median(values)*tol),
-                              str(self.expr(color[0])), str(self.delta(color[0])),
+                              str(self.expr(color[0])), str(self.delta(color[0])[1]),
                               str(self.connectivity(color[0], ind=1)),
                               str(self.connectivity_pvalue(color[0], ind=1, c=1, n=200))]]
                 columns = ['Min.', 'Max.', 'Median', 'Node fraction', 'Coeff. var.', 'Connectivity', 'p value']
@@ -460,11 +497,11 @@ class UnrootedGraph(object):
                 valuesr = colorr.values()
                 valuesb = colorb.values()
                 cell_text = [[str(min(valuesr)*tolr), str(max(valuesr)*tolr), str(numpy.median(valuesr)*tolr),
-                              str(self.expr(color[0])), str(self.delta(color[0])),
+                              str(self.expr(color[0])), str(self.delta(color[0])[1]),
                               str(self.connectivity(color[0], ind=1)),
                               str(self.connectivity_pvalue(color[0], ind=1, c=1, n=200))], [str(min(valuesb)*tolb),
                               str(max(valuesb)*tolb), str(numpy.median(valuesb)*tolb),
-                              str(self.expr(color[1])), str(self.delta(color[1])),
+                              str(self.expr(color[1])), str(self.delta(color[1])[1]),
                               str(self.connectivity(color[1], ind=1)),
                               str(self.connectivity_pvalue(color[1], ind=1, c=1, n=200))]]
                 columns = ['Min.', 'Max.', 'Median', 'Node fraction', 'Coeff. var.', 'Connectivity', 'p value']
@@ -475,15 +512,15 @@ class UnrootedGraph(object):
                 valuesg = colorg.values()
                 valuesb = colorb.values()
                 cell_text = [[str(min(valuesr)*tolr), str(max(valuesr)*tolr), str(numpy.median(valuesr)*tolr),
-                              str(self.expr(color[0])), str(self.delta(color[0])),
+                              str(self.expr(color[0])), str(self.delta(color[0])[1]),
                               str(self.connectivity(color[0], ind=1)),
                               str(self.connectivity_pvalue(color[0], ind=1, c=1, n=200))],
                              [str(min(valuesg)*tolg), str(max(valuesg)*tolg), str(numpy.median(valuesg)*tolg),
-                              str(self.expr(color[1])), str(self.delta(color[1])),
+                              str(self.expr(color[1])), str(self.delta(color[1])[1]),
                               str(self.connectivity(color[1], ind=1)),
                               str(self.connectivity_pvalue(color[1], ind=1, c=1, n=200))],
                              [str(min(valuesb)*tolb), str(max(valuesb)*tolb), str(numpy.median(valuesb)*tolb),
-                              str(self.expr(color[2])), str(self.delta(color[2])),
+                              str(self.expr(color[2])), str(self.delta(color[2])[1]),
                               str(self.connectivity(color[2], ind=1)),
                               str(self.connectivity_pvalue(color[2], ind=1, c=1, n=200))]]
                 columns = ['Min.', 'Max.', 'Median', 'Node fraction', 'Coeff. var.', 'Connectivity', 'p value']
@@ -747,7 +784,7 @@ class RootedGraph(UnrootedGraph):
         else:
             return [None, None]
 
-    def get_gene(self, genin, permut=False, ignore_log=False):
+    def get_gene(self, genin, permut=False, ignore_log=False, con=True):
         """
         Returns a dictionary that asigns to each node ID the average value of the column genin in the raw table, for
          the rows contained in that column. If permut = True performs a reshuffling of rows. If log2 = True assumes
@@ -756,4 +793,51 @@ class RootedGraph(UnrootedGraph):
         if genin == '_dist_root':
             return self.get_distroot(self.root)
         else:
-            return UnrootedGraph.get_gene(self, genin, permut, ignore_log)[0]
+            return UnrootedGraph.get_gene(self, genin, permut, ignore_log, con)
+
+    def draw_expr_timeline(self, genin, ignore_log=False):
+        """
+        Plots expression of gene or genes across distance to root
+        """
+        pel = self.get_distroot(self.root)
+        distroot_inv = {}
+        for m in pel.keys():
+            if pel[m] not in distroot_inv.keys():
+                distroot_inv[pel[m]] = [m]
+            else:
+                distroot_inv[pel[m]].append(m)
+        if type(genin) != list:
+            genin = [genin]
+        polter = {}
+        for qsd in distroot_inv.keys():
+            genecolor = {}
+            lista = []
+            for i in self.dic.keys():
+                if str(i) in distroot_inv[qsd]:
+                    genecolor[str(i)] = 0.0
+                    lista += list(self.dic[i])
+            for mju in genin:
+                geys = self.dicgenes[mju]
+                pol = []
+                for j in lista:
+                    if self.log2 and not ignore_log:
+                        pol.append(numpy.power(2, float(geys[j]))-1.0)
+                    else:
+                        pol.append(float(geys[j]))
+            polter[qsd] = pandas.Series(numpy.array(pol)).describe(80)[4:7]
+        x = []
+        y = []
+        y1 = []
+        y2 = []
+        for m in sorted(polter.keys()):
+            x.append(m)
+            y1.append(polter[m][0])
+            y.append(polter[m][1])
+            y2.append(polter[m][2])
+        pylab.figure()
+        pylab.plot(x, y)
+        pylab.plot(x, y1)
+        pylab.plot(x, y2)
+        pylab.show()
+        return polter
+
