@@ -1,4 +1,4 @@
-#1setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
+#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
 #Preping environment, loading necessary libraries
 
 library(igraph)
@@ -10,8 +10,8 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Neigh_45_3","TPM.matrix.light.csv","1:20",200,detectCores(),TRUE,TRUE,150)
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk")
+arg<-list("LUAD_Cor_Neigh_49_3_Curated","Mut_matrix_Curated_LUAD.csv","all",50,detectCores(),FALSE,TRUE,400,5)
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold")
 
 #Argument section handling
 spec = matrix(c(
@@ -21,6 +21,7 @@ spec = matrix(c(
   "genes", "g",1,"character",
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
+  "samples_threshold","t",1,"integer", # Minimum number of samples to express column - Removing columns below that
   "log2","l",2,"logical",
   "fdr","f",2,"logical",
   "chunk","k",2,"integer"  
@@ -34,6 +35,7 @@ if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
+if ( is.null(arg$columns ) ) {arg$samples_threshold= 5}
 
 
 
@@ -41,14 +43,16 @@ if ( is.null(arg$columns ) ) {arg$columns= "all"}
 matrix_full_name<-arg$matrix
 print (paste0("Loading ",matrix_full_name, " file to memory"))
 matrix1<-fread(matrix_full_name,data.table=FALSE)
-rownames(matrix1)<-matrix1[,1]
+samples_names<-matrix1[,1]
 matrix1<-matrix1[,-1]
 matrix1<-as.matrix(matrix1) #Converting to matrix from data.frame -> increases speed dramatically
-if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} else matrix1<-as.matrix(matrix1)
+matrix1<-apply(matrix1,2,as.numeric) #Converting matrix elements to numeric
+rownames(matrix1)<-samples_names
+if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} #Preparing for calculation if matrix is log scale
 
 
 column_range<-function(col_range)
-  #Gets column range from arg$column and parse it.
+  #Gets column range from arg$column and parse it. Also removes columns below threshold
 {
   
   if (col_range=="all") #Check if all is supplied
@@ -72,16 +76,9 @@ column_range<-function(col_range)
   {
     stop (paste0("Columns out of range"," Available range: 1:",ncol(matrix1)))
   }
+
   return(x)
 }
-
-#Extracting columns from arguments
-columns<-column_range(arg$columns)
-
-#Removing zero columns from matrix
-#zero_columns<-apply(matrix1,2,function (x) sum(x==0)==nrow(matrix1)) #If column is all zeros removing from later calcuations
-#matrix_non_zero<-matrix1[,!zero_columns]
-#matrix_non_zero<-matrix1
 
 
 
@@ -123,22 +120,43 @@ samples<-unique(unlist(nodes))
 matrix1<-matrix1[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
 
 
+
+#Extracting columns from arguments
+columns<-column_range(arg$columns)
+
+#Removing columns below samples_threshold from the first connected graph
+matrix1<-matrix1[,columns] #Subsetting for selected columns
+columns_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
+columns_of_no_interest<-which(columns_number_of_samples<arg$samples_threshold)
+columns_of_interest<-which(columns_number_of_samples>=arg$samples_threshold)
+print(paste0("Columns above threshold: ",length(columns_of_interest)))
+
+matrix1<-matrix1[,columns_of_interest] #Subsetting matrix to have above threshold columns
+columns<-seq_along(columns_of_interest) #Subsetting columns
+
+
+
 #Initializing rolling results file
 unique_id<-round(runif(1, min = 111111, max = 222222),0)
 file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
 print(paste("File unique identifier:",unique_id))
 
 #Info_cols is used to set inforation columns in output file as well as names for the variables that constitutes those columns
-info_cols<-t(c("Genes","c_scores","p_values","n_samples","pi_frac","n_samples","e_mean","e_sd")) 
+
+info_cols<-t(c("Genes","c_scores","p_values","pi_frac","n_samples","e_mean","e_sd")) 
 write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+write.table(columns_number_of_samples[columns_of_no_interest],paste0(file_prefix,"_thresholded_genes.csv"),sep=",")
 
 
+#Writing log file
+suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
 
 #perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
 perm_values<-function(dict_matrix,column,matrix) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
   
-  #y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix[samples_relabling_table[perm_column,1],column])
   y<-apply(dict_matrix,2,function(perm_column) perm_column<-matrix[perm_column,column])
   
 }
@@ -182,13 +200,12 @@ edges1<-edges[,1] #Nodes i
 edges2<-edges[,2] #Nodes j
 num_nodes<-length(nodes)
 
-chunk_size<-arg$chunk #How many columns each CPU will be assigned at once
-split.column<-split(columns,ceiling(seq_along(columns)/chunk_size))
+split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
 
 
 print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
 cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","chunk_size","perm_values","arg","nodes","matrix1","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
+varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix1","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
 clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 print (Sys.time())
@@ -207,13 +224,8 @@ ans<-parLapply(cl,split.column,function (columns_range)  {
       x[,1]<-1:length(samples)
       return(x)
     }) 
-
-
-    
-    
-    
+  
     for (column in seq_along(columns_range)) {
-      #perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],samples_relabling_table,column,matrix2)
       perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],column,matrix2)
     }
     
@@ -221,6 +233,7 @@ ans<-parLapply(cl,split.column,function (columns_range)  {
     e_list<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
     pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
     c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
+    
     
     
     #e_values<-sapply(e_list,function (x) x[,1]))
@@ -274,8 +287,13 @@ write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.na
 
 
 run_t<-round(proc.time()-ptm,4) #Calculationg run time
+speed_index<-run_t[3]*500/arg$permutations/length(columns)
 print(paste("Runtime in seconds:",run_t[3]))
-print(paste("Speed index (calc time for 500 permutations):",run_t[3]*500/arg$permutations/length(columns)))
+
+print(paste("Speed index (calc time for 500 permutations):",speed_index))
+
+suppressWarnings(write.table(paste("Runtime in seconds:",run_t[3]),paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste("Speed index:",speed_index),paste0(file_prefix,"_log.csv"),append=TRUE))
 
 print("Releasing cores")
 stopCluster(cl) # Releasing acquired CPU cores
