@@ -35,7 +35,7 @@ if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
-if ( is.null(arg$columns ) ) {arg$samples_threshold= 5}
+if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 5}
 
 
 
@@ -152,7 +152,7 @@ write.table(columns_number_of_samples[columns_of_no_interest],paste0(file_prefix
 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
-
+suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
 #perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
 perm_values<-function(dict_matrix,column,matrix) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
