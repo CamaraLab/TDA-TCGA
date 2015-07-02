@@ -10,7 +10,7 @@ library(data.table)
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_Neigh_49_3_Curated","Mut_matrix_Curated_LUAD.csv","all",50,detectCores(),FALSE,TRUE,400,5)
+arg<-list("LUAD_Cor_Neigh_49_3_Curated","Mut_matrix_Curated_LUAD.csv","all",50,detectCores(),FALSE,TRUE,400,500)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold")
 
 #Argument section handling
@@ -35,7 +35,7 @@ if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
-if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 5}
+if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 
 
 
@@ -80,7 +80,14 @@ column_range<-function(col_range)
   return(x)
 }
 
-
+g_score<-function (w_mat) { 
+  #Divides each element by the sum of the corresponding row sum.
+  # Returns zero in case of division by zero
+  w_mat<-w_mat/rowSums(w_mat)
+  w_mat[w_mat=="NaN"]<-0
+  g_score<-colSums(w_mat)*sum(rowSums(w_mat))/nrow(w_mat)
+  return(g_score)
+}
 
 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
 print ("Parsing json and gexf files")
@@ -128,10 +135,12 @@ columns<-column_range(arg$columns)
 matrix1<-matrix1[,columns] #Subsetting for selected columns
 columns_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
 columns_of_no_interest<-which(columns_number_of_samples<arg$samples_threshold)
-columns_of_interest<-which(columns_number_of_samples>=arg$samples_threshold)
+#columns_of_interest<-which(columns_number_of_samples>=arg$samples_threshold) #For filtering by number  of mutations exist in a sample
+columns_of_interest<-head(sort(g_score(matrix1),decreasing=TRUE),arg$samples_threshold) #Filtering by g-score
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
 
-matrix1<-matrix1[,columns_of_interest] #Subsetting matrix to have above threshold columns
+
+matrix1<-matrix1[,names(columns_of_interest)] #Subsetting matrix to have above threshold columns
 columns<-seq_along(columns_of_interest) #Subsetting columns
 
 
@@ -268,7 +277,8 @@ for (i in 1:length(ans))
 pi_zero_genes<-final_results[,"pi_frac"]==0
 final_results<-final_results[!pi_zero_genes,]
 q_value<-p.adjust(final_results[,"p_values"],"fdr")
-final_results<-cbind(final_results,q_value)
+g_value<-columns_of_interest[rownames(final_results)]
+final_results<-cbind(final_results,q_value,g_value)
 final_results<-final_results[order(final_results[,"q_value"]),]
 
 
