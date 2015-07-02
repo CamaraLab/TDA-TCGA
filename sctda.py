@@ -11,7 +11,7 @@ import random
 import requests
 import scipy.stats
 import scipy.cluster.hierarchy as sch
-import pandas
+import scipy.interpolate
 import pickle
 import pylab
 import copy_reg
@@ -51,7 +51,7 @@ GLOBAL METHODS
 """
 
 
-def ParseAyasdiGraph(lab, source, user, password, name):
+def ParseAyasdiGraph(lab, source, user, password, name, jsonout=False):
     """
     Parses Ayasdi graph given by the source ID and lab ID, and stores as name.gexf and name.pickle. user and
     password specify Ayasdi login credentials.
@@ -70,6 +70,9 @@ def ParseAyasdiGraph(lab, source, user, password, name):
         dic2[i] = json.loads(r.content)['row_indices']
     with open(name + '.pickle', 'wb') as handle3:
         pickle.dump(dic2, handle3)
+    if jsonout:
+        with open(name + '.json', 'wb') as handle3:
+            json.dump(dic2, handle3)
     rowcount = []
     with open(name + '.gexf', 'w') as g:
         g.write('<?xml version="1.0" encoding="UTF-8"?>\n')
@@ -94,6 +97,9 @@ def ParseAyasdiGraph(lab, source, user, password, name):
         dicgroups[m['name']] = m['node_ids']
     with open(name + '.groups.pickle', 'wb') as handle:
         pickle.dump(dicgroups, handle)
+    if jsonout:
+        with open(name + '.json', 'wb') as handle3:
+            json.dump(dicgroups, handle3)
 
 
 def benjamini_hochberg(pvalues):
@@ -131,7 +137,7 @@ def is_number(s):
         return False
 
 
-def hierarchical_clustering(mat, method='median'):
+def hierarchical_clustering(mat, method='median', labels=None):
     """
     Performs hierarchical clustering based on distance matrix mat and method
     """
@@ -153,8 +159,22 @@ def hierarchical_clustering(mat, method='median'):
     D = D[idx1, :]
     D = D[:, idx2]
     im = axmatrix.matshow(D, aspect='auto', origin='lower', cmap=pylab.get_cmap('jet_r'))
-    axmatrix.set_xticks([])
-    axmatrix.set_yticks([])
+    if labels is None:
+        axmatrix.set_xticks([])
+        axmatrix.set_yticks([])
+    else:
+        axmatrix.set_xticks(range(len(labels)))
+        lab = [labels[idx1[m]] for m in range(len(labels))]
+        axmatrix.set_xticklabels(lab)
+        axmatrix.set_yticks(range(len(labels)))
+        axmatrix.set_yticklabels(lab)
+        for tick in pylab.gca().xaxis.iter_ticks():
+            tick[0].label2On = False
+            tick[0].label1On = True
+            tick[0].label1.set_rotation('vertical')
+        for tick in pylab.gca().yaxis.iter_ticks():
+            tick[0].label2On = True
+            tick[0].label1On = False
     axcolor = fig.add_axes([0.91, 0.1, 0.02, 0.6])
     pylab.colorbar(im, cax=axcolor)
     pylab.show()
@@ -569,7 +589,7 @@ class RootedGraph(UnrootedGraph):
         Dendritic function
         """
         dendrite = {}
-        daycolor = self.get_gene(self.rootlane, permut=permut, ignore_log=True)
+        daycolor = self.get_gene(self.rootlane, permut=permut, ignore_log=True)[0]
         for i in self.pl:
             distroot = self.get_distroot(i)
             x = []
@@ -631,6 +651,7 @@ class RootedGraph(UnrootedGraph):
         self.g3, self.dicdend = self.dendritic_graph()
         self.g3prun = self.g3
         self.edgesize = []
+        self.dicedgesize = {}
         self.edgesizeprun = []
         self.nodesize = []
         self.dicmelisa = {}
@@ -641,6 +662,7 @@ class RootedGraph(UnrootedGraph):
             yu2 = self.dicdend[int(ee[1].split('_')[0])][int(ee[1].split('_')[1])]
             self.edgesize.append(self.gl.subgraph(yu+yu2).number_of_edges()-self.gl.subgraph(yu).number_of_edges()
                                  - self.gl.subgraph(yu2).number_of_edges())
+            self.dicedgesize[ee] = self.edgesize[-1]
         for ee in self.g3.nodes():
             lisa = []
             for uu in self.dicdend[int(ee.split('_')[0])][int(ee.split('_')[1])]:
@@ -655,7 +677,32 @@ class RootedGraph(UnrootedGraph):
             self.posg3prun = networkx.spring_layout(self.g3prun)
         self.dicdis = self.get_distroot(self.root)
 
-    def draw_diff_net(self, color, labels=False, ccmap='jet', weight=8.0, save='', ignore_log=False):
+    def select_diff_path(self):
+        """
+        Returns linear subgraph og the differentiation network
+        """
+        lista = []
+        last = '0_0'
+        while True:
+            siz = 0
+            novel = None
+            for ee in self.dicedgesize.keys():
+                if ((ee[0] == last and float(ee[1].split('_')[0]) > float(ee[0].split('_')[0]))
+                    or (ee[1] == last and float(ee[0].split('_')[0]) > float(ee[1].split('_')[0]))) \
+                        and self.dicedgesize[ee] > siz and ee not in lista:
+                    novel = ee
+                    siz = self.dicedgesize[ee]
+            if novel is not None:
+                lista.append(novel)
+                if float(novel[1].split('_')[0]) > float(novel[0].split('_')[0]):
+                    last = novel[1]
+                else:
+                    last = novel[0]
+            else:
+                break
+        return lista
+
+    def draw_diff_net(self, color, labels=False, ccmap='jet', weight=8.0, save='', ignore_log=False, markpath=False):
         """
         Plots colored network
         """
@@ -668,6 +715,12 @@ class RootedGraph(UnrootedGraph):
         networkx.draw_networkx_edges(pg, pos,
                                      width=numpy.log2(numpy.array(edgesize)+1)*8.0/float(numpy.log2(1+max(edgesize))),
                                      alpha=0.6)
+        if markpath:
+            culer = self.select_diff_path()
+            edgesize2 = [self.dicedgesize[m] for m in culer]
+            networkx.draw_networkx_edges(pg, pos, edgelist=culer, edge_color='r',
+                                         width=numpy.log2(numpy.array(edgesize2)+1)*8.0/float(numpy.log2(1+max(edgesize))),
+                                         alpha=0.6)
         if type(color) == str or (type(color) == list and len(color) == 1):
             values = []
             for _ in pg.nodes():
@@ -769,7 +822,7 @@ class RootedGraph(UnrootedGraph):
         """
         Computes centroid and dispersion
         """
-        dicge = self.get_gene(genin, ignore_log=ignore_log)
+        dicge = self.get_gene(genin, ignore_log=ignore_log)[0]
         pel1 = 0.0
         pel2 = 0.0
         pel3 = 0.0
@@ -795,17 +848,27 @@ class RootedGraph(UnrootedGraph):
         else:
             return UnrootedGraph.get_gene(self, genin, permut, ignore_log, con)
 
-    def draw_expr_timeline(self, genin, ignore_log=False):
+    def draw_expr_timeline(self, genin, ignore_log=False, path=False):
         """
         Plots expression of gene or genes across distance to root
         """
-        pel = self.get_distroot(self.root)
         distroot_inv = {}
-        for m in pel.keys():
-            if pel[m] not in distroot_inv.keys():
-                distroot_inv[pel[m]] = [m]
-            else:
-                distroot_inv[pel[m]].append(m)
+        if not path:
+            pel = self.get_distroot(self.root)
+            for m in pel.keys():
+                if pel[m] not in distroot_inv.keys():
+                    distroot_inv[pel[m]] = [m]
+                else:
+                    distroot_inv[pel[m]].append(m)
+        else:
+            pel = self.select_diff_path()
+            cali = []
+            for mmn in pel:
+                cali.append(mmn[0])
+                cali.append(mmn[1])
+            cali = list(set(cali))
+            for mmn in cali:
+                distroot_inv[int(mmn.split('_')[0])] = self.dicdend[int(mmn.split('_')[0])][int(mmn.split('_')[1])]
         if type(genin) != list:
             genin = [genin]
         polter = {}
@@ -816,28 +879,54 @@ class RootedGraph(UnrootedGraph):
                 if str(i) in distroot_inv[qsd]:
                     genecolor[str(i)] = 0.0
                     lista += list(self.dic[i])
+            pol = []
             for mju in genin:
                 geys = self.dicgenes[mju]
-                pol = []
                 for j in lista:
                     if self.log2 and not ignore_log:
                         pol.append(numpy.power(2, float(geys[j]))-1.0)
                     else:
                         pol.append(float(geys[j]))
-            polter[qsd] = pandas.Series(numpy.array(pol)).describe(80)[4:7]
+            pol = map(lambda xcv: numpy.log2(1+xcv), pol)
+            polter[qsd] = [numpy.mean(pol)-numpy.std(pol), numpy.mean(pol), numpy.mean(pol)+numpy.std(pol)]
         x = []
         y = []
         y1 = []
         y2 = []
+        po = self.plot_rootlane_correlation(False)
         for m in sorted(polter.keys()):
-            x.append(m)
+            x.append((m-po[1])/po[0])
             y1.append(polter[m][0])
             y.append(polter[m][1])
             y2.append(polter[m][2])
+        xnew = numpy.linspace(min(x), max(x), 300)
+        ynew = scipy.interpolate.spline(x, y, xnew)
         pylab.figure()
-        pylab.plot(x, y)
-        pylab.plot(x, y1)
-        pylab.plot(x, y2)
-        pylab.show()
+        pylab.fill_between(xnew, 0, ynew, alpha=0.5)
+        pylab.xlim(min(xnew), max(xnew))
+        pylab.ylim(0.0, max(ynew)*1.2)
+        pylab.xlabel(self.rootlane)
+        pylab.ylabel('<log2 (1+x)>')
         return polter
+
+    def plot_rootlane_correlation(self, doplot=True):
+        """
+        Plots correlation between distance to root and rootlane
+        """
+        pel2, tol = self.get_gene(self.rootlane, ignore_log=True)
+        pel = numpy.array([pel2[m] for m in self.pl])*tol
+        dr2 = self.get_distroot(self.root)
+        dr = numpy.array([dr2[m] for m in self.pl])
+        po = scipy.stats.linregress(pel, dr)
+        if doplot:
+            pylab.scatter(pel, dr, s=9.0, alpha=0.7, c='r')
+            pylab.xlim(min(pel), max(pel))
+            pylab.ylim(0, max(dr)+1)
+            pylab.xlabel(self.rootlane)
+            pylab.ylabel('distance to root node')
+            xk = pylab.linspace(min(pel), max(pel), 50)
+            pylab.plot(xk, po[1]+po[0]*xk, 'k--', linewidth=2.0)
+            pylab.show()
+        return po
+
 
