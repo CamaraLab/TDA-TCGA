@@ -83,9 +83,10 @@ column_range<-function(col_range)
 g_score<-function (w_mat) { 
   #Divides each element by the sum of the corresponding row sum.
   # Returns zero in case of division by zero
-  w_mat<-w_mat/rowSums(w_mat)
+  NS<-rowSums(w_mat)
+  w_mat<-w_mat/NS
   w_mat[w_mat=="NaN"]<-0
-  g_score<-colSums(w_mat)*sum(rowSums(w_mat))/nrow(w_mat)
+  g_score<-colSums(w_mat)
   return(g_score)
 }
 
