@@ -1,27 +1,30 @@
 library(GenomicFeatures)
-
-hg19GeneLengths <- function(symbols)
-{
-  require(TxDb.Hsapiens.UCSC.hg19.knownGene) 
-  require(org.Hs.eg.db)
-  exons.db = exonsBy(TxDb.Hsapiens.UCSC.hg19.knownGene, by='gene')
-  if (symbols=="all") {
-    exon_width<-reduce(exons.db)
-    gene_length<-sum(width(exon_width))
-  } else { 
-           egs    = unlist(  mget(symbols[ symbols %in% keys(org.Hs.egSYMBOL2EG) ],org.Hs.egSYMBOL2EG) )
-           sapply(egs,function(eg)
-           {
-             exons = exons.db[[eg]]
-             exons = reduce(exons)
-             gene_length<-sum( width(exons) )})
-        }
-  return(gene_length)
-}
 symbols<-c("STAT1","CXCL10","ACTB","PDCD1")
 symbols<-"all"
 gene_length<-hg19GeneLengths(symbols)
 gene_length
+
+#Parsing gene/exons/length table
+exons<-read.delim("../Downloads/refseq_table.txt",stringsAsFactors = F,header=T)
+exons$EntrezID<-as.numeric(unlist(strsplit(exons$EntrezID,",")))
+exons<-subset(exons,!is.na(EntrezID)) #Removing undetected EntrezID's
+
+exons$Starts<-sapply(exons$Starts,function (x) strsplit(x,","))
+exons$Ends<-sapply(exons$Ends,function (x) strsplit(x,","))
+
+entrezid<-unique(exons$EntrezID)
+gene_length<-sapply(entrezid,function (id){
+  starts<-as.numeric(unlist(exons$Starts[exons$EntrezID==id]))
+  ends<-as.numeric(unlist(exons$Ends[exons$EntrezID==id]))
+  range<-reduce(IRanges(starts,ends))
+  ans<-sum(width(range))
+})
+names(gene_length)<-as.character(entrezid)
+gene_length
+
+
+GRangesList(1,t2)
+
 
 
 maf<-read.table("../Downloads/PR_TCGA_LUAD_PAIR_Capture_All_Pairs_QCPASS_v4.aggregated.capture.tcga.uuid.automated.somatic.maf",header = TRUE,stringsAsFactors = FALSE)
