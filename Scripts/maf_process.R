@@ -1,6 +1,6 @@
 #This file cleans and created a file wit
 
-maf<-read.table("../../../../../../Downloads/PR_TCGA_LUAD_PAIR_Capture_All_Pairs_QCPASS_v4.aggregated.capture.tcga.uuid.automated.somatic.maf",header = TRUE,stringsAsFactors = FALSE)
+maf<-read.table("../Data/PR_TCGA_LUAD_PAIR_Capture_All_Pairs_QCPASS_v4.aggregated.capture.tcga.uuid.automated.somatic.maf",header = TRUE,stringsAsFactors = FALSE)
 head(maf)
 
 
@@ -17,7 +17,7 @@ maf<-maf[order(maf$Entrez_Gene_Id),]
 maf<-maf[complete.cases(maf),] #Removing unknown EntrezIDs
 
 #Replacing old EntrezID's with new ones
-old_new_id<-read.csv("../../../../../../Google Drive/Columbia/LAB/Rabadan/SC-TDA/Udi/entrez_oldid_conversion.csv")
+old_new_id<-read.csv("../Data//entrez_oldid_conversion.csv")
 for (i in 1:nrow(old_new_id)) 
   maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==old_new_id[i,1]]<-old_new_id[i,2]
 
@@ -32,7 +32,7 @@ maf$Synonymous<-(maf$Variant_Classification=="Silent")
 head(maf,30)
 
 #Adding Exons_Length to file
-anno<-read.csv("Annotations.csv")
+anno<-read.csv("../Data/Annotations.csv")
 maf$Exons_Length<-anno[match(maf$Entrez_Gene_Id,anno$EntrezID),"length"]  #Some length are unknown
 
 #Creating synonymous and non-synonymous matrices
@@ -58,52 +58,47 @@ mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will 
 
 
 #Generating vector of genes lengths
-exon_length_table<-cbind(maf$Hugo_Symbol,maf$Entrez_Gene_Id,maf$Exons_Length)
-exon_length_table<-unique(exon_length_table)
-rownames(exon_length_table)<-exon_length_table[,1]
-
-Lg<-as.numeric(anno$length[match(colnames(mat_non_syn_bin),anno$Symbol)])
-names(Lg)<-anno$Symbol[match(colnames(mat_non_syn_bin),anno$Symbol)]
-genes_with_known_length<-names(Lg[!is.na(Lg)])
-Lg<-Lg[genes_with_known_length] #Removing unknown length EntrezId's
-L<-sum(Lg) #Total Coding region length
-ns<-rowSums(mat_non_syn[,genes_with_known_length]) #Sum of non syn mutations for each row
 #lambda_i<-Lg*ns/L
 
 
 #G_scores type 1 - Based on  non-syn/(syn+non-syn) ratio
-syn_ratio<-colSums(mat_non_syn)/(colSums(mat_syn)+colSums(mat_non_syn)) #G_Score
-syn_ratio[syn_ratio=="NaN"]<-0 #Fixing 0 mutations columns 3
+#syn_ratio<-colSums(mat_non_syn)/(colSums(mat_syn)+colSums(mat_non_syn)) #G_Score
+#syn_ratio[syn_ratio=="NaN"]<-0 #Fixing 0 mutations columns 3
 
 # G_Scores type 2 - Based on gene lengths
-S_lambda<-rowSums(sapply(rownames(mat_non_syn),function (x) {
-    lambda<-Lg*ns[x]/L 
-    ans<-(-1)*mat_non_syn_bin[x,genes_with_known_length]*log(1-exp(-lambda))
-}))
+#S_lambda<-rowSums(sapply(rownames(mat_non_syn),function (x) {
+#    lambda<-Lg*ns[x]/L 
+#    ans<-(-1)*mat_non_syn_bin[x,genes_with_known_length]*log(1-exp(-lambda))
+#}))
+#supressWarnings(S_lambda<-as.numeric(c(S_lambda,setdiff(colnames(mat_non_syn),names(S_lambda)))))
+
 
 #G_Score 3
 #Divides each element by the sum of the corresponding row sum.
 # Returns zero in case of division by zero
-  NS<-rowSums(mat_non_syn_bin)
-  mat_NS<-mat_non_syn_bin/NS
-  mat_NS[mat_NS=="NaN"]<-0
-  NS<-colSums(mat_NS)
+  #NS<-rowSums(mat_non_syn_bin)
+  #mat_NS<-mat_non_syn_bin/NS
+  #mat_NS[mat_NS=="NaN"]<-0
+  #NS<-colSums(mat_NS)
 
-g_scores<-cbind(syn_ratio,S_lambda,NS)
-write.csv(mat_non_syn_bin,"LUAD_Mutations_Binary.csv")
-write.csv(mat_non_syn,"LUAD_Mutations_NS.csv")
-write.csv(mat_syn,"LUAD_Mutations_S.csv")
+#g_scores<-cbind(syn_ratio,S_lambda,NS)
+
+
+
+write.csv(mat_non_syn_bin,"../DATA/LUAD_Mutations_Binary.csv")
+write.csv(mat_non_syn,"../DATA/LUAD_Mutations_NS.csv")
+write.csv(mat_syn,"../DATA/LUAD_Mutations_S.csv")
 
 require(rhdf5)
 head(g_scores)
-h5createFile("LUAD.h5")
+h5createFile("../DATA/LUAD.h5")
 H5close()
 suppressWarnings({
-  h5write(mat_non_syn_bin, "LUAD.h5","Mutations_Binary")
-  h5write(mat_non_syn, "LUAD.h5","Mutations_NS")
-  h5write(mat_syn, "LUAD.h5","Mutations_S")
-  h5write(rownames(mat_non_syn_bin),"LUAD.h5","Mutations_Samples")
-  h5write(colnames(mat_non_syn_bin),"LUAD.h5","Mutations_Genes")
+  h5write(mat_non_syn_bin, "../Data/LUAD.h5","Mutations_Binary")
+  h5write(mat_non_syn, "../DATA/LUAD.h5","Mutations_NS")
+  h5write(mat_syn, "../DATA/LUAD.h5","Mutations_S")
+  h5write(rownames(mat_non_syn_bin),"../DATA/LUAD.h5","Mutations_Samples")
+  h5write(colnames(mat_non_syn_bin),".../DATA/LUAD.h5","Mutations_Genes")
 })  
 H5close()
-h5ls("LUAD.h5")
+h5ls("../DATA/LUAD.h5")
