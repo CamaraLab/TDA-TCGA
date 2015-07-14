@@ -1,2 +1,2 @@
-# SC-TDA
-Suite for topological analysis of single-cell RNA-seq data. In development.
+# TCGA-TDA
+Identification of novel driver genes using TDA on TCGA data
