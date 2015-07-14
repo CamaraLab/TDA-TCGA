@@ -10,25 +10,25 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_Neigh_49_3_Curated","Mut_matrix_Curated_LUAD.csv","all",50,detectCores(),FALSE,TRUE,400,500)
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold")
+arg<-list("LUAD_Cor_Neigh_49_3_Curated","Mut_matrix_Curated_LUAD.csv","all",50,detectCores(),FALSE,TRUE,400,10,100,"old")
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_thresold","score_type")
 
 #Argument section handling
 spec = matrix(c(
   "name", "n", 1, "character",
   "matrix", "m",1,"character",
   "columns", "c",1,"character",
-  "genes", "g",1,"character",
+  "g_score_threshold", "g",1,"string",
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
   "samples_threshold","t",1,"integer", # Minimum number of samples to express column - Removing columns below that
   "log2","l",2,"logical",
   "fdr","f",2,"logical",
-  "chunk","k",2,"integer"  
-  "score","s",1,"integer"
+  "chunk","k",2,"integer",  
+  "score_type","s",1,"character"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -49,7 +49,25 @@ if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 #matrix1<-as.matrix(matrix1) #Converting to matrix from data.frame -> increases speed dramatically
 #matrix1<-apply(matrix1,2,as.numeric) #Converting matrix elements to numeric
 #rownames(matrix1)<-samples_names
+#if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} #Preparing for calculation if matrix is log scale
+
+
+#Loading matrix file to memory and log transforming if log2=TRUE
+matrix_full_name<-arg$matrix
+#print (paste0("Loading ",matrix_full_name, " file to memory"))
+matrix1<-h5read("../Data/LUAD.h5","Mutations_Binary")
+mat_non_syn<-h5read("../Data/LUAD.h5","Mutations_NS")
+mat_syn<-h5read("../Data/LUAD.h5","Mutations_S")
+all_samples<-h5read("../Data/LUAD.h5","Mutations_Samples")
+all_genes<-h5read("../Data/LUAD.h5","Mutations_Genes")
+rownames(matrix1)<-all_samples
+colnames(matrix1)<-all_genes
+rownames(mat_non_syn)<-all_samples
+colnames(mat_non_syn)<-all_genes
+rownames(mat_syn)<-all_samples
+colnames(mat_syn)<-all_genes
 if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} #Preparing for calculation if matrix is log scale
+
 
 
 column_range<-function(col_range)
@@ -82,32 +100,37 @@ column_range<-function(col_range)
 }
 
 
-samples<-h5read("../Data/LUAD.h5","Mutations_Samples")
-genes<-h5read("../Data/LUAD.h5","Mutations_Genes")
-
 #########g_scores#############
-g_score<-function(score) {
-  if (score==1) {
+g_score<-function(score,samples,genes) {
+  mat_non_syn<-mat_non_syn[samples,genes]
+  mat_syn<-mat_syn[samples,genes]
+  mat_non_syn_bin<-matrix1[samples,genes]
+  if (score=="syn") {
     #G_scores type 1 - Based on  non-syn/(syn+non-syn) ratio
-    mat_non_syn<-h5read("../Data/LUAD.h5","Mutations_NS")
-    rownames(mat_non_syn)<-samples
     syn_ratio<-colSums(mat_non_syn)/(colSums(mat_syn)+colSums(mat_non_syn)) #G_Score
     syn_ratio[syn_ratio=="NaN"]<-0 #Fixing 0 mutations columns 3
-    g_score<-syn_ratio
+    g_score<-syn_ratio   
   }
   
-  if (score==2 {
+  if (score=="lam") {
     # G_Scores type 2 - Based on gene lengths
-    S_lambda<-rowSums(sapply(rownames(mat_non_syn),function (x) {
+    anno<-read.csv("../Data/Annotations.csv")
+    Lg<-as.numeric(anno$length[match(names(genes),anno$Symbol)])
+    names(Lg)<-names(genes)
+    genes_with_known_length<-names(Lg[!is.na(Lg)])
+    Lg<-Lg[genes_with_known_length] #Removing unknown length EntrezId's
+    L<-sum(Lg) #Total Coding region length
+    ns<-rowSums(mat_non_syn[,genes_with_known_length]) #Sum of non syn mutations for each row
+    
+    S_lambda<-rowSums(sapply(samples,function (x) {
       lambda<-Lg*ns[x]/L 
       ans<-(-1)*mat_non_syn_bin[x,genes_with_known_length]*log(1-exp(-lambda))
     }))
-    S_lambda<-as.numeric(c(S_lambda,setdiff(colnames(mat_non_syn),names(S_lambda))))
-    supressWarnings(S_lambda<-as.numeric(c(S_lambda,setdiff(colnames(mat_non_syn),names(S_lambda)))))
+    #suppressWarnings(S_lambda<-as.numeric(c(S_lambda,setdiff(colnames(mat_non_syn),names(S_lambda)))))
     g_score<-S_lambda
   }
   
-  if (score==3) {
+  if (score=="old") {
     #G_Score 3
     #Divides each element by the sum of the corresponding row sum.
     # Returns zero in case of division by zero
@@ -117,8 +140,9 @@ g_score<-function(score) {
     NS<-colSums(mat_NS)
     g_score<-NS
   }
+  H5close()
+  return(g_score)
 }
-
 
 
 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
@@ -165,10 +189,13 @@ columns<-column_range(arg$columns)
 
 #Removing columns below samples_threshold from the first connected graph
 matrix1<-matrix1[,columns] #Subsetting for selected columns
-columns_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
-columns_of_no_interest<-which(columns_number_of_samples<arg$samples_threshold)
-#columns_of_interest<-which(columns_number_of_samples>=arg$samples_threshold) #For filtering by number  of mutations exist in a sample
-columns_of_interest<-head(sort(g_score(arg$score),decreasing=TRUE),arg$samples_threshold) #Filtering by g-score
+genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
+genes_below_samples_threshold<-which(genes_number_of_samples<arg$samples_threshold)
+genes_above_samples_threshold<-which(genes_number_of_samples>=arg$samples_threshold) #For filtering by number  of mutations exist in a sample
+#Choosing genes based on score
+samples_of_interest<-rownames(matrix1)
+columns_of_interest<-head(sort(g_score(arg$score_type,samples_of_interest,genes_above_samples_threshold),decreasing=TRUE),arg$g_score_thresold) #Filtering by g-score
+#columns_of_interest<-head(sort(g_score(1),decreasing=TRUE),100) #Filtering by g-score
 #columns_of_interest<-head(sort(g_score(matrix1),decreasing=TRUE),arg$samples_threshold) #Filtering by g-score
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
 
@@ -187,13 +214,15 @@ print(paste("File unique identifier:",unique_id))
 
 info_cols<-t(c("Genes","c_scores","p_values","pi_frac","n_samples","e_mean","e_sd")) 
 write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
-write.table(columns_number_of_samples[columns_of_no_interest],paste0(file_prefix,"_thresholded_genes.csv"),sep=",")
 
+write.csv(names(genes_below_samples_threshold),paste0(file_prefix,"_thresholded_genes1.csv"))
+write.csv(setdiff(names(genes_above_samples_threshold),names(columns_of_interest)),paste0(file_prefix,"_thresholded_genes2.csv"))
 
 #Writing log file
 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_thresold),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
 #perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
 perm_values<-function(dict_matrix,column,matrix) {
@@ -307,11 +336,12 @@ for (i in 1:length(ans))
   final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
 
 
-pi_zero_genes<-final_results[,"pi_frac"]==0
+pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_Score filtering
 final_results<-final_results[!pi_zero_genes,]
 q_value<-p.adjust(final_results[,"p_values"],"fdr")
 g_value<-columns_of_interest[rownames(final_results)]
 final_results<-cbind(final_results,q_value,g_value)
+colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
 final_results<-final_results[order(final_results[,"q_value"]),]
 
 
