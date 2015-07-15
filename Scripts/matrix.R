@@ -1,25 +1,27 @@
 # Environemnt settings
-setwd("C:/Users/Udi/Downloads/LUAD_3.1.14.0")
+#setwd("C:/Users/Udi/Downloads/LUAD_3.1.14.0")
 library(org.Hs.eg.db)
 library(plyr)
 library(stringr)
 library(parallel)
 
 #Raw file list.
-LUAD.files<-list.files("./rsem.genes.results/",full.names=T)
+files<-list.files("./rsem.genes.results/",full.names=T)
 #Creating index file
-index.file<-read.delim("unc.edu_LUAD.IlluminaHiSeq_RNASeqV2.1.15.0.sdrf.txt")
+index.file<-read.delim("unc.edu_GBM.IlluminaHiSeq_RNASeqV2.1.4.0.sdrf.txt")
 index.cols<-c("Extract.Name","Comment..TCGA.Barcode.")
 index<-unique(index.file[,index.cols]) # Remove duplicates
 colnames(index)<-c("File","PatientID")
 index<-arrange(index,File)
 
 #Creating gcgene list and file (gene_id)
-gene_id_raw<-read.table(LUAD.files[1],header=T,stringsAsFactors=F)[,"gene_id"]
+anno<-read.csv("../../Data/Annotations.csv",as.is=T)
+gene_id_raw<-read.table(files[1],header=T,stringsAsFactors=F)[,"gene_id"]
 gene_id<-fix_symbols(gene_id_raw)
 write.csv(gene_id,"gene_table.csv",row.names=FALSE)
 gene_id<-gene_id_cur<-read.csv("gene_id_cur.csv")
 
+gene_id[gene_id[,1]=="?",]
 
 # Reading scaled expression level into scale.estimates matrix
 cl <- makeCluster(detectCores())
