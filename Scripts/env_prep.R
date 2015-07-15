@@ -6,5 +6,6 @@ install.packages('igraph',repos=r)
 install.packages('rgexf',repos=r)
 install.packages('jsonlite',repos=r)
 install.packages('getopt',repos=r)
-
+install.packages("rhdf5",repos=r)
+install.packages("data.table",repos=r)
 
