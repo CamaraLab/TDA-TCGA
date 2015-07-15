@@ -1,4 +1,4 @@
-#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/SC-TDA/UDI")
+#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA")
 #Preping environment, loading necessary libraries
 
 library(igraph)
@@ -10,15 +10,15 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_Neigh_49_3_Curated","Mut_matrix_Curated_LUAD.csv","all",50,detectCores(),FALSE,TRUE,400,10,100,"old")
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_thresold","score_type")
+arg<-list("LUAD_Cor_MDS_22_3_intersect","LUAD.h5","all",500,detectCores(),FALSE,TRUE,50,50,50,"lam")
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type")
 
 #Argument section handling
 spec = matrix(c(
   "name", "n", 1, "character",
   "matrix", "m",1,"character",
   "columns", "c",1,"character",
-  "g_score_threshold", "g",1,"string",
+  "g_score_threshold", "g",1,"integer",
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
   "samples_threshold","t",1,"integer", # Minimum number of samples to express column - Removing columns below that
@@ -41,25 +41,13 @@ if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 
 
 #Loading matrix file to memory and log transforming if log2=TRUE
-#matrix_full_name<-arg$matrix
-#print (paste0("Loading ",matrix_full_name, " file to memory"))
-#matrix1<-fread(matrix_full_name,data.table=FALSE)
-#samples_names<-matrix1[,1]
-#matrix1<-matrix1[,-1]
-#matrix1<-as.matrix(matrix1) #Converting to matrix from data.frame -> increases speed dramatically
-#matrix1<-apply(matrix1,2,as.numeric) #Converting matrix elements to numeric
-#rownames(matrix1)<-samples_names
-#if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} #Preparing for calculation if matrix is log scale
-
-
-#Loading matrix file to memory and log transforming if log2=TRUE
 matrix_full_name<-arg$matrix
-#print (paste0("Loading ",matrix_full_name, " file to memory"))
-matrix1<-h5read("../Data/LUAD.h5","Mutations_Binary")
-mat_non_syn<-h5read("../Data/LUAD.h5","Mutations_NS")
-mat_syn<-h5read("../Data/LUAD.h5","Mutations_S")
-all_samples<-h5read("../Data/LUAD.h5","Mutations_Samples")
-all_genes<-h5read("../Data/LUAD.h5","Mutations_Genes")
+print (paste0("Loading ",matrix_full_name, " file to memory"))
+matrix1<-h5read("LUAD.h5","Mutations_Binary")
+mat_non_syn<-h5read("LUAD.h5","Mutations_NS")
+mat_syn<-h5read("LUAD.h5","Mutations_S")
+all_samples<-h5read("LUAD.h5","Mutations_Samples")
+all_genes<-h5read("LUAD.h5","Mutations_Genes")
 rownames(matrix1)<-all_samples
 colnames(matrix1)<-all_genes
 rownames(mat_non_syn)<-all_samples
@@ -114,17 +102,19 @@ g_score<-function(score,samples,genes) {
   
   if (score=="lam") {
     # G_Scores type 2 - Based on gene lengths
-    anno<-read.csv("../Data/Annotations.csv")
+    anno<-read.csv("Annotations.csv")
     Lg<-as.numeric(anno$length[match(names(genes),anno$Symbol)])
     names(Lg)<-names(genes)
     genes_with_known_length<-names(Lg[!is.na(Lg)])
     Lg<-Lg[genes_with_known_length] #Removing unknown length EntrezId's
     L<-sum(Lg) #Total Coding region length
     ns<-rowSums(mat_non_syn[,genes_with_known_length]) #Sum of non syn mutations for each row
-    
     S_lambda<-rowSums(sapply(samples,function (x) {
-      lambda<-Lg*ns[x]/L 
-      ans<-(-1)*mat_non_syn_bin[x,genes_with_known_length]*log(1-exp(-lambda))
+      lambda<-Lg*ns[x]/L
+      if(sum(lambda==0)) {ans<-lambda} else {
+        ans<-(-1)*mat_non_syn_bin[x,genes_with_known_length]*log(1-exp(-lambda))  
+      }
+      return(ans)
     }))
     #suppressWarnings(S_lambda<-as.numeric(c(S_lambda,setdiff(colnames(mat_non_syn),names(S_lambda)))))
     g_score<-S_lambda
@@ -182,19 +172,21 @@ nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-sam
 samples<-unique(unlist(nodes))
 matrix1<-matrix1[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
 
-
-
 #Extracting columns from arguments
 columns<-column_range(arg$columns)
-
 #Removing columns below samples_threshold from the first connected graph
 matrix1<-matrix1[,columns] #Subsetting for selected columns
 genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
+
 genes_below_samples_threshold<-which(genes_number_of_samples<arg$samples_threshold)
+
 genes_above_samples_threshold<-which(genes_number_of_samples>=arg$samples_threshold) #For filtering by number  of mutations exist in a sample
+
 #Choosing genes based on score
 samples_of_interest<-rownames(matrix1)
-columns_of_interest<-head(sort(g_score(arg$score_type,samples_of_interest,genes_above_samples_threshold),decreasing=TRUE),arg$g_score_thresold) #Filtering by g-score
+
+#print(head(sort(g_score(arg$score_type,samples_of_interest,genes_above_samples_threshold)),arg$g_score_threshold))
+columns_of_interest<-head(sort(g_score(arg$score_type,samples_of_interest,genes_above_samples_threshold),decreasing=TRUE),arg$g_score_threshold) #Filtering by g-score
 #columns_of_interest<-head(sort(g_score(1),decreasing=TRUE),100) #Filtering by g-score
 #columns_of_interest<-head(sort(g_score(matrix1),decreasing=TRUE),arg$samples_threshold) #Filtering by g-score
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
@@ -222,7 +214,7 @@ write.csv(setdiff(names(genes_above_samples_threshold),names(columns_of_interest
 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
-suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_thresold),paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
 #perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
 perm_values<-function(dict_matrix,column,matrix) {
