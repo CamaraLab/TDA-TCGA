@@ -56,7 +56,12 @@ mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))
 #Output matrix for connectivity score
 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
 
+samples_of_interest<-fread("mut.matrix.mut.tpm.inter.csv",data.table=F)
+samples_of_interest<-samples_of_interest[,1]
 
+mat_non_syn_bin<-mat_non_syn_bin[samples_of_interest,]
+mat_non_syn<-mat_non_syn[samples_of_interest,]
+mat_syn<-mat_syn[samples_of_interest,]
 #Generating vector of genes lengths
 #lambda_i<-Lg*ns/L
 
@@ -90,7 +95,6 @@ write.csv(mat_non_syn,"../DATA/LUAD_Mutations_NS.csv")
 write.csv(mat_syn,"../DATA/LUAD_Mutations_S.csv")
 
 require(rhdf5)
-head(g_scores)
 h5createFile("../DATA/LUAD.h5")
 H5close()
 suppressWarnings({
@@ -98,7 +102,7 @@ suppressWarnings({
   h5write(mat_non_syn, "../DATA/LUAD.h5","Mutations_NS")
   h5write(mat_syn, "../DATA/LUAD.h5","Mutations_S")
   h5write(rownames(mat_non_syn_bin),"../DATA/LUAD.h5","Mutations_Samples")
-  h5write(colnames(mat_non_syn_bin),".../DATA/LUAD.h5","Mutations_Genes")
+  h5write(colnames(mat_non_syn_bin),"../DATA/LUAD.h5","Mutations_Genes")
 })  
 H5close()
-h5ls("../DATA/LUAD.h5")
+print(h5ls("../DATA/LUAD.h5"))
