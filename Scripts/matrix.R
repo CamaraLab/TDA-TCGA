@@ -5,6 +5,9 @@ library(plyr)
 library(stringr)
 library(parallel)
 
+anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
+anno_old_id<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/entrez_oldid_conversion.csv",as.is=T)
+
 #Raw file list.
 files<-list.files("./rsem.genes.results/",full.names=T)
 #Creating index file
@@ -15,14 +18,18 @@ colnames(index)<-c("File","PatientID")
 index<-arrange(index,File)
 
 #Creating gcgene list and file (gene_id)
-anno<-read.csv("../../Data/Annotations.csv",as.is=T)
-gene_id_raw<-read.table(files[1],header=T,stringsAsFactors=F)[,"gene_id"]
-gene_id<-fix_symbols(gene_id_raw)
+gene_id_raw<-read.table(files[1],header=T,stringsAsFactors=F)[,"gene_id"] #Reading gene names from first file
+gene_id<-as.data.frame(fix_symbols(gene_id_raw),stringsAsFactors = F)
 write.csv(gene_id,"gene_table.csv",row.names=FALSE)
 gene_id<-gene_id_cur<-read.csv("gene_id_cur.csv")
 
-gene_id[gene_id[,1]=="?",]
-
+#Replacing old_entrez_id
+unknown_id_index<-which(gene_id$symbol=="?")
+unknown_id<-gene_id$id[unknown_id_index]
+new_id<-anno_old_id$New_ID[match(unknown_id,anno_old_id$Old_ID)]
+new_symbol<-anno$Symbol[match(new_id,anno$EntrezID)]
+gene_id$id[unknown_id_index]<-new_id
+gene_id$symbol[unknown_id_index]<-new_symbol
 # Reading scaled expression level into scale.estimates matrix
 cl <- makeCluster(detectCores())
 clusterExport(cl=cl, varlist=c("LUAD.files"))
