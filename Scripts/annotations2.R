@@ -1,3 +1,4 @@
+setwd("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations")
 #Historical names handling
 history<-fread("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/gene_history_07_17_2015",data.table=FALSE,stringsAsFactors = F,na.strings = "-")
 history<-history[history$V1=="9606",c(2,3,4)]
@@ -21,12 +22,6 @@ gene_length<-sapply(entrezid,function (id){
   ans<-sum(width(range)) #Calculating total length
 })
 names(gene_length)<-as.character(entrezid) #Matching gene_length to calculated length
-
-
-head(anno)
-
-
-
 
 
 #Annotations file constrution
