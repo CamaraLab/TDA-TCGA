@@ -1,8 +1,33 @@
-history<-fread("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/gene_history_07_17_2015",data.table=FALSE,stringsAsFactors = F,na.strings = "-")
-
 #Historical names handling
+history<-fread("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/gene_history_07_17_2015",data.table=FALSE,stringsAsFactors = F,na.strings = "-")
 history<-history[history$V1=="9606",c(2,3,4)]
 colnames(history)<-c("New_ID","Old_ID","Old_Name")
+
+#Gene length from refseq
+cols<-c("refGene","Starts","Ends","EntrezID")
+exons<-read.table("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/refseq_table4.txt",stringsAsFactors = F,header=T,comment.char="",col.names = cols)
+#exons$EntrezID<-as.numeric(unlist(strsplit(exons$EntrezID,","))) #Cleaning EntrezID chracters
+exons<-subset(exons,!is.na(EntrezID)) #Removing undetected EntrezID's
+exons$Starts<-sapply(exons$Starts,function (x) strsplit(x,",")) #Extracting and cleaning starts positions
+exons$Ends<-sapply(exons$Ends,function (x) strsplit(x,",")) #Extracting and cleaning ends positions
+
+#Calculationg unioned length for each entrezID
+print("Calculating gene lengths, it might take a few minutes")
+entrezid<-unique(exons$EntrezID)
+gene_length<-sapply(entrezid,function (id){
+  starts<-as.numeric(unlist(exons$Starts[exons$EntrezID==id]))
+  ends<-as.numeric(unlist(exons$Ends[exons$EntrezID==id]))
+  range<-reduce(IRanges(starts,ends)) #Removing overlapping regions
+  ans<-sum(width(range)) #Calculating total length
+})
+names(gene_length)<-as.character(entrezid) #Matching gene_length to calculated length
+
+
+head(anno)
+
+
+
+
 
 #Annotations file constrution
 anno<-read.delim("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Homo_sapiens.gene_info_07_17_2015",skip=1,header=F,na.strings = "-",as.is=T)
@@ -15,25 +40,8 @@ anno$Old_ID<-history$Old_ID[match(anno$EntrezID,history$New_ID)]
 anno$Old_Name<-history$Old_Name[match(anno$EntrezID,history$New_ID)]
 symbol_conflicts<-filter(anno,duplicated(Symbol))$Symbol
 
-head(anno)
+#Adding Exonic length
+anno$CDS_Length_bp<-gene_length[match(anno$EntrezID,names(gene_length))]
 
 
-
-#
-
-
-h1<-history[complete.cases(history),]
-h1[duplicated(h1$Old_ID_ID),]
-head(history[(duplicated(history$New_ID[complete.cases(history)])),])
-filter(h1,New_ID==5002)
-head(anno)
-head(history)
-dim(anno)
-
-
-cols<-c("refGene","Starts","Ends","EntrezID")
-exons<-read.table("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/refseq_table4.txt",stringsAsFactors = F,header=T,comment.char="",col.names = cols)
-
-
-head(exons)
-
+write.csv(anno,"Annotations2.csv",row.names=F)
