@@ -7,7 +7,7 @@ entrez_to_symbol<-as.list(org.Hs.egSYMBOL)
 
 #Parsing gene/exons/length table
 cols<-c("refGene","Starts","Ends","EntrezID")
-exons<-read.table("../../../../../../Downloads/refseq_table4.txt",stringsAsFactors = F,header=T,comment.char="",col.names = cols)
+exons<-read.table("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/refseq_table4.txt",stringsAsFactors = F,header=T,comment.char="",col.names = cols)
 #exons$EntrezID<-as.numeric(unlist(strsplit(exons$EntrezID,","))) #Cleaning EntrezID chracters
 exons<-subset(exons,!is.na(EntrezID)) #Removing undetected EntrezID's
 exons$Starts<-sapply(exons$Starts,function (x) strsplit(x,",")) #Extracting and cleaning starts positions
