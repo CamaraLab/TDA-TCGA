@@ -1,15 +1,24 @@
+library(data.table)
+library(org.Hs.eg.db)
+library(rhdf5)
+anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
+anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Anno_old_new.csv",as.is=T)
+
+PROJECT_NAME<-"GBM"
+wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
+setwd(wd)
 #This file cleans and created a file wit
 
-maf<-read.table("../Data/PR_TCGA_LUAD_PAIR_Capture_All_Pairs_QCPASS_v4.aggregated.capture.tcga.uuid.automated.somatic.maf",header = TRUE,stringsAsFactors = FALSE)
-head(maf)
 
+maf<-read.delim("./Mutations/ucsc.edu_GBM.IlluminaGA_DNASeq_automated.Level_2.1.1.0.somatic.maf",header = TRUE,as.is=T,skip = 1)
+colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample_Barcode")
+maf<-maf[,colInfo]
 
 #Replacing unknown entrezids
-require(org.Hs.eg.db)
 entrez_to_symbol<-as.list(org.Hs.egSYMBOL)
 symbol_to_entrez<-as.list(org.Hs.egALIAS2EG)
-
 symbol_to_entrez_short<-unlist(symbol_to_entrez[sapply(symbol_to_entrez,length)==1]) #Keeping only records with 1 entrez id
+
 r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original maf
 maf$Entrez_Gene_Id[r]<-symbol_to_entrez_short[maf$Hugo_Symbol[r]]
 
@@ -17,35 +26,34 @@ maf<-maf[order(maf$Entrez_Gene_Id),]
 maf<-maf[complete.cases(maf),] #Removing unknown EntrezIDs
 
 #Replacing old EntrezID's with new ones
-old_new_id<-read.csv("../Data//entrez_oldid_conversion.csv")
-for (i in 1:nrow(old_new_id)) 
-  maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==old_new_id[i,1]]<-old_new_id[i,2]
 
+for (i in 1:nrow(anno_old_new)) 
+  maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==anno_old_new[i,1]]<-anno_old_new[i,2]
 
-maf$Hugo_Symbol<-as.character(entrez_to_symbol[maf$Entrez_Gene_Id])
 #Sanity check - Check if unique EntrezID=Unique hugo_symbols
+maf$Hugo_Symbol<-as.character(entrez_to_symbol[maf$Entrez_Gene_Id]) #Mandatory 
 length(unique(maf$Entrez_Gene_Id))==length(unique(maf$Hugo_Symbol))
 
-
+maf$Column_name<-paste0(maf$Hugo_Symbol,"|",maf$Entrez_Gene_Id) #Adding column name Symbol|Entrez for downstream traceback
 maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15) #Trim Fix sample name
 maf$Synonymous<-(maf$Variant_Classification=="Silent")
-head(maf,30)
+
 
 #Adding Exons_Length to file
-anno<-read.csv("../Data/Annotations.csv")
 maf$Exons_Length<-anno[match(maf$Entrez_Gene_Id,anno$EntrezID),"length"]  #Some length are unknown
 
 #Creating synonymous and non-synonymous matrices
 #Creating an empty matrices
-mat_syn<-matrix(0,length(unique(maf$Tumor_Sample_Barcode)),length(unique(maf$Hugo_Symbol)))
-rownames(mat_syn)<-unique(maf$Tumor_Sample_Barcode)
-all_genes<-unique(maf$Hugo_Symbol)
-colnames(mat_syn)<-all_genes
+
+all_genes<-sort(unique(maf$Column_name))
+all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
+mat_syn<-matrix(0,length(all_samples),length(all_genes))
+dimnames(mat_syn)<-list(all_samples,all_genes)
 mat_non_syn<-mat_syn #Replicating mat_syn
 
 #Creating table of Synonymous mutations for Sample vs Entrez_Gene_Id
-t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Hugo_Symbol))
-t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Hugo_Symbol))
+t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
 
 #Plugging tables into 0 matrices
 mat_syn[rownames(t_syn),colnames(t_syn)]<-t_syn
@@ -56,8 +64,10 @@ mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))
 #Output matrix for connectivity score
 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
 
-samples_of_interest<-fread("mut.matrix.mut.tpm.inter.csv",data.table=F)
-samples_of_interest<-samples_of_interest[,1]
+#Intersecting rows from TPM_matrix
+TPM_matrix<-fread("C:/Users/Udi/Documents/TCGA-DATA/GBM/Expression/GBM_TPM_matrix.csv",data.table=F,select = 1)
+samples_of_interest<-TPM_matrix[,1]
+samples_of_interest<-intersect(samples_of_interest,rownames(mat_non_syn_bin))
 
 mat_non_syn_bin<-mat_non_syn_bin[samples_of_interest,]
 mat_non_syn<-mat_non_syn[samples_of_interest,]
@@ -90,19 +100,21 @@ mat_syn<-mat_syn[samples_of_interest,]
 
 
 
-write.csv(mat_non_syn_bin,"../DATA/LUAD_Mutations_Binary.csv")
-write.csv(mat_non_syn,"../DATA/LUAD_Mutations_NS.csv")
-write.csv(mat_syn,"../DATA/LUAD_Mutations_S.csv")
+write.csv(mat_non_syn_bin,paste0("./Mutations/",PROJECT_NAME,"_Mutations_binary.csv"))
+write.csv(mat_non_syn,paste0("./Mutations/",PROJECT_NAME,"_Mutations_non_synonymous.csv"))
+write.csv(mat_syn,paste0("./Mutations/",PROJECT_NAME,"_Mutations_synonymous.csv"))
 
-require(rhdf5)
-h5createFile("../DATA/LUAD.h5")
+
+h5file<-paste0("Mutations/",PROJECT_NAME,".h5")
+h5createFile(h5file)
 H5close()
 suppressWarnings({
-  h5write(mat_non_syn_bin, "../Data/LUAD.h5","Mutations_Binary")
-  h5write(mat_non_syn, "../DATA/LUAD.h5","Mutations_NS")
-  h5write(mat_syn, "../DATA/LUAD.h5","Mutations_S")
-  h5write(rownames(mat_non_syn_bin),"../DATA/LUAD.h5","Mutations_Samples")
-  h5write(colnames(mat_non_syn_bin),"../DATA/LUAD.h5","Mutations_Genes")
+  h5write(mat_non_syn_bin, h5file,"_Mutations_Binary")
+  h5write(mat_non_syn,h5file,"Mutations_NS")
+  h5write(mat_syn,h5file,"Mutations_S")
+  h5write(rownames(mat_non_syn_bin),h5file,"Mutations_Samples")
+  h5write(colnames(mat_non_syn_bin),h5file,"Mutations_Genes")
 })  
+
+print(h5ls(h5file))
 H5close()
-print(h5ls("../DATA/LUAD.h5"))
