@@ -7,7 +7,7 @@ library(parallel)
 
 anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
 rownames(anno)<-anno[,1]
-#anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Anno_old_new.csv",as.is=T)
+
 
 PROJECT_NAME<-"GBM"
 wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
@@ -39,24 +39,20 @@ clusterExport(cl=cl, varlist=c("files"))
 scale.estimates<-parSapply(cl,files,function (x) return(read.table(x,header=T)[,3]))
 stopCluster(cl)
 scale.estimates<-t(scale.estimates)
-samples<-strtrim(index$PatientID,15)
 
-#Removing non 01,10,11 Samples
-samples_to_keep1<-which(sapply(samples, function (x) substring(x,14) %in% c("01","10","11")))
-###
-#Removing duplicated records
-duplicated<-samples[duplicated(samples)]
-samples_to_keep2<-which(!samples %in% duplicated)
 
-samples_to_keep<-intersect(samples_to_keep1,samples_to_keep2)
+
+
+
 
 
 #Creating TPM matrix - 
+samples<-index$PatientID
 TPM.matrix<-as.data.frame(round(log2(1+scale.estimates*10^6),4))
-TPM.matrix<-TPM.matrix[samples_to_keep,]
-rownames(TPM.matrix)<-samples[samples_to_keep]
+rownames(TPM.matrix)<-samples
 colnames(TPM.matrix)<-paste0(gene_id$symbol,"|",gene_id$id)
 TPM.matrix<-TPM.matrix[sort(rownames(TPM.matrix)),sort(colnames(TPM.matrix))]
+TPM.matrix<-clean_samples(TPM.matrix)
 
 write.csv(TPM.matrix,paste0("Expression/",PROJECT_NAME,"_TPM_matrix.csv"))
 
@@ -67,6 +63,11 @@ mut<-intersect.mat(TPM.matrix,mut)
 mut<-rbind(mut,delta.zero.matrix(TPM.matrix,mut))
 
 
+samples_of_interest<-intersect(rownames(TPM.matrix),rownames(mut))
+colnames(mut)<-paste0("mut_",colnames(mut))
+colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
+
+BIG.matrix<-cbind(TPM.matrix[samples_of_interest,],mut[samples_of_interest,])
 #Creating Big matrix
 TPM.matrix<-TPM.matrix[order(rownames(TPM.matrix)),]
 mut<-mut[order(rownames(mut)),]
