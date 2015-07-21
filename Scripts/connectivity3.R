@@ -10,7 +10,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_MDS_22_3_intersect","LUAD.h5","all",500,detectCores(),FALSE,TRUE,50,50,50,"syn")
+arg<-list("GBM_Cor_MDS_22_3_intersect","GBM.h5","all",500,detectCores(),FALSE,TRUE,50,50,50,"syn")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type")
 
 #Argument section handling
@@ -41,13 +41,13 @@ if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 
 
 #Loading matrix file to memory and log transforming if log2=TRUE
-matrix_full_name<-arg$matrix
-print (paste0("Loading ",matrix_full_name, " file to memory"))
-matrix1<-h5read("LUAD.h5","Mutations_Binary")
-mat_non_syn<-h5read("LUAD.h5","Mutations_NS")
-mat_syn<-h5read("LUAD.h5","Mutations_S")
-all_samples<-h5read("LUAD.h5","Mutations_Samples")
-all_genes<-h5read("LUAD.h5","Mutations_Genes")
+h5file<-arg$matrix
+print (paste0("Loading ",h5file, " file to memory"))
+matrix1<-h5read(h5file,"Mutations_Binary")
+mat_non_syn<-h5read(h5file,"Mutations_NS")
+mat_syn<-h5read(h5file,"Mutations_S")
+all_samples<-h5read(h5file,"Mutations_Samples")
+all_genes<-h5read(h5file,"Mutations_Genes")
 rownames(matrix1)<-all_samples
 colnames(matrix1)<-all_genes
 rownames(mat_non_syn)<-all_samples
