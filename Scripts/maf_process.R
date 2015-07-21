@@ -1,12 +1,18 @@
 library(data.table)
 library(org.Hs.eg.db)
 library(rhdf5)
+library(dplyr)
+
 anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
-anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Anno_old_new.csv",as.is=T)
+row.names(anno)<-anno[,1]
+anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv",as.is=T,row.names=1)
+
+
 
 PROJECT_NAME<-"GBM"
 wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
 setwd(wd)
+
 #This file cleans and created a file wit
 
 
@@ -15,29 +21,32 @@ colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample
 maf<-maf[,colInfo]
 
 #Replacing unknown entrezids
-entrez_to_symbol<-as.list(org.Hs.egSYMBOL)
+#entrez_to_symbol<-as.list(org.Hs.egSYMBOL)
 symbol_to_entrez<-as.list(org.Hs.egALIAS2EG)
 symbol_to_entrez_short<-unlist(symbol_to_entrez[sapply(symbol_to_entrez,length)==1]) #Keeping only records with 1 entrez id
 
 r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original maf
 maf$Entrez_Gene_Id[r]<-symbol_to_entrez_short[maf$Hugo_Symbol[r]]
 
-maf<-maf[order(maf$Entrez_Gene_Id),]
-maf<-maf[complete.cases(maf),] #Removing unknown EntrezIDs
+maf$Entrez_Gene_Id<-as.numeric(maf$Entrez_Gene_Id)
+maf<-arrange(maf,Entrez_Gene_Id)
+            
+
 
 #Replacing old EntrezID's with new ones
-
 for (i in 1:nrow(anno_old_new)) 
-  maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==anno_old_new[i,1]]<-anno_old_new[i,2]
+  maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==anno_old_new$Old_ID[i]]<-anno_old_new$New_ID[i]
+
+
 
 #Sanity check - Check if unique EntrezID=Unique hugo_symbols
-maf$Hugo_Symbol<-as.character(entrez_to_symbol[maf$Entrez_Gene_Id]) #Mandatory 
+maf$Hugo_Symbol<-anno[as.character(maf$Entrez_Gene_Id),"Symbol"]
+maf<-maf[complete.cases(maf),] #Removing unknown EntrezIDs/Hugo_symbols
 length(unique(maf$Entrez_Gene_Id))==length(unique(maf$Hugo_Symbol))
 
 maf$Column_name<-paste0(maf$Hugo_Symbol,"|",maf$Entrez_Gene_Id) #Adding column name Symbol|Entrez for downstream traceback
 maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15) #Trim Fix sample name
 maf$Synonymous<-(maf$Variant_Classification=="Silent")
-
 
 #Adding Exons_Length to file
 maf$Exons_Length<-anno[match(maf$Entrez_Gene_Id,anno$EntrezID),"length"]  #Some length are unknown
@@ -63,6 +72,11 @@ mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))
 
 #Output matrix for connectivity score
 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
+
+mat_non_syn_bin<-clean_samples(mat_non_syn_bin)
+mat_non_syn<-clean_samples(mat_non_syn)
+mat_syn<-clean_samples(mat_syn)
+
 
 #Intersecting rows from TPM_matrix
 TPM_matrix<-fread("C:/Users/Udi/Documents/TCGA-DATA/GBM/Expression/GBM_TPM_matrix.csv",data.table=F,select = 1)
