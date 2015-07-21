@@ -1,9 +1,23 @@
+clean_samples<-function(matrix) {
+  samples<-substring(rownames(matrix),1,15)
+  samples_to_keep_1<-which(sapply(samples, function (x) substring(x,14) %in% c("01","10","11")))
+  #Removing duplicated records
+  duplicated<-samples[duplicated(samples)]
+  samples_to_keep_2<-which(!samples %in% duplicated)
+  samples_to_keep<-samples[intersect(samples_to_keep_1,samples_to_keep_2)]
+  matrix<-matrix[samples_to_keep,]
+  rownames(matrix)<-samples_to_keep
+  matrix<-matrix[sort(rownames(matrix)),sort(colnames(matrix))]
+  return(matrix)
+}
+
 get_symbol<-function (unknown_id) 
   # Gets ENTREZID and return Symbol, if not exist return "?"
   {
   unknown_id<-as.character(unknown_id)
   allkeys<-keys(org.Hs.eg.db,keytype="ENTREZID")
-  if (unknown_id %in% allkeys) 
+  if (unk
+      nown_id %in% allkeys) 
     unknown_id<-select(org.Hs.eg.db,unknown_id,keytype="ENTREZID",columns="SYMBOL")$SYMBOL
     else unknown_id="?"
   }
