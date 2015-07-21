@@ -3,6 +3,8 @@ setwd("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations")
 history<-fread("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/gene_history_07_17_2015",data.table=FALSE,stringsAsFactors = F,na.strings = "-")
 history<-history[history$V1=="9606",c(2,3,4)]
 colnames(history)<-c("New_ID","Old_ID","Old_Name")
+rownames(history)<-history$Old_ID
+write.csv(history,"anno_old_new.csv")
 
 #Gene length from refseq
 cols<-c("refGene","Starts","Ends","EntrezID")
@@ -30,13 +32,11 @@ anno<-anno[anno$V1==9606,c(2,3,5)]
 colnames(anno)<-c("EntrezID","Symbol","Synonyms")
 rownames(anno)<-anno[,1]
 
-#Adding old ID reference from history file
-anno$Old_ID<-history$Old_ID[match(anno$EntrezID,history$New_ID)]
-anno$Old_Name<-history$Old_Name[match(anno$EntrezID,history$New_ID)]
-symbol_conflicts<-filter(anno,duplicated(Symbol))$Symbol
+
+#symbol_conflicts<-filter(anno,duplicated(Symbol))$Symbol
 
 #Adding Exonic length
-anno$CDS_Length_bp<-gene_length[match(anno$EntrezID,names(gene_length))]
+anno$Length<-gene_length[match(anno$EntrezID,names(gene_length))]
 
 
 write.csv(anno,"Annotations2.csv",row.names=F)
