@@ -4,6 +4,7 @@
 library(dplyr)
 library(stringr)
 library(parallel)
+require(getopt,quietly = T)
 
 anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
 rownames(anno)<-anno[,1]
@@ -43,57 +44,12 @@ scale.estimates<-t(scale.estimates)
 
 
 
-
-
-
 #Creating TPM matrix - 
 samples<-index$PatientID
 TPM.matrix<-as.data.frame(round(log2(1+scale.estimates*10^6),4))
 rownames(TPM.matrix)<-samples
 colnames(TPM.matrix)<-paste0(gene_id$symbol,"|",gene_id$id)
 TPM.matrix<-TPM.matrix[sort(rownames(TPM.matrix)),sort(colnames(TPM.matrix))]
-TPM.matrix<-clean_samples(TPM.matrix)
-
-write.csv(TPM.matrix,paste0("Expression/",PROJECT_NAME,"_TPM_matrix.csv"))
-
-#Intersecting mut.aut with TPM.matrix
-mut<-intersect.mat(TPM.matrix,mut)
-
-#Adding missing samples from TPM matrix to Mutant matrix with zeroes
-mut<-rbind(mut,delta.zero.matrix(TPM.matrix,mut))
+write.csv(TPM.matrix,paste0("Expression/",PROJECT_NAME,"_Full_TPM_matrix.csv"))
 
 
-samples_of_interest<-intersect(rownames(TPM.matrix),rownames(mut))
-colnames(mut)<-paste0("mut_",colnames(mut))
-colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
-
-BIG.matrix<-cbind(TPM.matrix[samples_of_interest,],mut[samples_of_interest,])
-#Creating Big matrix
-TPM.matrix<-TPM.matrix[order(rownames(TPM.matrix)),]
-mut<-mut[order(rownames(mut)),]
-
-colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
-colnames(mut)<-paste0("mut_",colnames(mut))
-BIG.matrix<-cbind(TPM.matrix,mut,cnv)
-
-#Splitting cnv matrix to amplification only and deletion only
-#In cnv_amp all deletions are zerod, in cnv_del all amplifications are zerod and values are absolute.
-cnv_amp<-cnv
-cnv_amp[cnv<0]<-0
-cnv_del<-cnv
-cnv_del[cnv>0]<-0
-cnv_del<-abs(cnv_del)
-colnames(cnv_amp)<-paste0("amp_",substring(colnames(cnv),4))
-colnames(cnv_del)<-paste0("del_",substring(colnames(cnv),4))
-
-#Matrix output to file
-#TPM.matrix<-TPM.matrix[mut_curated_samples,]
-#cnv_amp<-cnv_amp[mut_curated_samples,]
-#cnv_del<-cnv_del[mut_curated_samples,]
-#mut<-mut[mut_curated_samples,]
-#BIG.matrix<-BIG.matrix[mut_curated_samples,]
-write.csv(TPM.matrix,"TPM_matrix_Curated.csv")
-write.csv(cnv_amp,"CNV_AMP_matrix_Curated.csv")
-write.csv(cnv_del,"CNV_DEL_matrix_Curated.csv")
-write.csv(mut,"Mut_matrix_Curated.csv")
-write.csv(BIG.matrix,"BIG_matrix_Curated.csv")
