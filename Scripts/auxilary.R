@@ -8,7 +8,7 @@ clean_samples<-function(matrix) {
   matrix<-matrix[samples_to_keep,]
   rownames(matrix)<-samples_to_keep
   matrix<-matrix[sort(rownames(matrix)),sort(colnames(matrix))]
-  return(matrix)
+  return(as.matrix(matrix))
 }
 
 get_symbol<-function (unknown_id) 
