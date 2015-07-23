@@ -3,7 +3,8 @@ require(rhdf5)
 setwd("~/TCGA-DATA/GBM")
 PROJECT_NAME<-"GBM"
 
-TPM.matrix<-fread("Expression/GBM_Full_TPM_matrix.csv",data.table = F,header = T)
+#TPM.matrix<-fread("Expression/GBM_Full_TPM_matrix.csv",data.table = F,header = T)
+TPM.matrix<-fread("Expression/GBM_Full_Agilent.csv",data.table = F,header = T)
 rownames(TPM.matrix)<-TPM.matrix[,1]; TPM.matrix<-TPM.matrix[,-1]
 
 mat_non_syn_bin<-fread("Mutations/GBM_Full_Mutations_binary.csv",data.table = F,header = T)
@@ -31,11 +32,13 @@ colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
 
 
 BIG.matrix<-cbind(TPM.matrix[samples_of_interest,],mat_non_syn_bin[samples_of_interest,])
-write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix.csv"))
+#write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix.csv"))
+write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix_Agilent.csv"))
 
 
 
 h5file<-paste0("Mutations/",PROJECT_NAME,".h5")
+h5file<-"GBM_Agilent.h5"
 h5createFile(h5file)
 H5close()
 suppressWarnings({
