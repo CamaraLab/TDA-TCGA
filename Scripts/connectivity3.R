@@ -1,4 +1,4 @@
-#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA")
+#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
 #Preping environment, loading necessary libraries
 
 library(igraph)
@@ -10,8 +10,8 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("GBM_Cor_MDS_22_3_intersect","GBM.h5","all",500,detectCores(),FALSE,TRUE,50,50,50,"syn")
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type")
+arg<-list("GBM_test_4000_neigh_cor","GBM_Agilent.h5","all",500,detectCores(),FALSE,TRUE,50,50,50,"lam","Annotations.csv")
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno")
 
 #Argument section handling
 spec = matrix(c(
@@ -25,7 +25,8 @@ spec = matrix(c(
   "log2","l",2,"logical",
   "fdr","f",2,"logical",
   "chunk","k",2,"integer",  
-  "score_type","s",1,"character"
+  "score_type","s",1,"character",
+  "anno","a",2,"character"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -37,6 +38,7 @@ if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
 if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
+if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
 
 
 
@@ -102,8 +104,8 @@ g_score_calc<-function(score_type,samples,genes) {
   
   if (score_type=="lam") {
     # G_Scores type 2 - Based on gene lengths
-    anno<-read.csv("Annotations.csv")
-    Lg<-as.numeric(anno$length[match(genes,anno$Symbol)])
+    anno<-read.csv(arg$anno)
+    Lg<-as.numeric(anno$length[match(substring(genes,5),paste0(anno$Symbol,"|",anno$EntrezID))])
     names(Lg)<-genes
     genes_with_known_length<-names(Lg[!is.na(Lg)])
     Lg<-Lg[genes_with_known_length] #Removing unknown length EntrezId's
