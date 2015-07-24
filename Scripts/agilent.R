@@ -7,6 +7,7 @@ samples<-colnames(matrix)[2]
 
 for (i in 2:length(files)) {
   data<-fread(files[i],stringsAsFactors = F,header=T)
+  data<-data[-1,]
   samples<-c(samples,colnames(data)[2])
   matrix<-merge(matrix,data,by="Hybridization REF")
 }
@@ -25,5 +26,5 @@ matrix<-t(matrix)
 #View(matrix)
 
 
-write.csv(matrix,"Google Drive/LAB on Drive/GBM/Agilent/Agilent.Matrix.csv")
+write.csv(matrix,"Google Drive/LAB on Drive/GBM/Agilent/GBM_Full_Agilent.csv")
   
