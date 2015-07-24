@@ -1,3 +1,5 @@
+library(data.table)
+library(GenomicFeatures)
 setwd("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations")
 #Historical names handling
 history<-fread("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/gene_history_07_17_2015",data.table=FALSE,stringsAsFactors = F,na.strings = "-")
@@ -36,7 +38,7 @@ rownames(anno)<-anno[,1]
 #symbol_conflicts<-filter(anno,duplicated(Symbol))$Symbol
 
 #Adding Exonic length
-anno$Length<-gene_length[match(anno$EntrezID,names(gene_length))]
+anno$length<-gene_length[match(anno$EntrezID,names(gene_length))]
 
 
 write.csv(anno,"Annotations2.csv",row.names=F)
