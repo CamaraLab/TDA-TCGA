@@ -10,14 +10,14 @@ anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/
 
 
 
-PROJECT_NAME<-"GBM"
+PROJECT_NAME<-"LUSC"
 wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
 setwd(wd)
 
 #This file cleans and created a file wit
 
 
-maf<-read.delim("./Mutations/ucsc.edu_GBM.IlluminaGA_DNASeq_automated.Level_2.1.1.0.somatic.maf",header = TRUE,as.is=T,skip = 1)
+maf<-read.delim("./Mutations/hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,skip = 1)
 colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample_Barcode")
 maf<-maf[,colInfo]
 
@@ -27,17 +27,26 @@ symbol_to_entrez<-as.list(org.Hs.egALIAS2EG)
 symbol_to_entrez_short<-unlist(symbol_to_entrez[sapply(symbol_to_entrez,length)==1]) #Keeping only records with 1 entrez id
 
 r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original maf
+#View(maf[r,])
+length(r)
 maf$Entrez_Gene_Id[r]<-symbol_to_entrez_short[maf$Hugo_Symbol[r]]
-
+#View(maf[r,])
+sum(is.na(maf$Entrez_Gene_Id))
 maf$Entrez_Gene_Id<-as.numeric(maf$Entrez_Gene_Id)
 maf<-arrange(maf,Entrez_Gene_Id)
             
 
 
 #Replacing old EntrezID's with new ones
-print("Replacing old with new EntrezID's might take a few minutes")
-for (i in 1:nrow(anno_old_new)) 
-  maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==anno_old_new$Old_ID[i]]<-anno_old_new$New_ID[i]
+#print("Replacing old with new EntrezID's might take a few minutes")
+#for (i in 1:nrow(anno_old_new)) 
+#  maf$Entrez_Gene_Id[maf$Entrez_Gene_Id==anno_old_new$Old_ID[i]]<-anno_old_new$New_ID[i]
+
+
+ids_to_replace_indices<-maf$Entrez_Gene_Id %in% anno_old_new$Old_ID
+ids_to_replace<-maf$Entrez_Gene_Id[ids_to_replace_indices]
+new_id_indices<-match(ids_to_replace,anno_old_new$Old_ID)
+maf$Entrez_Gene_Id[ids_to_replace_indices]<-anno_old_new$New_ID[new_id_indices]
 
 
 
@@ -55,6 +64,7 @@ maf$Exons_Length<-anno[match(maf$Entrez_Gene_Id,anno$EntrezID),"length"]  #Some 
 
 #Creating synonymous and non-synonymous matrices
 #Creating an empty matrices
+
 
 all_genes<-sort(unique(maf$Column_name))
 all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
