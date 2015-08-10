@@ -3,6 +3,8 @@ library(org.Hs.eg.db)
 library(rhdf5)
 library(dplyr)
 
+PROJECT_NAME<-"LUSC"
+
 
 anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
 row.names(anno)<-anno[,1]
@@ -10,14 +12,14 @@ anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/
 
 
 
-PROJECT_NAME<-"LUSC"
+
 wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
 setwd(wd)
 
 #This file cleans and created a file wit
 
 
-maf<-read.delim("./Mutations/hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,skip = 1)
+maf<-read.delim("./Mutations/step4_LUSC_Paper_v8.aggregated.tcga.maf2.4.migrated.somatic.maf",header = TRUE,as.is=T,skip = 4)
 colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample_Barcode")
 maf<-maf[,colInfo]
 
