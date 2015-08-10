@@ -1,18 +1,35 @@
 require(data.table)
 require(rhdf5)
-setwd("~/TCGA-DATA/GBM")
-PROJECT_NAME<-"GBM"
 
+PROJECT_NAME<-"LUSC"
+wd<-paste0("~/TCGA-DATA/",PROJECT_NAME)
+setwd(wd)
 #TPM.matrix<-fread("Expression/GBM_Full_TPM_matrix.csv",data.table = F,header = T)
-TPM.matrix<-fread("Expression/GBM_Full_Agilent.csv",data.table = F,header = T)
+TPM.matrix<-fread(paste0("Expression/",PROJECT_NAME,"_Full_TPM_matrix.csv"),data.table = F,header = T)
 rownames(TPM.matrix)<-TPM.matrix[,1]; TPM.matrix<-TPM.matrix[,-1]
 
-mat_non_syn_bin<-fread("Mutations/GBM_Full_Mutations_binary.csv",data.table = F,header = T)
+mat_non_syn_bin<-fread(paste0("Mutations/",PROJECT_NAME,"_Full_Mutations_binary.csv"),data.table = F,header = T)
 rownames(mat_non_syn_bin)<-mat_non_syn_bin[,1]; mat_non_syn_bin<-mat_non_syn_bin[,-1]
-mat_non_syn<-fread("Mutations/GBM_Full_Mutations_non_synonymous.csv",data.table = F,header = T)
+mat_non_syn<-fread(paste0("Mutations/",PROJECT_NAME,"_Full_Mutations_non_synonymous.csv"),data.table = F,header = T)
 rownames(mat_non_syn)<-mat_non_syn[,1]; mat_non_syn<-mat_non_syn[,-1]
-mat_syn<-fread("Mutations/GBM_Full_Mutations_synonymous.csv",data.table = F,header = T)
+mat_syn<-fread(paste0("Mutations/",PROJECT_NAME,"_Full_Mutations_synonymous.csv"),data.table = F,header = T)
 rownames(mat_syn)<-mat_syn[,1]; mat_syn<-mat_syn[,-1]
+
+
+
+clean_samples<-function(matrix) {
+  samples<-substring(rownames(matrix),1,15)
+  samples_to_keep_1<-which(sapply(samples, function (x) substring(x,14) %in% c("01","10","11")))
+  #Removing duplicated records
+  duplicated<-samples[duplicated(samples)]
+  samples_to_keep_2<-which(!samples %in% duplicated)
+  samples_to_keep<-samples[intersect(samples_to_keep_1,samples_to_keep_2)]
+  matrix<-matrix[samples_to_keep,]
+  rownames(matrix)<-samples_to_keep
+  matrix<-matrix[sort(rownames(matrix)),sort(colnames(matrix))]
+  return(as.matrix(matrix))
+}
+
 
 
 TPM.matrix<-clean_samples(TPM.matrix) #Removing recurrent tumor and dual samples
@@ -32,13 +49,14 @@ colnames(TPM.matrix)<-paste0("exp_",colnames(TPM.matrix))
 
 
 BIG.matrix<-cbind(TPM.matrix[samples_of_interest,],mat_non_syn_bin[samples_of_interest,])
+dim(BIG.matrix)
 #write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix.csv"))
-write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix_Agilent.csv"))
+write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix.csv"))
 
 
 
-h5file<-paste0("Mutations/",PROJECT_NAME,".h5")
-h5file<-"GBM_Agilent.h5"
+h5file<-paste0(PROJECT_NAME,".h5")
+if (file.exists(h5file)) {file.remove(h5file)}
 h5createFile(h5file)
 H5close()
 suppressWarnings({
