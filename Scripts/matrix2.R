@@ -6,18 +6,21 @@ library(stringr)
 library(parallel)
 require(getopt,quietly = T)
 
+
+PROJECT_NAME<-"LUSC"
+
 anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
 rownames(anno)<-anno[,1]
 anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv",as.is=T,row.names=1)
 
-PROJECT_NAME<-"COAD"
+
 wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
 setwd(wd)
 
 #Raw file list.
 files<-list.files("./Expression/rsem",full.names=T)
 #Creating index file
-index.file<-read.delim("./Expression/unc.edu_COAD.IlluminaHiSeq_RNASeqV2.1.12.0.sdrf.txt",as.is=T)
+index.file<-read.delim("./Expression/unc.edu_LUSC.IlluminaHiSeq_RNASeqV2.1.11.0.sdrf.txt",as.is=T)
 index.cols<-c("Extract.Name","Comment..TCGA.Barcode.")
 index<-unique(index.file[,index.cols]) # Remove duplicates
 colnames(index)<-c("File","PatientID")
