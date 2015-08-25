@@ -11,16 +11,6 @@ clean_samples<-function(matrix) {
   return(as.matrix(matrix))
 }
 
-get_symbol<-function (unknown_id) 
-  # Gets ENTREZID and return Symbol, if not exist return "?"
-  {
-  unknown_id<-as.character(unknown_id)
-  allkeys<-keys(org.Hs.eg.db,keytype="ENTREZID")
-  if (unk
-      nown_id %in% allkeys) 
-    unknown_id<-select(org.Hs.eg.db,unknown_id,keytype="ENTREZID",columns="SYMBOL")$SYMBOL
-    else unknown_id="?"
-  }
 
 fix_symbols<-function (gene_id_raw)
   # Gets gene_id with symbols and fixes the unknown ones using annotation library.
