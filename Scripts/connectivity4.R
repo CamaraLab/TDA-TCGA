@@ -10,7 +10,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("Cor_MDS_29_3_2700","LUSC.h5","all",50,detectCores(),FALSE,TRUE,50,50,50,"syn","Annotations.csv")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",50,detectCores(),FALSE,TRUE,50,50,50,"syn","Annotations.csv")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno")
 
 #Argument section handling
@@ -154,7 +154,7 @@ largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
 edges<-subset(edges,edges[,1] %in% (largest_cluster_nodes))
 nodes<-nodes[largest_cluster_nodes]
 
-
+ 
 #relabling nodes and updating edges accordingly
 nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
 rownames(nodes_relabling_table)<-largest_cluster_nodes
@@ -171,6 +171,9 @@ colnames(samples_relabling_table)<-c("original","new")
 nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
 samples<-unique(unlist(nodes))
 matrix1<-matrix1[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
+
+
+#####################GENE FILTERING SECTION###############################
 
 #Extracting columns from arguments
 columns<-column_range(arg$columns)
@@ -189,16 +192,16 @@ if (arg$score_type=="lam") {
   g_score<-g_score_calc(arg$score_type,samples_of_interest,genes_above_samples_threshold) #Syn/old only over sample thresholded genes 
 
 columns_of_interest<-names(head(sort(g_score,decreasing = T),arg$g_score_threshold)) #Filtering by g-score
-#columns_of_interest<-c(columns_of_interest,mutSum) #Including mutSum for connectivity analysis
-#columns_of_interest<-head(sort(g_score(1),decreasing=TRUE),100) #Filtering by g-score
-#columns_of_interest<-head(sort(g_score(matrix1),decreasing=TRUE),arg$samples_threshold) #Filtering by g-score
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
 
+#####################END OF GENE FILTERING SECTION###############################
+
+
+#####################Hypermutations analysis#################################
+
 #Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
-#This must be done before relkabeling samples names 
 mutSum<-mat_non_syn+mat_syn #Total number of point mutations
 mutSum<-rowSums(mutSum)
-#matrix1<-cbind(matrix1,mutSum)
 
 #Adding mutSum column to matrix1 that will be used to assess hypermutated samples
 mutSum<-mat_non_syn+mat_syn #Total number of point mutations (Not binary)
@@ -206,12 +209,32 @@ mutSum<-rowSums(mutSum)
 mutSum<-mutSum[rownames(matrix1)]
 matrix1<-cbind(matrix1,mutSum)
 
+#Rescaling to solve for hypermutations
+hist(log10(mutSum),breaks=20)
+cut<-2.75
+cut<-10^cut
+above_cut<-mutSum[mutSum>cut]
+below_cut<-mutSum[mutSum<=cut]
+
+median(above_cut)
+median(below_cut)
+scale<-median(above_cut)/median(below_cut)
+
+x<-mutSum
+x[x>cut]<-x[x>cut]/scale
+
+hist(log10(mutSum),breaks=20)
+hist(log10(x),breaks=20)
+hist(x,breaks=20)
+
+
+scale<-12.15574
+mat_non_syn[names(above_cut),]<-round(mat_non_syn[names(above_cut),]/scale)
 #Subsetting matrix1 for top scoring genes and mutSum
 columns_of_interest<-c(columns_of_interest,"mutSum")
-
 matrix1<-matrix1[,columns_of_interest] #Subsetting matrix to have above threshold columns including the mutSum
 
-
+########################END OF Hypermutations analysis##################################################
 
 
 #Initializing rolling results file
@@ -353,11 +376,14 @@ pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes
 final_results<-final_results[!pi_zero_genes,]
 q_value<-p.adjust(final_results[,"p_values"],"fdr")
 g_value<-g_score[rownames(final_results)]
+
+#Final results file processing
 final_results<-cbind(final_results,q_value,g_value)
 colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
 final_results<-final_results[order(final_results[,"q_value"]),]
-
-
+x<-which(rownames(final_results)=="mutSum")
+final_results<-rbind(final_results,final_results[x,])
+final_results<-final_results[-x,]
 
 #Generating pii_values table
 pi_values_table<-NULL
