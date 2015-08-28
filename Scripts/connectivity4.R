@@ -26,7 +26,8 @@ spec = matrix(c(
   "fdr","f",2,"logical",
   "chunk","k",2,"integer",  
   "score_type","s",1,"character",
-  "anno","a",2,"character"
+  "anno","a",2,"character",
+  "hyper","h",2,"logical"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -39,6 +40,7 @@ if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
+if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
 
 
 
@@ -199,39 +201,43 @@ print(paste0("Columns above threshold: ",length(columns_of_interest)))
 
 #####################Hypermutations analysis#################################
 
-#Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
-mutSum<-mat_non_syn+mat_syn #Total number of point mutations
-mutSum<-rowSums(mutSum)
-
-#Adding mutSum column to matrix1 that will be used to assess hypermutated samples
-mutSum<-mat_non_syn+mat_syn #Total number of point mutations (Not binary)
-mutSum<-rowSums(mutSum)
-mutSum<-mutSum[rownames(matrix1)]
-matrix1<-cbind(matrix1,mutSum)
-
-#Rescaling to solve for hypermutations
-hist(log10(mutSum),breaks=20)
-cut<-2.75
-cut<-10^cut
-above_cut<-mutSum[mutSum>cut]
-below_cut<-mutSum[mutSum<=cut]
-
-median(above_cut)
-median(below_cut)
-scale<-median(above_cut)/median(below_cut)
-
-x<-mutSum
-x[x>cut]<-x[x>cut]/scale
-
-hist(log10(mutSum),breaks=20)
-hist(log10(x),breaks=20)
-hist(x,breaks=20)
-
-
-scale<-12.15574
-mat_non_syn[names(above_cut),]<-round(mat_non_syn[names(above_cut),]/scale)
-#Subsetting matrix1 for top scoring genes and mutSum
-columns_of_interest<-c(columns_of_interest,"mutSum")
+if (arg$hyper==TRUE) {
+  #Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
+  mutSum<-mat_non_syn+mat_syn #Total number of point mutations
+  mutSum<-rowSums(mutSum)
+  
+  #Adding mutSum column to matrix1 that will be used to assess hypermutated samples
+  mutSum<-mat_non_syn+mat_syn #Total number of point mutations (Not binary)
+  mutSum<-rowSums(mutSum)
+  mutSum<-mutSum[rownames(matrix1)]
+  matrix1<-cbind(matrix1,mutSum)
+  
+  #Rescaling to solve for hypermutations
+  hist(log10(mutSum),breaks=20)
+  cut<-2.75
+  cut<-10^cut
+  above_cut<-mutSum[mutSum>cut]
+  below_cut<-mutSum[mutSum<=cut]
+  
+  median(above_cut)
+  median(below_cut)
+  scale<-median(above_cut)/median(below_cut)
+  
+  x<-mutSum
+  x[x>cut]<-x[x>cut]/scale
+  
+  hist(log10(mutSum),breaks=20)
+  hist(log10(x),breaks=20)
+  hist(x,breaks=20)
+  
+  
+  scale<-12.15574
+  mat_non_syn[names(above_cut),]<-round(mat_non_syn[names(above_cut),]/scale)
+  #Subsetting matrix1 for top scoring genes and mutSum
+  columns_of_interest<-c(columns_of_interest,"mutSum")
+  
+  
+}
 matrix1<-matrix1[,columns_of_interest] #Subsetting matrix to have above threshold columns including the mutSum
 
 ########################END OF Hypermutations analysis##################################################
@@ -381,9 +387,11 @@ g_value<-g_score[rownames(final_results)]
 final_results<-cbind(final_results,q_value,g_value)
 colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
 final_results<-final_results[order(final_results[,"q_value"]),]
-x<-which(rownames(final_results)=="mutSum")
-final_results<-rbind(final_results,final_results[x,])
-final_results<-final_results[-x,]
+
+if (arg$hyper==TRUE) {final_results<-final_results["mutSum",]}
+#x<-which(rownames(final_results)=="mutSum")
+#final_results<-rbind(final_results,final_results[x,])
+#final_results<-final_results[-x,]
 
 #Generating pii_values table
 pi_values_table<-NULL
