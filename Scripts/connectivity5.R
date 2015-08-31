@@ -10,8 +10,8 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","mut_APC|324",500,detectCores(),FALSE,TRUE,50,1,50,"syn","Annotations.csv")
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",10000,detectCores(),FALSE,TRUE,50,1000,50,"syn","Annotations.csv",TRUE)
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper")
 
 #Argument section handling
 spec = matrix(c(
@@ -26,7 +26,8 @@ spec = matrix(c(
   "fdr","f",2,"logical",
   "chunk","k",2,"integer",  
   "score_type","s",1,"character",
-  "anno","a",2,"character"
+  "anno","a",2,"character",
+  "hyper","h",2,"logical"
 ), byrow=TRUE, ncol=4)
 
 #arg<-getopt(spec) #Conmment this line for debug mode
@@ -39,6 +40,7 @@ if ( is.null(arg$chunk ) ) {arg$chunk= 200}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
+if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
 
 
 
@@ -190,15 +192,20 @@ if (arg$score_type=="lam") {
   g_score<-g_score_calc(arg$score_type,samples_of_interest,genes_above_samples_threshold) #Syn/old only over sample thresholded genes 
 
 columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #Filtering by g-score
-#columns_of_interest<-head(sort(g_score(1),decreasing=TRUE),100) #Filtering by g-score
-#columns_of_interest<-head(sort(g_score(matrix1),decreasing=TRUE),arg$samples_threshold) #Filtering by g-score
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
-
-
 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
-columns<-seq_along(columns_of_interest) #Subsetting columns
 
 
+
+
+if (arg$hyper==TRUE) {
+#Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
+  mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
+  mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
+  matrix1<-as.matrix(mutLoad,drop=FALSE)
+  colnames(matrix1)<-"mutLoad"
+  columns_of_interest<-"mutLoad"
+}
 
 #Initializing rolling results file
 unique_id<-round(runif(1, min = 111111, max = 222222),0)
@@ -266,6 +273,8 @@ edges1<-edges[,1] #Nodes i
 edges2<-edges[,2] #Nodes j
 num_nodes<-length(nodes)
 
+
+columns<-seq_along(columns_of_interest) #Subsetting columns
 split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
 
 
