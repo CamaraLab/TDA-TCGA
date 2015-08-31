@@ -10,8 +10,8 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",10000,detectCores(),FALSE,TRUE,50,1000,50,"syn","Annotations.csv",TRUE)
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",20,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,TRUE)
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control")
 
 #Argument section handling
 spec = matrix(c(
@@ -27,7 +27,8 @@ spec = matrix(c(
   "chunk","k",2,"integer",  
   "score_type","s",1,"character",
   "anno","a",2,"character",
-  "hyper","h",2,"logical"
+  "hyper","h",2,"logical",
+  "syn_control","s",2,"logical"
 ), byrow=TRUE, ncol=4)
 
 #arg<-getopt(spec) #Conmment this line for debug mode
@@ -41,6 +42,7 @@ if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
 if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
+if ( is.null(arg$syn_control ) ) {arg$syn_control= FALSE}
 
 
 
@@ -52,12 +54,21 @@ mat_non_syn<-h5read(h5file,"Mutations_NS")
 mat_syn<-h5read(h5file,"Mutations_S")
 all_samples<-h5read(h5file,"Mutations_Samples")
 all_genes<-h5read(h5file,"Mutations_Genes")
+
+
 rownames(matrix1)<-all_samples
 colnames(matrix1)<-all_genes
 rownames(mat_non_syn)<-all_samples
 colnames(mat_non_syn)<-all_genes
 rownames(mat_syn)<-all_samples
 colnames(mat_syn)<-all_genes
+
+
+
+
+
+
+
 if (arg$log2==TRUE) {matrix1<-(2^matrix1)-1} #Preparing for calculation if matrix is log scale
 
 
@@ -274,94 +285,155 @@ edges2<-edges[,2] #Nodes j
 num_nodes<-length(nodes)
 
 
-columns<-seq_along(columns_of_interest) #Subsetting columns
-split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
 
 
-print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
-cl <- makeCluster(as.numeric(arg$cores))
-varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix1","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
-clusterExport(cl=cl, varlist=varlist,envir=environment())
 
 print (Sys.time())
 ptm<-proc.time()
 
-#ans<-parLapply(cl,split.column,function (columns_range)  {
-ans<-lapply(split.column,function (columns_range)  {
-  #calculating c-scores and p-values for each chunk of columns
+
+connectivity_analysis<-function(columns_of_interest,matrix) {
   
-  matrix2<-matrix1[,columns_range,drop=FALSE]
-  dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
-  perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
-  perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+  print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
+  cl <- makeCluster(as.numeric(arg$cores))
+  varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
+  clusterExport(cl=cl, varlist=varlist,envir=environment())
   
-  perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
-    x<-apply(dict,2,function(x) x<-sample(samples))
-    x[,1]<-1:length(samples)
-    return(x)
-  }) 
-  
-  for (column in seq_along(columns_range)) {
-    perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],column,matrix2)
-  }
+  columns<-seq_along(columns_of_interest) #Subsetting columns
+  split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
   
   
-  e_list<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
-  pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
-  c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
+  ans<-parLapply(cl,split.column,function (columns_range)  {
+    #ans<-lapply(split.column,function (columns_range)  {
+    #calculating c-scores and p-values for each chunk of columns
+    
+    matrix2<-matrix[,columns_range,drop=FALSE]
+    dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
+    perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+    perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+    
+    perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
+      x<-apply(dict,2,function(x) x<-sample(samples))
+      x[,1]<-1:length(samples)
+      return(x)
+    }) 
+    
+    for (column in seq_along(columns_range)) {
+      perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],column,matrix2)
+    }
+    
+    
+    e_list<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
+    pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
+    c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
+    
+    e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
+    e_sd<-sapply(e_list,function (x) sd(x[,1]))
+    pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
+    pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
+    n_samples<-apply(matrix2,2,function (x) sum(x!=0))
+    c_scores<-sapply(c_vec_list,function (c_vec) c_vec[1])
+    p_values<-sapply(c_vec_list,function(c_vec) {
+      p_value<-sum(c_vec>c_vec[1])/permutations})
+    Genes<-colnames(matrix2)  
+    
+    output<-cbind(Genes,c_scores,p_values,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
+    write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
+    
+    #Ans is columns_range length list. Each element contain to variables.
+    #First variabl is "output" which is results matrix. the second element is pii_values matrix, its columns are genes and rows are nodes 
+    ans<-list(output,rbind(Genes,pi_values))
+    
+    return(ans) 
+   
+  })
+  print("Releasing cores")
+  stopCluster(cl) # Releasing acquired CPU cores
+  return(ans)
+}
+
+results_file<-function(ans) {
+  final_results<-NULL
+  for (i in 1:length(ans))
+    final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
   
-  
-  
-  #e_values<-sapply(e_list,function (x) x[,1]))
-  
-  e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
-  e_sd<-sapply(e_list,function (x) sd(x[,1]))
-  pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
-  pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
-  n_samples<-apply(matrix2,2,function (x) sum(x!=0))
-  c_scores<-sapply(c_vec_list,function (c_vec) c_vec[1])
-  p_values<-sapply(c_vec_list,function(c_vec) {
-    p_value<-sum(c_vec>c_vec[1])/permutations})
-  Genes<-colnames(matrix2)  
-  
-  output<-cbind(Genes,c_scores,p_values,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
-  write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
-  
-  #Ans is columns_range length list. Each element contain to variables.
-  #First variabl is "output" which is results matrix. the second element is pii_values matrix, its columns are genes and rows are nodes 
-  ans<-list(output,rbind(Genes,pi_values))
-  return(ans) 
-  
-})
+  final_results<-as.matrix(final_results,rownames.force = T)
+  pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
+  final_results<-final_results[!pi_zero_genes,,drop=FALSE]
+  q_value<-p.adjust(final_results[,"p_values"],"fdr")
+  g_value<-columns_of_interest[rownames(final_results)]
+  final_results<-cbind(final_results,q_value,g_value)
+  colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
+  final_results<-final_results[order(final_results[,"q_value"]),,drop=FALSE]
+}
+
+
+ans<-connectivity_analysis(columns_of_interest,matrix1)
+final_results<-results_file(ans)
+
 
 
 #Generating results table. 
-final_results<-NULL
-for (i in 1:length(ans))
-  final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
 
-final_results<-as.matrix(final_results,rownames.force = T)
-pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
-final_results<-final_results[!pi_zero_genes,,drop=FALSE]
-q_value<-p.adjust(final_results[,"p_values"],"fdr")
-g_value<-columns_of_interest[rownames(final_results)]
-final_results<-cbind(final_results,q_value,g_value)
-colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
-final_results<-final_results[order(final_results[,"q_value"]),,drop=FALSE]
 
 
 
 #Generating pii_values table
-pi_values_table<-NULL
-for (i in 1:length(ans))
-  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
-colnames(pi_values_table)<-pi_values_table[1,]
-pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
+#pi_values_table<-NULL
+#for (i in 1:length(ans))
+#  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
+#colnames(pi_values_table)<-pi_values_table[1,]
+#pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
 
 
 #Writing final results and pii_values files
+#write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
+#write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
+
+
+
+
+###################################################
+###################################################
+##################Synonymous control###############
+###################################################
+
+matrix1<-ifelse(mat_syn>0,1,0)
+matrix1<-matrix1[samples_of_interest,names(columns_of_interest)]
+ans<-connectivity_analysis(columns_of_interest,matrix1)
+final_results_control<-results_file(ans)
+
+
+
+
+########################################
+########################################
+############# END of Syn control########
+########################################
+########################################
+
+
+#Coercing non_syn and control results
+final_results_control<-final_results_control[,c("n_samples","p_values")]
+colnames(final_results_control)<-c("n_samples_con","p_values_con")
+missing_genes<-setdiff(rownames(final_results),rownames(final_results_control))
+n_samples_con<-colSums(matrix1[,missing_genes])
+p_values_con<-rep(NA,length(missing_genes))
+x<-data.frame(n_samples_con,p_values_con)
+final_results_control<-rbind(final_results_control,as.matrix(x))
+final_results_control<-final_results_control[rownames(final_results),]
+
+final_results<-cbind(final_results,final_results_control)
 write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
-write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
+
+
+
+
+
+
+
+
+
 
 
 run_t<-round(proc.time()-ptm,4) #Calculationg run time
@@ -373,5 +445,4 @@ print(paste("Speed index (calc time for 500 permutations):",speed_index))
 suppressWarnings(write.table(paste("Runtime in seconds:",run_t[3]),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Speed index:",speed_index),paste0(file_prefix,"_log.csv"),append=TRUE))
 
-print("Releasing cores")
-stopCluster(cl) # Releasing acquired CPU cores
+
