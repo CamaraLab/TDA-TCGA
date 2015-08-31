@@ -28,21 +28,22 @@ spec = matrix(c(
   "score_type","s",1,"character",
   "anno","a",2,"character",
   "hyper","h",2,"logical",
-  "syn_control","s",2,"logical"
+  "syn_control","z",2,"logical"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
-if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
+if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
-if ( is.null(arg$chunk ) ) {arg$chunk= 200}
+if ( is.null(arg$chunk ) ) {arg$chunk= 50}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
 if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
 if ( is.null(arg$syn_control ) ) {arg$syn_control= TRUE}
+if ( is.null(arg$score_type ) ) {arg$score_type= "syn"}
 
 
 
@@ -206,11 +207,9 @@ columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #F
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
 
-
-
-
 if (arg$hyper==TRUE) {
 #Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
+  arg$syn_control<-FALSE
   mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
   mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
   matrix1<-as.matrix(mutLoad,drop=FALSE)
@@ -224,12 +223,16 @@ file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
 print(paste("File unique identifier:",unique_id))
 
 #Info_cols is used to set inforation columns in output file as well as names for the variables that constitutes those columns
-
 info_cols<-t(c("Genes","c_scores","p_values","pi_frac","n_samples","e_mean","e_sd")) 
 write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
-write.csv(genes_below_samples_threshold,paste0(file_prefix,"_thresholded_genes1.csv"))
-write.csv(setdiff(genes_above_samples_threshold,names(columns_of_interest)),paste0(file_prefix,"_thresholded_genes2.csv"))
+#Printing thresholded genes
+thresholded_genes1<-genes_below_samples_threshold
+thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
+write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
+write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
+
+#write.csv(setdiff(genes_above_samples_threshold,names(columns_of_interest)),paste0(file_prefix,"_thresholded_genes2.csv"))
 
 #Writing log file
 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
@@ -368,6 +371,7 @@ results_file<-function(ans) {
 }
 
 
+print ("Starting connectivity analysis:")
 ans<-connectivity_analysis(columns_of_interest,matrix1)
 final_results<-results_file(ans)
 
@@ -392,15 +396,12 @@ final_results<-results_file(ans)
 
 
 if (arg$syn_control==TRUE) {
-  
   ##################Synonymous control###############
-  
+  print ("Starting control connectivity analysis:")
   matrix1<-ifelse(mat_syn>0,1,0)
   matrix1<-matrix1[samples_of_interest,names(columns_of_interest)]
   ans<-connectivity_analysis(columns_of_interest,matrix1)
   final_results_control<-results_file(ans)
-  
-  ############# END of Syn control########
   
   #Coercing non_syn and control results
   final_results_control<-final_results_control[,c("n_samples","p_values")]
@@ -418,7 +419,6 @@ if (arg$syn_control==TRUE) {
 
 
 write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
-
 
 
 run_t<-round(proc.time()-ptm,4) #Calculationg run time
