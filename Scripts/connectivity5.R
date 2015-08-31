@@ -10,7 +10,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",20,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,TRUE)
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,FALSE)
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control")
 
 #Argument section handling
@@ -31,7 +31,7 @@ spec = matrix(c(
   "syn_control","s",2,"logical"
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= TRUE}
@@ -42,7 +42,7 @@ if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
 if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
-if ( is.null(arg$syn_control ) ) {arg$syn_control= FALSE}
+if ( is.null(arg$syn_control ) ) {arg$syn_control= TRUE}
 
 
 
@@ -377,62 +377,47 @@ final_results<-results_file(ans)
 
 
 
-
+#############################################################
 #Generating pii_values table
 #pi_values_table<-NULL
 #for (i in 1:length(ans))
 #  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
 #colnames(pi_values_table)<-pi_values_table[1,]
 #pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
-
+#############################################################
 
 #Writing final results and pii_values files
 #write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
 #write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
 
 
+if (arg$syn_control==TRUE) {
+  
+  ##################Synonymous control###############
+  
+  matrix1<-ifelse(mat_syn>0,1,0)
+  matrix1<-matrix1[samples_of_interest,names(columns_of_interest)]
+  ans<-connectivity_analysis(columns_of_interest,matrix1)
+  final_results_control<-results_file(ans)
+  
+  ############# END of Syn control########
+  
+  #Coercing non_syn and control results
+  final_results_control<-final_results_control[,c("n_samples","p_values")]
+  colnames(final_results_control)<-c("n_samples_con","p_values_con")
+  missing_genes<-setdiff(rownames(final_results),rownames(final_results_control))
+  n_samples_con<-colSums(matrix1[,missing_genes])
+  p_values_con<-rep(NA,length(missing_genes))
+  x<-data.frame(n_samples_con,p_values_con)
+  final_results_control<-rbind(final_results_control,as.matrix(x))
+  final_results_control<-final_results_control[rownames(final_results),]
+  final_results<-cbind(final_results,final_results_control)
+  final_results<-final_results[,c("Genes","c_scores","p_values","n_samples","p_values_con","n_samples_con","q_value","g_score_syn","pi_frac","e_mean","e_sd")]
+  
+}
 
 
-###################################################
-###################################################
-##################Synonymous control###############
-###################################################
-
-matrix1<-ifelse(mat_syn>0,1,0)
-matrix1<-matrix1[samples_of_interest,names(columns_of_interest)]
-ans<-connectivity_analysis(columns_of_interest,matrix1)
-final_results_control<-results_file(ans)
-
-
-
-
-########################################
-########################################
-############# END of Syn control########
-########################################
-########################################
-
-
-#Coercing non_syn and control results
-final_results_control<-final_results_control[,c("n_samples","p_values")]
-colnames(final_results_control)<-c("n_samples_con","p_values_con")
-missing_genes<-setdiff(rownames(final_results),rownames(final_results_control))
-n_samples_con<-colSums(matrix1[,missing_genes])
-p_values_con<-rep(NA,length(missing_genes))
-x<-data.frame(n_samples_con,p_values_con)
-final_results_control<-rbind(final_results_control,as.matrix(x))
-final_results_control<-final_results_control[rownames(final_results),]
-
-final_results<-cbind(final_results,final_results_control)
 write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
-
-
-
-
-
-
-
-
 
 
 
@@ -442,7 +427,7 @@ print(paste("Runtime in seconds:",run_t[3]))
 
 print(paste("Speed index (calc time for 500 permutations):",speed_index))
 
-suppressWarnings(write.table(paste("Runtime in seconds:",run_t[3]),paste0(file_prefix,"_log.csv"),append=TRUE))
-suppressWarnings(write.table(paste("Speed index:",speed_index),paste0(file_prefix,"_log.csv"),append=TRUE))
+#suppressWarnings(write.table(paste("Runtime in seconds:",run_t[3]),paste0(file_prefix,"_log.csv"),append=TRUE))
+#suppressWarnings(write.table(paste("Speed index:",speed_index),paste0(file_prefix,"_log.csv"),append=TRUE))
 
 
