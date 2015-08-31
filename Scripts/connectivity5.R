@@ -207,6 +207,12 @@ columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #F
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
 
+
+#Initializing rolling results file
+unique_id<-round(runif(1, min = 111111, max = 222222),0)
+file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
+print(paste("File unique identifier:",unique_id))
+
 if (arg$hyper==TRUE) {
 #Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
   arg$syn_control<-FALSE
@@ -215,12 +221,11 @@ if (arg$hyper==TRUE) {
   matrix1<-as.matrix(mutLoad,drop=FALSE)
   colnames(matrix1)<-"mutLoad"
   columns_of_interest<-"mutLoad"
+  png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
+  hist(log10(mutLoad),breaks = 100,main="Before scaling")
+  dev.off()
 }
 
-#Initializing rolling results file
-unique_id<-round(runif(1, min = 111111, max = 222222),0)
-file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
-print(paste("File unique identifier:",unique_id))
 
 #Info_cols is used to set inforation columns in output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_scores","p_values","pi_frac","n_samples","e_mean","e_sd")) 
