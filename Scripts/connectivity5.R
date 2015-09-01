@@ -223,12 +223,12 @@ if (arg$hyper==TRUE) {
   columns_of_interest<-"mutLoad"
   png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
   hist(log10(mutLoad),breaks = 100,main="Before scaling")
-  dev.off()
+  invisible(dev.off())
 }
 
 
 #Info_cols is used to set inforation columns in output file as well as names for the variables that constitutes those columns
-info_cols<-t(c("Genes","c_scores","p_values","pi_frac","n_samples","e_mean","e_sd")) 
+info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
 write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 #Printing thresholded genes
@@ -340,12 +340,12 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
     pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
     n_samples<-apply(matrix2,2,function (x) sum(x!=0))
-    c_scores<-sapply(c_vec_list,function (c_vec) c_vec[1])
-    p_values<-sapply(c_vec_list,function(c_vec) {
+    c_value<-sapply(c_vec_list,function (c_vec) c_vec[1])
+    p_value<-sapply(c_vec_list,function(c_vec) {
       p_value<-sum(c_vec>c_vec[1])/permutations})
     Genes<-colnames(matrix2)  
     
-    output<-cbind(Genes,c_scores,p_values,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
+    output<-cbind(Genes,c_value,p_value,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
     write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
     
     #Ans is columns_range length list. Each element contain to variables.
@@ -368,7 +368,7 @@ results_file<-function(ans) {
   final_results<-as.matrix(final_results,rownames.force = T)
   pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
   final_results<-final_results[!pi_zero_genes,,drop=FALSE]
-  q_value<-p.adjust(final_results[,"p_values"],"fdr")
+  q_value<-p.adjust(final_results[,"p_value"],"fdr")
   g_value<-columns_of_interest[rownames(final_results)]
   final_results<-cbind(final_results,q_value,g_value)
   colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
@@ -409,16 +409,17 @@ if (arg$syn_control==TRUE) {
   final_results_control<-results_file(ans)
   
   #Coercing non_syn and control results
-  final_results_control<-final_results_control[,c("n_samples","p_values")]
-  colnames(final_results_control)<-c("n_samples_con","p_values_con")
+  final_results_control<-final_results_control[,c("n_samples","p_value","q_value")]
+  colnames(final_results_control)<-c("n_samples_con","p_value_con","q_value_con")
   missing_genes<-setdiff(rownames(final_results),rownames(final_results_control))
   n_samples_con<-colSums(matrix1[,missing_genes])
-  p_values_con<-rep(NA,length(missing_genes))
-  x<-data.frame(n_samples_con,p_values_con)
+  p_value_con<-rep(NA,length(missing_genes))
+  q_value_con<-rep(NA,length(missing_genes))
+  x<-data.frame(n_samples_con,p_value_con,q_value_con)
   final_results_control<-rbind(final_results_control,as.matrix(x))
   final_results_control<-final_results_control[rownames(final_results),]
   final_results<-cbind(final_results,final_results_control)
-  final_results<-final_results[,c("Genes","c_scores","p_values","n_samples","p_values_con","n_samples_con","q_value","g_score_syn","pi_frac","e_mean","e_sd")]
+  final_results<-final_results[,c("Genes","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","q_value_con","g_score_syn")]
   
 }
 
