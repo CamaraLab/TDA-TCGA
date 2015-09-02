@@ -10,7 +10,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,TRUE,0,"x.maf")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",100,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,TRUE,2.75,"../../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -440,6 +440,15 @@ results_file<-function(ans) {
   final_results<-cbind(final_results,q_value,g_value)
   colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
   final_results<-final_results[order(final_results[,"q_value"]),,drop=FALSE]
+  
+  #if (arg$rescale==0) {final_results[,"Genes"]<-substring(final_results[,"Genes"],5)}
+  if (arg$hyper==FALSE) {
+    Gene_Symbol<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",1)
+    #Gene_Symbol<-substring(Gene_Symbol,5)
+    EntrezID<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",2)
+    final_results<-final_results[,-1] #Removing old genes column
+    final_results<-cbind(Gene_Symbol,EntrezID,final_results)
+  }
 }
 
 
@@ -470,9 +479,9 @@ final_results<-results_file(ans)
 if (arg$syn_control==TRUE) {
   ##################Synonymous control###############
   print ("Starting control connectivity analysis:")
-  matrix1<-ifelse(mat_syn>0,1,0)
-  matrix1<-matrix1[samples_of_interest,names(columns_of_interest)]
-  ans<-connectivity_analysis(columns_of_interest,matrix1)
+  matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
+  matrix1<-matrix1[samples_of_interest,names(columns_of_interest)] # Subsetting for samples of interest
+  ans<-connectivity_analysis(columns_of_interest,matrix1) #Running connectivity analysis
   final_results_control<-results_file(ans)
   
   #Coercing non_syn and control results
@@ -486,9 +495,11 @@ if (arg$syn_control==TRUE) {
   final_results_control<-rbind(final_results_control,as.matrix(x))
   final_results_control<-final_results_control[rownames(final_results),]
   final_results<-cbind(final_results,final_results_control)
-  final_results<-final_results[,c("Genes","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","q_value_con","g_score_syn")]
+  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","q_value_con","g_score_syn")]
   
 }
+
+#Splitting gene names to Symbol and EntrezID
 
 
 write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
