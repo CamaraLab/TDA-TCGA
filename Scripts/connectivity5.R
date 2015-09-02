@@ -10,8 +10,8 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,FALSE)
-names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,TRUE,0,"x.maf")
+names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -28,7 +28,9 @@ spec = matrix(c(
   "score_type","s",1,"character",
   "anno","a",2,"character",
   "hyper","h",2,"logical",
-  "syn_control","z",2,"logical"
+  "syn_control","z",2,"logical",
+  "rescale","r",2,"numeric",
+  "maf","x",2,"character"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -44,6 +46,7 @@ if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
 if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
 if ( is.null(arg$syn_control ) ) {arg$syn_control= TRUE}
 if ( is.null(arg$score_type ) ) {arg$score_type= "syn"}
+if ( is.null(arg$rescale ) ) {arg$rescale= 0}
 
 
 
@@ -190,13 +193,71 @@ matrix1<-matrix1[samples_relabling_table[,1],] #Subseting matrix to contain only
 columns<-column_range(arg$columns)
 #Removing columns below samples_threshold from the first connected graph
 matrix1<-matrix1[,columns,drop=FALSE] #Subsetting for selected columns
-genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
 
-genes_below_samples_threshold<-names(which(genes_number_of_samples<arg$samples_threshold))
-genes_above_samples_threshold<-names(which(genes_number_of_samples>=arg$samples_threshold)) #For filtering by number  of mutations exist in a sample
+
 
 #Choosing genes based on score
 samples_of_interest<-rownames(matrix1)
+
+
+###############################################
+##################RESCALING####################
+###############################################
+
+if (arg$rescale!=0) {
+  
+  cut<-10^arg$rescale
+  #maf<-read.delim("../../COAD_TEST/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,comment.char = "#",sep="\t")
+  maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
+  maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
+  mat_total<-mat_non_syn+mat_syn #Total number of point mutations
+  mutLoad<-rowSums(mat_total) #rownames matrix1 is important to account only for samples_of_interes
+  above_cut<-mutLoad[mutLoad>cut]
+  below_cut<-mutLoad[mutLoad<=cut]
+  median(above_cut)
+  median(below_cut)
+  scale<-floor(median(above_cut)/median(below_cut))
+  
+  #Detecting hypermutated samples and removing from maf file based on scale
+  hypermutated<-names(above_cut)
+  x<-maf[maf$Tumor_Sample_Barcode %in% hypermutated,]
+  rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
+  rows_to_remove<-setdiff(rownames(x),rows_to_keep)
+  maf<-maf[-match(rows_to_remove,rownames(maf)),]
+  
+  #Creating rescaled matrices 
+  all_genes<-sort(unique(maf$Column_name))
+  all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
+  mat_syn<-matrix(0,length(all_samples),length(all_genes))
+  dimnames(mat_syn)<-list(all_samples,all_genes)
+  mat_non_syn<-mat_syn #Replicating mat_syn
+  
+  #Creating table of Synonymous mutations for Sample vs Entrez_Gene_Id
+  t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+  t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+  
+  #Plugging tables into 0 matrices
+  mat_syn[rownames(t_syn),colnames(t_syn)]<-t_syn
+  mat_non_syn[rownames(t_non_syn),colnames(t_non_syn)]<-t_non_syn
+  mat_syn<-mat_syn[sort(rownames(mat_syn)),sort(colnames(mat_syn))]
+  mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))]
+  
+  #Binary matrix for connectivity score
+  mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
+  matrix1<-mat_non_syn_bin[samples_of_interest,]
+}
+
+#################################################
+
+
+
+
+genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
+genes_below_samples_threshold<-names(which(genes_number_of_samples<arg$samples_threshold))
+genes_above_samples_threshold<-names(which(genes_number_of_samples>=arg$samples_threshold)) #For filtering by number  of mutations exist in a sample
+
+
+
 
 if (arg$score_type=="lam") {
   g_score<-g_score_calc(arg$score_type,samples_of_interest,all_genes) #all_genes_Lambda scores needs all genes into account 
@@ -221,9 +282,15 @@ if (arg$hyper==TRUE) {
   matrix1<-as.matrix(mutLoad,drop=FALSE)
   colnames(matrix1)<-"mutLoad"
   columns_of_interest<-"mutLoad"
-  png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
-  hist(log10(mutLoad),breaks = 100,main="Before scaling")
-  invisible(dev.off())
+  if (arg$rescale!=0) {
+    png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
+    hist(log10(mutLoad),breaks = 100,main="After rescaling")
+    invisible(dev.off())  
+  } else {
+    png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
+    hist(log10(mutLoad),breaks = 100,main="Before rescaling")
+    invisible(dev.off())
+  }
 }
 
 
