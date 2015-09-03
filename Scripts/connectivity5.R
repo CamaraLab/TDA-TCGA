@@ -10,7 +10,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",100,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",FALSE,TRUE,2.75,"../../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",100,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",TRUE,TRUE,0,"../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -33,7 +33,7 @@ spec = matrix(c(
   "maf","x",2,"character"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -133,7 +133,6 @@ g_score_calc<-function(score_type,samples,genes) {
       ans<-(-1)*mat_non_syn_bin[x,genes_with_known_length]*log(1-exp(-lambda))  
       return(ans)
     }))
-    #suppressWarnings(S_lambda<-as.numeric(c(S_lambda,setdiff(colnames(mat_non_syn),names(S_lambda)))))
     g_score<-S_lambda
   }
   
@@ -245,6 +244,7 @@ if (arg$rescale!=0) {
   #Binary matrix for connectivity score
   mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
   matrix1<-mat_non_syn_bin[samples_of_interest,]
+  #colnames(matrix1)<-paste0("mut_",colnames(matrix1))
 }
 
 #################################################
@@ -449,6 +449,7 @@ results_file<-function(ans) {
     final_results<-final_results[,-1] #Removing old genes column
     final_results<-cbind(Gene_Symbol,EntrezID,final_results)
   }
+  return(final_results)
 }
 
 
