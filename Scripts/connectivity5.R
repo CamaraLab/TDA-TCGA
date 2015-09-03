@@ -10,7 +10,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",100,detectCores(),FALSE,TRUE,50,20,100,"syn","Annotations.csv",TRUE,TRUE,0,"../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,10,200,"syn","Annotations.csv",FALSE,TRUE,2.75,"../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -444,7 +444,6 @@ results_file<-function(ans) {
   #if (arg$rescale==0) {final_results[,"Genes"]<-substring(final_results[,"Genes"],5)}
   if (arg$hyper==FALSE) {
     Gene_Symbol<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",1)
-    #Gene_Symbol<-substring(Gene_Symbol,5)
     EntrezID<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",2)
     final_results<-final_results[,-1] #Removing old genes column
     final_results<-cbind(Gene_Symbol,EntrezID,final_results)
@@ -496,12 +495,32 @@ if (arg$syn_control==TRUE) {
   final_results_control<-rbind(final_results_control,as.matrix(x))
   final_results_control<-final_results_control[rownames(final_results),]
   final_results<-cbind(final_results,final_results_control)
-  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","q_value_con","g_score_syn")]
+  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","g_score_syn")]
   
 }
 
-#Splitting gene names to Symbol and EntrezID
+#P_values integration
+p_integrate <- function (p,p_con,n,n_con)
+  # Gets p_values together with popultaion size. Return integrated p_value
+{
+  z<-qnorm(p,lower.tail=FALSE)
+  z_con<-qnorm(1-p_con,lower.tail=FALSE)
+  z_weighted<-(n*z+pmin(n,n_con)*z_con)/sqrt(n^2+pmin(n,n_con)^2)
+  p_weighted<-pnorm(z_weighted,lower.tail = FALSE)
+  p_weighted[is.na(p_weighted) & !is.nan(p_weighted)]<-p[is.na(p_weighted) & !is.nan(p_weighted)]
+  return (p_weighted)
+}
 
+#pnormGC(.05, region="above", mean=0,sd=1,graph=TRUE)
+
+n<-as.numeric(final_results[,"n_samples"])
+n_con<-as.numeric(final_results[,"n_samples_con"])
+p<-as.numeric(final_results[,"p_value"])
+p_con<-as.numeric(final_results[,"p_value_con"])
+p_integrated<-p_integrate(p,p_con,n,n_con)
+
+q_integrated<-p.adjust(p_integrated,"fdr")
+final_results<-cbind(final_results,p_integrated,q_integrated)
 
 write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
 
