@@ -8,7 +8,7 @@ require(getopt,quietly = T)
 
 
 spec = matrix(c(
-  "expression", "e",1, "character",
+  "dir", "d",1, "character",
   "index", "i",1, "character",
   "anno", "a",1, "character",
   "anno_old", "o",1, "character",
@@ -30,12 +30,8 @@ rownames(anno)<-anno[,1]
 anno_old_new<-read.csv(arg$anno_old,as.is=T,row.names=1)
 
 
-#wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
-#wd<-paste0(arg$expression,"/",PROJECT_NAME)
-#setwd(wd)
-
 #Raw file list.
-rsem_files<-list.files(arg$expression,full.names=T)
+rsem_files<-list.files(arg$dir,full.names=T)
 rsem_files<-rsem_files[grep(x=rsem_files,"rsem.genes.results")]
 
 #Creating index file
@@ -52,7 +48,7 @@ symbol<-sapply(gene_id_split,"[[",1)
 id<-as.numeric(sapply(gene_id_split,"[[",2))
 
 
-#Replacing old ids witht new
+#Replacing old ids with new
 ids_to_replace_indices<-id %in% anno_old_new$Old_ID
 ids_to_replace<-id[ids_to_replace_indices]
 new_id_indices<-match(ids_to_replace,anno_old_new$Old_ID)
