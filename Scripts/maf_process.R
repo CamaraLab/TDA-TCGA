@@ -19,39 +19,36 @@ if ( is.null(arg$anno_old ) ) {arg$anno_old= "C:/Users/Udi/Google Drive/Columbia
 
 
 
-
-
 PROJECT_NAME<-arg$project
+anno<-read.csv(arg$anno,as.is=T,row.names = 1)
+anno$EntrezID<-rownames(anno)
+anno_old_new<-read.csv(arg$anno_old,as.is=T,row.names=1)
 
 
-anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
-row.names(anno)<-anno[,1]
-anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv",as.is=T,row.names=1)
+#anno<-read.csv("../../../../Documents/Lab/GIT/TCGA-TDA/Annotations/Annotations.csv",as.is=T,row.names = 1)
+#anno$EntrezID<-rownames(anno)
+#anno_old_new<-read.csv("../../../../Documents/Lab/GIT/TCGA-TDA/Annotations/Anno_old_new.csv",as.is=T,row.names=1)
+#PROJECT_NAME<-"STAD"
+#maf_file<-"hgsc.bcm.edu__IlluminaGA_automated_DNA_sequencing_level2.maf"
+#anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
+#row.names(anno)<-anno[,1]
+#anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv",as.is=T,row.names=1)
 
-
-
-
-#wd<-paste0("c:/Users/Udi/Documents/TCGA-DATA/",PROJECT_NAME)
-#setwd(wd)
 
 #This file cleans and created a file wit
 
-
-maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#")
+maf_file<-arg$maf
+maf<-read.delim(maf_file,header = TRUE,as.is=T,comment.char = "#")
 colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample_Barcode")
 maf<-maf[,colInfo]
 
-#Replacing unknown entrezids
+#Replacing unknown entrezids (0) in original maf file
 #entrez_to_symbol<-as.list(org.Hs.egSYMBOL)
 symbol_to_entrez<-as.list(org.Hs.egALIAS2EG)
 symbol_to_entrez_short<-unlist(symbol_to_entrez[sapply(symbol_to_entrez,length)==1]) #Keeping only records with 1 entrez id
-
 r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original maf
-#View(maf[r,])
-#length(r)
+
 maf$Entrez_Gene_Id[r]<-symbol_to_entrez_short[maf$Hugo_Symbol[r]]
-#View(maf[r,])
-#sum(is.na(maf$Entrez_Gene_Id))
 maf$Entrez_Gene_Id<-as.numeric(maf$Entrez_Gene_Id)
 maf<-arrange(maf,Entrez_Gene_Id)
             
@@ -64,13 +61,39 @@ ids_to_replace<-maf$Entrez_Gene_Id[ids_to_replace_indices]
 new_id_indices<-match(ids_to_replace,anno_old_new$Old_ID)
 maf$Entrez_Gene_Id[ids_to_replace_indices]<-anno_old_new$New_ID[new_id_indices]
 
+#Replacing Hugo symbols with updated ones
+maf$Hugo_Symbol<-anno[as.character(maf$Entrez_Gene_Id),"Symbol"]
 
+#Removing unknown EntrezIDs/Hugo_symbols
+removed_genes_for_log<-maf[!complete.cases(maf),]$Hugo_Symbol
+maf<-maf[complete.cases(maf),] 
 
 #Sanity check - Check if unique EntrezID=Unique hugo_symbols
-maf$Hugo_Symbol<-anno[as.character(maf$Entrez_Gene_Id),"Symbol"]
-maf<-maf[complete.cases(maf),] #Removing unknown EntrezIDs/Hugo_symbols
 print ("Unique id Sanity check:")
-length(unique(maf$Entrez_Gene_Id))==length(unique(maf$Hugo_Symbol))
+check<-length(unique(maf$Entrez_Gene_Id))==length(unique(maf$Hugo_Symbol))
+print(check)
+if (check==FALSE) {
+  print ("Looking for ambivalentic ID/Symbol")
+  unique_symbols<-unique(maf$Hugo_Symbol)
+  x<-function(symbol) {
+    y<-maf$Entrez_Gene_Id[maf$Hugo_Symbol==symbol]
+    y<-length(unique(y))
+  }
+  z<-sapply(unique_symbols,x)
+  genes_to_remove<-names(which(z>1))
+  print ("Removing genes with duplicated ENTREZ Ids from the maf")
+  print(genes_to_remove)
+  removed_genes_for_log<-c(removed_genes_for_log,genes_to_remove)
+  #Removing genes with duplicated Entrez ID
+  rows_to_remove<-which(maf$Hugo_Symbol %in% genes_to_remove)
+  maf<-maf[-rows_to_remove,]
+  dim(maf)
+  print ("Performing second sanity check:")
+  check<-length(unique(maf$Entrez_Gene_Id))==length(unique(maf$Hugo_Symbol))
+  print (check)
+}
+
+
 
 maf$Column_name<-paste0(maf$Hugo_Symbol,"|",maf$Entrez_Gene_Id) #Adding column name Symbol|Entrez for downstream traceback
 #maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15) #Trim Fix sample name
@@ -100,13 +123,10 @@ mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))
 #Binary matrix for connectivity score
 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
 
-
-#write.csv(mat_non_syn_bin,paste0("./Mutations/",PROJECT_NAME,"_Full_Mutations_binary.csv"))
-#write.csv(mat_non_syn,paste0("./Mutations/",PROJECT_NAME,"_Full_Mutations_non_synonymous.csv"))
-#write.csv(mat_syn,paste0("./Mutations/",PROJECT_NAME,"_Full_Mutations_synonymous.csv"))
-
 print ("Writing mutation matrix files")
 write.csv(mat_non_syn_bin,paste0(PROJECT_NAME,"_Full_Mutations_binary.csv"))
 write.csv(mat_non_syn,paste0(PROJECT_NAME,"_Full_Mutations_non_synonymous.csv"))
 write.csv(mat_syn,paste0(PROJECT_NAME,"_Full_Mutations_synonymous.csv"))
-
+write.table(maf,paste0("PROCESSED_",maf_file),sep="\t",row.names = FALSE)
+cat("Genes removed in the process",file="outfile.txt",append=TRUE)
+cat(removed_genes_for_log,file="outfile.txt",append=TRUE)
