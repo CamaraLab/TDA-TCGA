@@ -40,7 +40,17 @@ q_value_dist<-sapply(scan$name,function (x) {
   } else {results<-NA}
 })
 
-x<-"26_3"
+p_value_dist<-sapply(scan$name,function (x) {
+  print(x)
+  results<-list.files(pattern=paste0(x,".*_results_final"))
+  if (length(results) !=0) {
+    results<-read.csv(results,as.is=T)$q_value
+    results<-sum(results<=0.1,na.rm=T)
+  } else {results<-NA}
+})
+
+
+
 q_integrated_dist<-sapply(scan$name,function (x) {
   print(x)
   results<-list.files(pattern=paste0(x,".*_results_final"))
@@ -55,33 +65,27 @@ q_integrated_dist<-q_integrated_dist[complete.cases(q_integrated_dist)]
 q_value_dist
 q_integrated_dist
 
+p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
+
 rownames(scan)<-scan$name
 scan$names
 head(scan)
 
-y<-cbind(scan[names(q_value_dist),],q_value_dist)
+y<-cbind(scan[names(q_value_dist),],q_value_dist,q_integrated_dist,p_value_dist)
 head(y)
-
-ggplot(y(y$Gain~y$Resolution)
-plot(y$Resolution,y$Gain)
-
-?text
-
-text(y$Gain~y$Resolution,labels=y$q_value_dist,pos="4")
-?
-scatterplot3d(x=y$Resolution,y=y$Gain, z=y$q_value_dist,pch=16, highlight.3d=TRUE,
-              type="l", main="3D Scatterplot")
-
-
-
-
 
 
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_value_dist)) + 
-  scale_color_gradient2(low = 'white', mid='cyan', high = 'black', midpoint = 7) +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2)
+  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value distribution")
+
+ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_integrated_dist)) + 
+  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q integrated distribution")
 
 
-
+ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=p_value_dist)) + 
+  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value distribution")
 
