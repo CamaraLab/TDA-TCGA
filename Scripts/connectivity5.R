@@ -1,3 +1,4 @@
+
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
 #Preping environment, loading necessary libraries
 
@@ -10,7 +11,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("COAD_Cor_Neigh_26_3_2000","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,10,200,"syn","Annotations.csv",FALSE,TRUE,2.75,"../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("35_1.9","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,20,200,"syn","Annotations.csv",FALSE,TRUE,0,"../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -33,7 +34,7 @@ spec = matrix(c(
   "maf","x",2,"character"
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -44,10 +45,17 @@ if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
 if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
+if (arg$hyper==TRUE) {
+  arg$samples_threshold<-1
+  arg$g_score_threshold<-2
+  arg$syn_control<-FALSE
+}
+
 if ( is.null(arg$syn_control ) ) {arg$syn_control= TRUE}
 if ( is.null(arg$score_type ) ) {arg$score_type= "syn"}
-if ( is.null(arg$rescale ) ) {arg$rescale= 0}
-
+if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
+  if (is.null(arg$maf)) stop("PROCESSED MAF file must be provided for resscaling")
+}
 
 
 #Loading matrix file to memory and log transforming if log2=TRUE
@@ -265,7 +273,10 @@ if (arg$score_type=="lam") {
   g_score<-g_score_calc(arg$score_type,samples_of_interest,genes_above_samples_threshold) #Syn/old only over sample thresholded genes 
 
 columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #Filtering by g-score
+
 print(paste0("Columns above threshold: ",length(columns_of_interest)))
+
+
 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
 
 
@@ -276,7 +287,7 @@ print(paste("File unique identifier:",unique_id))
 
 if (arg$hyper==TRUE) {
 #Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
-  arg$syn_control<-FALSE
+
   mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
   mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
   matrix1<-as.matrix(mutLoad,drop=FALSE)
@@ -303,8 +314,6 @@ thresholded_genes1<-genes_below_samples_threshold
 thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
 write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
 write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
-
-#write.csv(setdiff(genes_above_samples_threshold,names(columns_of_interest)),paste0(file_prefix,"_thresholded_genes2.csv"))
 
 #Writing log file
 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
@@ -427,33 +436,40 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
   return(ans)
 }
 
+
+
 results_file<-function(ans) {
+  if (length(columns_of_interest)==0) {
+    final_results<-data.frame(Gene_Symbol="None_passed_threshold",p_value=NA,q_value=NA,q_value_integrated=NA)
+    return(final_results)
+  }
   final_results<-NULL
   for (i in 1:length(ans))
     final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
   
-  final_results<-as.matrix(final_results,rownames.force = T)
+  final_results<-as.matrix(final_results,rownames.force = T,drop=FALSE)
   pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
   final_results<-final_results[!pi_zero_genes,,drop=FALSE]
   q_value<-p.adjust(final_results[,"p_value"],"fdr")
   g_value<-columns_of_interest[rownames(final_results)]
   final_results<-cbind(final_results,q_value,g_value)
-  colnames(final_results)[9]<-paste0("g_score_",arg$score_type)
+  colnames(final_results)[grep("g_value",colnames(final_results))]<-paste0("g_score_",arg$score_type)
   final_results<-final_results[order(final_results[,"q_value"]),,drop=FALSE]
   
   #if (arg$rescale==0) {final_results[,"Genes"]<-substring(final_results[,"Genes"],5)}
   if (arg$hyper==FALSE) {
     Gene_Symbol<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",1)
     EntrezID<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",2)
-    final_results<-final_results[,-1] #Removing old genes column
+    final_results<-final_results[,-1,drop=FALSE] #Removing old genes column
     final_results<-cbind(Gene_Symbol,EntrezID,final_results)
+    print (final_results)
   }
   return(final_results)
 }
 
-
 print ("Starting connectivity analysis:")
 ans<-connectivity_analysis(columns_of_interest,matrix1)
+
 final_results<-results_file(ans)
 
 
@@ -476,29 +492,6 @@ final_results<-results_file(ans)
 #write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
 
 
-if (arg$syn_control==TRUE) {
-  ##################Synonymous control###############
-  print ("Starting control connectivity analysis:")
-  matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
-  matrix1<-matrix1[samples_of_interest,names(columns_of_interest)] # Subsetting for samples of interest
-  ans<-connectivity_analysis(columns_of_interest,matrix1) #Running connectivity analysis
-  final_results_control<-results_file(ans)
-  
-  #Coercing non_syn and control results
-  final_results_control<-final_results_control[,c("n_samples","p_value","q_value")]
-  colnames(final_results_control)<-c("n_samples_con","p_value_con","q_value_con")
-  missing_genes<-setdiff(rownames(final_results),rownames(final_results_control))
-  n_samples_con<-colSums(matrix1[,missing_genes])
-  p_value_con<-rep(NA,length(missing_genes))
-  q_value_con<-rep(NA,length(missing_genes))
-  x<-data.frame(n_samples_con,p_value_con,q_value_con)
-  final_results_control<-rbind(final_results_control,as.matrix(x))
-  final_results_control<-final_results_control[rownames(final_results),]
-  final_results<-cbind(final_results,final_results_control)
-  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","g_score_syn")]
-  
-}
-
 #P_values integration
 p_integrate <- function (p,p_con,n,n_con)
   # Gets p_values together with popultaion size. Return integrated p_value
@@ -511,16 +504,44 @@ p_integrate <- function (p,p_con,n,n_con)
   return (p_weighted)
 }
 
+
+
+if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
+  ##################Synonymous control###############
+  print ("Starting control connectivity analysis:")
+  matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
+  matrix1<-matrix1[samples_of_interest,names(columns_of_interest),drop=FALSE] # Subsetting for samples of interest
+  ans<-connectivity_analysis(columns_of_interest,matrix1) #Running connectivity analysis
+  final_results_control<-results_file(ans)
+  
+  #Coercing non_syn and control results
+  final_results_control<-final_results_control[,c("n_samples","p_value","q_value")]
+  colnames(final_results_control)<-c("n_samples_con","p_value_con","q_value_con")
+  missing_genes<-setdiff(rownames(final_results),rownames(final_results_control)) #Genes that do not exist in final_Results needed to be completed with NA and zeros
+  n_samples_con<-colSums(matrix1[,missing_genes])
+  p_value_con<-rep(NA,length(missing_genes))
+  q_value_con<-rep(NA,length(missing_genes))
+  x<-data.frame(n_samples_con,p_value_con,q_value_con)
+  final_results_control<-rbind(final_results_control,as.matrix(x))
+  final_results_control<-final_results_control[rownames(final_results),]
+  final_results<-cbind(final_results,final_results_control)
+  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","g_score_syn")]
+  
+  #Calculating integrated p_value
+  n<-as.numeric(final_results[,"n_samples"])
+  n_con<-as.numeric(final_results[,"n_samples_con"])
+  p<-as.numeric(final_results[,"p_value"])
+  p_con<-as.numeric(final_results[,"p_value_con"])
+  
+  p_integrated<-p_integrate(p,p_con,n,n_con)
+  q_integrated<-p.adjust(p_integrated,"fdr")
+  
+  final_results<-cbind(final_results,p_integrated,q_integrated)
+  
+}
+
 #pnormGC(.05, region="above", mean=0,sd=1,graph=TRUE)
 
-n<-as.numeric(final_results[,"n_samples"])
-n_con<-as.numeric(final_results[,"n_samples_con"])
-p<-as.numeric(final_results[,"p_value"])
-p_con<-as.numeric(final_results[,"p_value_con"])
-p_integrated<-p_integrate(p,p_con,n,n_con)
-
-q_integrated<-p.adjust(p_integrated,"fdr")
-final_results<-cbind(final_results,p_integrated,q_integrated)
 
 write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
 
