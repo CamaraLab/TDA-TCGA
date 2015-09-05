@@ -11,7 +11,7 @@ library(data.table)
 library(rhdf5)
 
 #Setting defaults for debug mode
-arg<-list("35_1.9","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,20,200,"syn","Annotations.csv",FALSE,TRUE,0,"../COAD_rescale/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("30_1.9","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,1,1,"syn","Annotations.csv",FALSE,TRUE,2.75,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -34,7 +34,7 @@ spec = matrix(c(
   "maf","x",2,"character"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -321,7 +321,7 @@ suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),
 suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
-#perm_values<-function(dict_matrix,samples_relabling_table,column,matrix) {
+
 perm_values<-function(dict_matrix,column,matrix) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
   
@@ -449,7 +449,7 @@ results_file<-function(ans) {
   
   final_results<-as.matrix(final_results,rownames.force = T,drop=FALSE)
   pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
-  final_results<-final_results[!pi_zero_genes,,drop=FALSE]
+  final_results[pi_zero_genes,"p_value"]<-NA
   q_value<-p.adjust(final_results[,"p_value"],"fdr")
   g_value<-columns_of_interest[rownames(final_results)]
   final_results<-cbind(final_results,q_value,g_value)
@@ -515,17 +515,18 @@ if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
   final_results_control<-results_file(ans)
   
   #Coercing non_syn and control results
-  final_results_control<-final_results_control[,c("n_samples","p_value","q_value")]
+  final_results_control<-final_results_control[,c("n_samples","p_value","q_value"),drop=FALSE]
   colnames(final_results_control)<-c("n_samples_con","p_value_con","q_value_con")
   missing_genes<-setdiff(rownames(final_results),rownames(final_results_control)) #Genes that do not exist in final_Results needed to be completed with NA and zeros
-  n_samples_con<-colSums(matrix1[,missing_genes])
-  p_value_con<-rep(NA,length(missing_genes))
-  q_value_con<-rep(NA,length(missing_genes))
-  x<-data.frame(n_samples_con,p_value_con,q_value_con)
-  final_results_control<-rbind(final_results_control,as.matrix(x))
-  final_results_control<-final_results_control[rownames(final_results),]
+  
+  missing_n_samples_con<-colSums(matrix1[,missing_genes])
+  missing_p_value_con<-rep(NA,length(missing_genes))
+  missing_q_value_con<-rep(NA,length(missing_genes))
+  missing_x<-data.frame(missing_n_samples_con,missing_p_value_con,missing_q_value_con)
+  final_results_control<-rbind(final_results_control,as.matrix(missing_x))
+  final_results_control<-final_results_control[rownames(final_results),,drop=FALSE]
   final_results<-cbind(final_results,final_results_control)
-  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","g_score_syn")]
+  final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","g_score_syn"),drop=FALSE]
   
   #Calculating integrated p_value
   n<-as.numeric(final_results[,"n_samples"])
