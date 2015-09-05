@@ -34,7 +34,7 @@ spec = matrix(c(
   "maf","x",2,"character"
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -449,6 +449,7 @@ results_file<-function(ans) {
   
   final_results<-as.matrix(final_results,rownames.force = T,drop=FALSE)
   pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
+  #final_results<-final_results[!pi_zero_genes,,drop=FALSE]
   final_results[pi_zero_genes,"p_value"]<-NA
   q_value<-p.adjust(final_results[,"p_value"],"fdr")
   g_value<-columns_of_interest[rownames(final_results)]
@@ -462,7 +463,6 @@ results_file<-function(ans) {
     EntrezID<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",2)
     final_results<-final_results[,-1,drop=FALSE] #Removing old genes column
     final_results<-cbind(Gene_Symbol,EntrezID,final_results)
-    print (final_results)
   }
   return(final_results)
 }
