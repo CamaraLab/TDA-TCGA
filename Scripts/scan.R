@@ -6,12 +6,11 @@ return_lab<-function (x) {
 }
 
 
-scan<-read.csv("Scan - Sheet2.csv",as.is=T)
+scan<-read.csv("Scan.csv",as.is=T)
 scan$name<-paste0(scan$Resolution,"_",scan$Gain)
 scan$source<-sapply(strsplit(scan$Link,"/"),return_source)
 scan$lab<-sapply(strsplit(scan$Link,"/"),return_lab)
 
-scan<-scan[1:3,]
 ##Downloading
 #for (i in 1:nrow(scan)) {
 #  source<-scan$source[i]
@@ -27,14 +26,14 @@ count<<-0
 sapply(scan$name, function (x) {
   count<<-count+1 
   print (paste("Connectivity",count,"---","out of",nrow(scan)))
-  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 2500 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
+  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 10 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
   system(run_line)
 })
 
 #Extracting information from final_Results files
 q_value_dist<-sapply(scan$name,function (x) {
   print(x)
-  results<-list.files(pattern=paste0(x,".*_results_final"))
+  results<-list.files(pattern=paste0("^",x,".*_results_final"))
   if (length(results) !=0) {
     results<-read.csv(results,as.is=T)$q_value
     results<-sum(results<=0.2,na.rm=T)
@@ -43,7 +42,7 @@ q_value_dist<-sapply(scan$name,function (x) {
 
 p_value_dist<-sapply(scan$name,function (x) {
   print(x)
-  results<-list.files(pattern=paste0(x,".*_results_final"))
+  results<-list.files(pattern=paste0("^",x,".*_results_final"))
   if (length(results) !=0) {
     results<-read.csv(results,as.is=T)$q_value
     results<-sum(results<=0.1,na.rm=T)
@@ -51,20 +50,10 @@ p_value_dist<-sapply(scan$name,function (x) {
 })
 
 
-
-q_integrated_dist<-sapply(scan$name,function (x) {
-  print(x)
-  results<-list.files(pattern=paste0(x,".*_results_final"))
-  if (length(results) !=0) {
-    results<-read.csv(results,as.is=T)$q_integrated
-    results<-sum(results<=0.2,na.rm = T)
-  } else {results<-NA}
-})
-
 q_value_dist<-q_value_dist[complete.cases(q_value_dist)]
-q_integrated_dist<-q_integrated_dist[complete.cases(q_integrated_dist)]
+p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
 q_value_dist
-q_integrated_dist
+p_value_dist
 
 p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
 
@@ -76,14 +65,11 @@ y<-cbind(scan[names(q_value_dist),],q_value_dist,q_integrated_dist,p_value_dist)
 head(y)
 
 write.csv(y,"y.csv")
+write.csv(y,"y.umv")
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
   geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value distribution")
-
-ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_integrated_dist)) + 
-  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q integrated distribution")
 
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=p_value_dist)) + 
