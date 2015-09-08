@@ -1,19 +1,20 @@
 return_source<-function (x) {
-  return(x[[5]])
+  return(x[5])
 }
 return_lab<-function (x) {
-  return(x[[7]])
+  return(x[7])
 }
 
 
-scan<-read.csv("coad_scan.csv",as.is=T)
+scan<-read.csv("Scan - Sheet2.csv",as.is=T)
 scan$name<-paste0(scan$Resolution,"_",scan$Gain)
 scan$source<-sapply(strsplit(scan$Link,"/"),return_source)
 scan$lab<-sapply(strsplit(scan$Link,"/"),return_lab)
 
+scan<-scan[1:3,]
 ##Downloading
 #for (i in 1:nrow(scan)) {
-##  source<-scan$source[i]
+#  source<-scan$source[i]
 #  lab<-scan$lab[i]
 #  name<-scan$name[i]
 #  print (paste("Downloading",scan$name[i],"---",i,"out of",nrow(scan)))
@@ -26,7 +27,7 @@ count<<-0
 sapply(scan$name, function (x) {
   count<<-count+1 
   print (paste("Connectivity",count,"---","out of",nrow(scan)))
-  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 500 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
+  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 2500 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
   system(run_line)
 })
 
@@ -74,7 +75,7 @@ head(scan)
 y<-cbind(scan[names(q_value_dist),],q_value_dist,q_integrated_dist,p_value_dist)
 head(y)
 
-
+write.csv(y,"y.csv")
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
