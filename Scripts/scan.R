@@ -26,7 +26,7 @@ count<<-0
 sapply(scan$name, function (x) {
   count<<-count+1 
   print (paste("Connectivity",count,"---","out of",nrow(scan)))
-  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 10 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
+  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 2500 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
   system(run_line)
 })
 
@@ -55,24 +55,21 @@ p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
 q_value_dist
 p_value_dist
 
-p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
-
 rownames(scan)<-scan$name
-scan$names
+scan$name
+
 head(scan)
 
-y<-cbind(scan[names(q_value_dist),],q_value_dist,q_integrated_dist,p_value_dist)
+y<-cbind(scan[names(q_value_dist),],q_value_dist,p_value_dist)
 head(y)
 
 write.csv(y,"y.csv")
-write.csv(y,"y.umv")
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value distribution")
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<0.2")
 
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=p_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value distribution")
-
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<0.1")
