@@ -1,3 +1,4 @@
+library(ggplot2)
 return_source<-function (x) {
   return(x[5])
 }
@@ -36,7 +37,7 @@ q_value_dist<-sapply(scan$name,function (x) {
   results<-list.files(pattern=paste0("^",x,".*_results_final"))
   if (length(results) !=0) {
     results<-read.csv(results,as.is=T)$q_value
-    results<-sum(results<=0.2,na.rm=T)
+    results<-sum(results<=0.1,na.rm=T)
   } else {results<-NA}
 })
 
@@ -45,13 +46,13 @@ p_value_dist<-sapply(scan$name,function (x) {
   results<-list.files(pattern=paste0("^",x,".*_results_final"))
   if (length(results) !=0) {
     results<-read.csv(results,as.is=T)$q_value
-    results<-sum(results<=0.1,na.rm=T)
+    results<-sum(results<=0.05,na.rm=T)
   } else {results<-NA}
 })
 
 
-q_value_dist<-q_value_dist[complete.cases(q_value_dist)]
-p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
+#q_value_dist<-q_value_dist[complete.cases(q_value_dist)]
+#p_value_dist<-p_value_dist[complete.cases(p_value_dist)]
 q_value_dist
 p_value_dist
 
@@ -67,9 +68,60 @@ write.csv(y,"y.csv")
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=q_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<0.2")
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<0.1")
 
 
 ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=p_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<0.1")
+  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<0.05")
+
+
+
+#Calculates sum of a particular variable for a list of genes across scan results
+number_of_events<-function(scan,variable,value) {
+  genes<-sapply(scan$name,function (x)
+  {
+    results<-list.files(pattern=paste0("^",x,".*_results_final"))
+    if (length(results) !=0) {
+      results<-read.csv(results,as.is=T)
+      results<-results$Gene_Symbol[results[,variable]<=value]
+    } else {results<-NA}
+  })
+
+  genes<-unlist(genes)
+  genes<-genes[complete.cases(genes)]
+  unique_genes<-unique(genes)
+  
+  genes1<-sapply(unique_genes,function (x) sum(x==genes))
+  return(sort(genes1,decreasing = T))
+  
+}
+
+
+
+write.csv(number_of_events(scan,"q_value",0.2),"number_q_value_0.2.csv")
+write.csv(number_of_events(scan,"p_value",0.1),"number_p_value_0.1.csv")
+
+
+# Average p_value
+sapply(unique_genes,function (genes) {
+  
+ average<-sapply(scan$name,function (x)
+  {
+    results<-list.files(pattern=paste0("^",x,".*_results_final"))
+    if (length(results) !=0) {
+      results<-read.csv(results,as.is=T)
+      results<-results$p_value[results$Gene_Symbol=="TP53"]
+    } else {results<-NA}
+    results<-as.numeric(results)
+  })
+  
+  
+})
+
+
+
+sum(genes=="TP53")
+
+
+
