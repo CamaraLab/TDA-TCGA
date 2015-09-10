@@ -5,11 +5,11 @@ headers = {"Content-type": "application/json"}
 session = requests.Session()
 session.post('https://core.ayasdi.com/login', data={'username': 'uer2102@columbia.edu', 'passphrase': 'ColumbiaAyasdi2015!'})
 
-res=[51,52,53,54]
+res=[21,22,23,24]
 gain=[1,2,3,4]
 for g in gain:
 	for r in res:
-		payload={"network_specifications": [ {"name": str(r)+'_'+str(g),"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
+		payload={"network_specifications": [ {"name": str(r)+'_'+str(g),"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}
 		session.post('https://core.ayasdi.com/v1/sources/1440532486038/networks',json.dumps(payload),headers=headers)
 
 
