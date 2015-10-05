@@ -1,17 +1,21 @@
 
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
 #Preping environment, loading necessary libraries
-
-library(igraph)
-library(rgexf)
-library(jsonlite)
-library(parallel)
-library(getopt)
-library(data.table)
-library(rhdf5)
+suppressWarnings({
+  suppressMessages ({
+    require(igraph,quietly = T,warn.conflicts = FALSE)
+    library(rgexf,quietly = T,warn.conflicts = FALSE)
+    library(jsonlite,quietly = T,warn.conflicts = FALSE)
+    library(parallel,quietly = T,warn.conflicts = FALSE)
+    library(getopt,quietly = T,warn.conflicts = FALSE)
+    library(data.table,quietly = T,warn.conflicts = FALSE)
+    library(rhdf5,quietly = T,warn.conflicts = FALSE)
+  })
+  
+})
 
 #Setting defaults for debug mode
-arg<-list("30_1.9","COAD.h5","all",200,detectCores(),FALSE,TRUE,50,1,1,"syn","Annotations.csv",FALSE,TRUE,2.75,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("SKCM_Cor_Neigh_56_3.0","SKCM.h5","all",200,detectCores(),FALSE,TRUE,50,1,1,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
