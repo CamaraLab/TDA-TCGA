@@ -49,9 +49,9 @@ session.post('https://core.ayasdi.com/login', data={'username': 'uer2102@columbi
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("cancer")
+parser.add_argument("cancer_name")
 parser.add_argument("source")
-'''parser.add_argument("column_set")'''
+parser.add_argument("column_set_id")
 parser.add_argument("res_start")
 parser.add_argument("res_stop")
 parser.add_argument("res_interval")
@@ -71,68 +71,14 @@ print "Gain range is:"
 print gain_range
 for g in gain_range:
 	for r in res_range:
-		name = args.cancer + '_' + str(r) + '_' + str(g)
-		payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
+		name = args.cancer_name + '_' + str(r) + '_' + str(g)
+		payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
 		'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
-		print ('Creating network: ' + name)
+		print ('Creating network '+ str(int(g*r)) + ' of ' + str(len(gain_range)*len(res_range)) + ' : ' + name)
 		a=session.post('https://core.ayasdi.com/v1/sources/'+args.source+'/networks',json.dumps(payload),headers=headers).content
 		b=json.loads(a)
 		net=b['id']
-		dict[name]=net
+		dict[name]=net # Saving a dictionary of network names and ID's - Could be used later
 		print('Downloading assigned network ID: ' + net)
 		ParseAyasdiGraph(args.source,net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
-print (dict)
-
-"""
-check if job is complete:
-session.get('https://core.ayasdi.com/v1/jobs').content
-b=json.loads(a)
-
-"""
-		
-
-"""
-payload={"network_specifications": [ {"name": "yolo","column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses": [ {"id": "Mean","resolution": 20, "gain": 2.5, "equalize": "TRUE"} ]}]}
-session.post('https://core.ayasdi.com/v1/sources/1440532486038/networks',json.dumps(payload),headers=headers).content
-
-
-payload={"network_specifications": [ {"name": "yolo1","column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"}, "metric": {"id": "Correlation"} ,"lenses": [ {"id": "Mean","resolution": 20, "gain": 2.5, "equalize": "TRUE"} ],"lenses": [ {"id": "Mean","resolution": 20, "gain": 2.5, "equalize": "TRUE"} ]}]}
-session.post('https://core.ayasdi.com/v1/sources/1440532486038/networks',json.dumps(payload),headers=headers).content
-
-"lenses":[{"resolution":36,"gain":2.999999999999999,"equalize":false,"id":"Neighborhood Lens 1"},{"resolution":37,"gain":2.999999999999999,"equalize":false,"id":"Neighborhood Lens 2"}]
-
-{
-   network_specifications: [ {
-     name: string,
-     column_set_id: string,
-     metric: {
-       id: string,
-       source_id: string
-     } ,
-     lenses: [ {
-       id: string,
-       column_index: long,
-       resolution: long,
-       gain: double,
-       equalize: Boolean
-     } ]
-   } ],
-   name: string,
-   column_set_id: string,
-   metric: {
-     id: string,
-     source_id: string
-   } ,
-   lenses: [ {
-     id: string,
-     column_index: long,
-     resolution: long,
-     gain: double,
-     equalize: Boolean
-   } ],
-   async: {
-     callback: URI
-   } 
-}
-
-"""
+'''print (dict)'''
