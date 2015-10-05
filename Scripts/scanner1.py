@@ -49,6 +49,9 @@ session.post('https://core.ayasdi.com/login', data={'username': 'uer2102@columbi
 
 import argparse
 parser = argparse.ArgumentParser()
+parser.add_argument("cancer")
+parser.add_argument("source")
+'''parser.add_argument("column_set")'''
 parser.add_argument("res_start")
 parser.add_argument("res_stop")
 parser.add_argument("res_interval")
@@ -58,22 +61,26 @@ parser.add_argument("gain_interval")
 args = parser.parse_args()
 
 dict={}
-gain_range=list(numpy.arange(float(args.gain_start),float(args.gain_stop),float(args.gain_interval)))
-res_range=list(numpy.arange(float(args.res_start),float(args.res_stop),float(args.res_interval)))
-print gain_range
+gain_range=list(numpy.arange(float(args.gain_start),float(args.gain_stop)+float(args.gain_interval),float(args.gain_interval)))
+gain_range = [ round(elem, 2) for elem in gain_range ]
+res_range=list(numpy.arange(float(args.res_start),float(args.res_stop)+float(args.res_interval),float(args.res_interval)))
+res_range = [ round(elem, 2) for elem in res_range ]
+print "Resolution range is:"
 print res_range
+print "Gain range is:"
+print gain_range
 for g in gain_range:
 	for r in res_range:
-		name = str(r)+'_'+str(g)
+		name = args.cancer + '_' + str(r) + '_' + str(g)
 		payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
 		'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
-		print ('Creating network' + name)
-		a=session.post('https://core.ayasdi.com/v1/sources/1440532486038/networks',json.dumps(payload),headers=headers).content
+		print ('Creating network: ' + name)
+		a=session.post('https://core.ayasdi.com/v1/sources/'+args.source+'/networks',json.dumps(payload),headers=headers).content
 		b=json.loads(a)
 		net=b['id']
 		dict[name]=net
-		print('Downloading ' + net)
-		ParseAyasdiGraph('1440532486038',net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
+		print('Downloading assigned network ID: ' + net)
+		ParseAyasdiGraph(args.source,net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
 print (dict)
 
 """
