@@ -21,14 +21,14 @@ q_value_dist<-sapply(scan$file,function (x) {
   results<-list.files(pattern=paste0("^",x,".*_results_final"))
   if (length(results) ==1) {
     results<-read.csv(results,as.is=T)$q_value
-    results<-sum(results<=0.1,na.rm=T)
+    results<-sum(results<=0.2,na.rm=T)
   } else {results<-NA}
 })
 
 p_value_dist<-sapply(scan$file,function (x) {
   print(x)
   results<-list.files(pattern=paste0("^",x,".*_results_final"))
-  if (length(results) !=0) {
+  if (length(results) ==1) {
     results<-read.csv(results,as.is=T)$q_value
     results<-sum(results<=0.05,na.rm=T)
   } else {results<-NA}
