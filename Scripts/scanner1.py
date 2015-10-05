@@ -12,13 +12,13 @@ def ParseAyasdiGraph(source, network, user, password, name):
     Parses Ayasdi graph given by the source ID and network ID, and stores as name.gexf and name.pickle. user and
     password specify Ayasdi login credentials.
     """
-    r = session.get('https://core.ayasdi.com/v0/sources/' + source + '/networks/' + network)
+    r = session.get('https://core.ayasdi.com/v1/sources/' + source + '/networks/' + network)
     sp = json.loads(r.content)
     rows = [int(x['id']) for x in sp['nodes']]
     dic2 = {}
     for i in rows:
         payload = {"network_nodes_descriptions": [{"network_id": network, "node_ids": [i]}]}
-        r = session.post('https://core.ayasdi.com/v0/sources/' + source + '/retrieve_row_indices',
+        r = session.post('https://core.ayasdi.com/v1/sources/' + source + '/retrieve_row_indices',
                          data=json.dumps(payload), headers=headers)
         dic2[i] = json.loads(r.content)['row_indices']
     with open(name + '.json', 'wb') as handle3:
@@ -65,7 +65,8 @@ print res_range
 for g in gain_range:
 	for r in res_range:
 		name = str(r)+'_'+str(g)
-		payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
+		payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
+		'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
 		print ('Creating network' + name)
 		a=session.post('https://core.ayasdi.com/v1/sources/1440532486038/networks',json.dumps(payload),headers=headers).content
 		b=json.loads(a)
