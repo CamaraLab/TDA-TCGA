@@ -1,47 +1,31 @@
 library(ggplot2)
-return_source<-function (x) {
-  return(x[5])
-}
-return_lab<-function (x) {
-  return(x[7])
-}
+spec = matrix(c(
+  "matrix", "m",1,"character"
+  
+), byrow=TRUE, ncol=4)
 
+arg<-getopt(spec) #Conmment this line for debug mode
 
-scan<-read.csv("Scan.csv",as.is=T)
-scan$name<-paste0(scan$Resolution,"_",scan$Gain)
-scan$source<-sapply(strsplit(scan$Link,"/"),return_source)
-scan$lab<-sapply(strsplit(scan$Link,"/"),return_lab)
-
-##Downloading
-#for (i in 1:nrow(scan)) {
-#  source<-scan$source[i]
-#  lab<-scan$lab[i]
-#  name<-scan$name[i]
-#  print (paste("Downloading",scan$name[i],"---",i,"out of",nrow(scan)))
-#  run_line<-paste("python download.py",source,lab,name)
-#  system (run_line)
-#}
-
-#Conenctivity
-count<<-0
-sapply(scan$name, function (x) {
-  count<<-count+1 
-  print (paste("Connectivity",count,"---","out of",nrow(scan)))
-  run_line<-paste("Rscript connectivity5.R -m COAD.h5 -p 2500 -t 20 -g 100 -r 2.75 --maf PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf -n",x)
+scan<-read.csv("dict.csv",as.is=T)
+count<-0
+for (file in scan$file) {
+  count<-count+1  
+  print (paste("Connectivity for Graph:",file,"-",count,"out of",nrow(scan)))
+  run_line<-paste("Rscript connectivity5.R -p 25 -t 20 -g 100 -n",file,"-m","SKCM.h5")
   system(run_line)
-})
+}
 
 #Extracting information from final_Results files
-q_value_dist<-sapply(scan$name,function (x) {
+q_value_dist<-sapply(scan$file,function (x) {
   print(x)
   results<-list.files(pattern=paste0("^",x,".*_results_final"))
-  if (length(results) !=0) {
+  if (length(results) ==1) {
     results<-read.csv(results,as.is=T)$q_value
     results<-sum(results<=0.1,na.rm=T)
   } else {results<-NA}
 })
 
-p_value_dist<-sapply(scan$name,function (x) {
+p_value_dist<-sapply(scan$file,function (x) {
   print(x)
   results<-list.files(pattern=paste0("^",x,".*_results_final"))
   if (length(results) !=0) {
@@ -56,8 +40,8 @@ p_value_dist<-sapply(scan$name,function (x) {
 q_value_dist
 p_value_dist
 
-rownames(scan)<-scan$name
-scan$name
+rownames(scan)<-scan$file
+scan$file
 
 head(scan)
 
@@ -79,7 +63,7 @@ ggplot(y, aes(x=Resolution, y=Gain, color=q_value_dist, label=p_value_dist)) +
 
 #Calculates sum of a particular variable for a list of genes across scan results
 number_of_events<-function(scan,variable,value) {
-  genes<-sapply(scan$name,function (x)
+  genes<-sapply(scan$file,function (x)
   {
     results<-list.files(pattern=paste0("^",x,".*_results_final"))
     if (length(results) !=0) {
@@ -106,7 +90,7 @@ write.csv(number_of_events(scan,"p_value",0.1),"number_p_value_0.1.csv")
 # Average p_value
 sapply(unique_genes,function (genes) {
   
- average<-sapply(scan$name,function (x)
+ average<-sapply(scan$file,function (x)
   {
     results<-list.files(pattern=paste0("^",x,".*_results_final"))
     if (length(results) !=0) {
