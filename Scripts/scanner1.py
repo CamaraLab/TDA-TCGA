@@ -6,6 +6,7 @@ import numpy.linalg
 import random
 import requests
 import pickle
+import csv
 
 def ParseAyasdiGraph(source, network, user, password, name):
     """
@@ -75,21 +76,27 @@ dict={}
 gain_range=list(numpy.arange(float(args.gain_start),float(args.gain_stop)+float(args.gain_interval),float(args.gain_interval)))
 gain_range = [ round(elem, 2) for elem in gain_range ]
 res_range=list(numpy.arange(float(args.res_start),float(args.res_stop)+float(args.res_interval),float(args.res_interval)))
-res_range = [ round(elem, 2) for elem in res_range ]
+res_range = [ int(elem) for elem in res_range ]
+
 print "Resolution range is:"
 print res_range
 print "Gain range is:"
 print gain_range
+counter=0
 for g in gain_range:
 	for r in res_range:
+		counter+=1
 		name = args.cancer_name + '_' + args.metric + '_' + args.lens + '_' + str(r) + '_' + str(g)
 		payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": metric} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":len1},{"resolution":r,"gain":g,"equalize":"false","id":len2}]}]}
 		'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
-		print ('Creating network '+ str(int(g*r)) + ' of ' + str(len(gain_range)*len(res_range)) + ' : ' + name)
+		print ('Creating network '+ str(counter) + ' of ' + str(len(gain_range)*len(res_range)) + ' : ' + name)
 		a=session.post('https://core.ayasdi.com/v1/sources/'+args.source+'/networks',json.dumps(payload),headers=headers).content
 		b=json.loads(a)
 		net=b['id']
 		dict[name]=net # Saving a dictionary of network names and ID's - Could be used later
 		print('Downloading assigned network ID: ' + net)
 		ParseAyasdiGraph(args.source,net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
-'''print (dict)'''
+
+writer = csv.writer(open('dict.csv', 'wb'))
+for key, value in dict.items():
+   writer.writerow([key, value])
