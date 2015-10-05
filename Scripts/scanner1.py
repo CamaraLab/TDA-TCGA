@@ -52,6 +52,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("cancer_name")
 parser.add_argument("source")
 parser.add_argument("column_set_id")
+parser.add_argument("metric")
+parser.add_argument("lens")
 parser.add_argument("res_start")
 parser.add_argument("res_stop")
 parser.add_argument("res_interval")
@@ -59,6 +61,15 @@ parser.add_argument("gain_start")
 parser.add_argument("gain_stop")
 parser.add_argument("gain_interval")
 args = parser.parse_args()
+
+if args.metric=="Cor" :
+	metric="Correlation"
+
+if args.lens=="Neigh" :
+	len1="Neighborhood Lens 1"
+	len2="Neighborhood Lens 2"
+
+
 
 dict={}
 gain_range=list(numpy.arange(float(args.gain_start),float(args.gain_stop)+float(args.gain_interval),float(args.gain_interval)))
@@ -71,8 +82,8 @@ print "Gain range is:"
 print gain_range
 for g in gain_range:
 	for r in res_range:
-		name = args.cancer_name + '_' + str(r) + '_' + str(g)
-		payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}]}
+		name = args.cancer_name + '_' + args.metric + '_' + args.lens + '_' + str(r) + '_' + str(g)
+		payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": metric} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":len1},{"resolution":r,"gain":g,"equalize":"false","id":len2}]}]}
 		'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
 		print ('Creating network '+ str(int(g*r)) + ' of ' + str(len(gain_range)*len(res_range)) + ' : ' + name)
 		a=session.post('https://core.ayasdi.com/v1/sources/'+args.source+'/networks',json.dumps(payload),headers=headers).content
