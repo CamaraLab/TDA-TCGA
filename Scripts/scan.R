@@ -25,7 +25,7 @@ scan$gain<-sapply(scan$file, function (x) {
 # Mutational load connectivity
 if (arg$hyper) {
   count<-0
-  for (file in scan$file[1:5]) {
+  for (file in scan$file) {
     count<-count+1  
     print("*********************************************")
     print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",nrow(scan)))
@@ -36,12 +36,15 @@ if (arg$hyper) {
   #Extracting information from mut_results files
   
   
-  mutload_results_files<-sapply(scan$file,function (x) {
-      results<-list.files(pattern=paste0("^",x,".*_mutload_results"))
+  mutload_results_files<-sapply(scan$file,function (x) {  
+    results<-list.files(pattern=paste0("^",x,".*_mutload_results"))
     })
   
-  p_value_mutload<-sapply(mut_results_files,function (file) {
-    results<-read.csv(file,as.is=T)$p_value
+  p_value_mutload<-sapply(mutload_results_files,function (file) {
+    if (length(mutload_results_files[[1]])==1){
+      results<-read.csv(file,as.is=T)$p_value  
+    } else print ("Different than 1 unique files")
+    
   })
   
   
@@ -90,7 +93,7 @@ if (arg$regular) {
   #q_value plot
   ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-    geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<0.2")
+    geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<=0.2")
   
   #p_value_plot
   ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
