@@ -551,8 +551,10 @@ if (arg$hyper==TRUE) {
   file_sufix<-"_mutload_results.csv"
 } else {file_sufix<-"_genes_results.csv"}
 
+if (arg$hyper==FALSE) {
+  final_results[,"Gene_Symbol"]<-sapply(final_results[,"Gene_Symbol"],function (x) strsplit(x,"mut_")[[1]][2])  
+}
 
-final_results[,"Gene_Symbol"]<-sapply(final_results[,"Gene_Symbol"],function (x) strsplit(x,"mut_")[[1]][2])
 write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
 
 
