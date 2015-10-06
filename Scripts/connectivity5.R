@@ -284,7 +284,7 @@ print(paste0("Columns above threshold: ",length(columns_of_interest)))
 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
 
 
-#Initializing rolling results file
+#Initializing results file name and unique id
 unique_id<-round(runif(1, min = 111111, max = 222222),0)
 file_prefix<-paste0(arg$name,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
 print(paste("File unique identifier:",unique_id))
@@ -311,13 +311,13 @@ if (arg$hyper==TRUE) {
 
 #Info_cols is used to set inforation columns in output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
-write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
+#write.table(info_cols,paste0(file_prefix,"_results_rolling.csv"),sep=",",col.names=FALSE,row.names=FALSE)
 
 #Printing thresholded genes
 thresholded_genes1<-genes_below_samples_threshold
 thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
-write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
-write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
+#write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
+#write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
 
 #Writing log file
 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
@@ -426,7 +426,7 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     Genes<-colnames(matrix2)  
     
     output<-cbind(Genes,c_value,p_value,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
-    write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
+    #write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
     
     #Ans is columns_range length list. Each element contain to variables.
     #First variabl is "output" which is results matrix. the second element is pii_values matrix, its columns are genes and rows are nodes 
@@ -547,8 +547,11 @@ if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
 
 #pnormGC(.05, region="above", mean=0,sd=1,graph=TRUE)
 
+if (arg$hyper==TRUE) {
+  file_sufix<-"_mutload_results.csv"
+} else {file_sufix<-"_genes_results.csv"}
 
-write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
+write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
 
 
 run_t<-round(proc.time()-ptm,4) #Calculationg run time
