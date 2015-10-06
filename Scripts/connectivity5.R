@@ -15,7 +15,7 @@ suppressWarnings({
 })
 
 #Setting defaults for debug mode
-arg<-list("SKCM_Cor_Neigh_56_3.0","SKCM.h5","all",200,detectCores(),FALSE,TRUE,50,1,1,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("SKCM_Cor_Neigh_25_2.0","SKCM.h5","all",200,detectCores(),FALSE,TRUE,50,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -450,7 +450,7 @@ results_file<-function(ans) {
   final_results<-NULL
   for (i in 1:length(ans))
     final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
-  
+
   final_results<-as.matrix(final_results,rownames.force = T,drop=FALSE)
   pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
   #final_results<-final_results[!pi_zero_genes,,drop=FALSE]
@@ -551,6 +551,8 @@ if (arg$hyper==TRUE) {
   file_sufix<-"_mutload_results.csv"
 } else {file_sufix<-"_genes_results.csv"}
 
+
+final_results[,"Gene_Symbol"]<-sapply(final_results[,"Gene_Symbol"],function (x) strsplit(x,"mut_")[[1]][2])
 write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
 
 
