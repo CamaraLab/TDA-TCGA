@@ -8,18 +8,21 @@ import requests
 import pickle
 import csv
 
-def ParseAyasdiGraph(source, network, user, password, name):
+def ParseAyasdiGraph(source, lab, user, password, name):
     """
-    Parses Ayasdi graph given by the source ID and network ID, and stores as name.gexf and name.pickle. user and
+    Parses Ayasdi graph given by the source ID and lab ID, and stores as name.gexf and name.pickle. user and
     password specify Ayasdi login credentials.
     """
-    r = session.get('https://core.ayasdi.com/v1/sources/' + source + '/networks/' + network)
+    headers = {"Content-type": "application/json"}
+    session = requests.Session()
+    session.post('https://core.ayasdi.com/login', data={'username': user, 'passphrase': password})
+    r = session.get('https://core.ayasdi.com/v0/sources/' + source + '/networks/' + lab)
     sp = json.loads(r.content)
     rows = [int(x['id']) for x in sp['nodes']]
     dic2 = {}
     for i in rows:
-        payload = {"network_nodes_descriptions": [{"network_id": network, "node_ids": [i]}]}
-        r = session.post('https://core.ayasdi.com/v1/sources/' + source + '/retrieve_row_indices',
+        payload = {"network_nodes_descriptions": [{"network_id": lab, "node_ids": [i]}]}
+        r = session.post('https://core.ayasdi.com/v0/sources/' + source + '/retrieve_row_indices',
                          data=json.dumps(payload), headers=headers)
         dic2[i] = json.loads(r.content)['row_indices']
     with open(name + '.json', 'wb') as handle3:
@@ -31,7 +34,7 @@ def ParseAyasdiGraph(source, network, user, password, name):
         g.write('\t<graph mode="static" defaultedgetype="undirected">\n')
         g.write('\t\t<nodes>\n')
         for nod in sp['nodes']:
-            g.write('\t\t\t<node id="' + str(nod['id']) + '" networkel="' + str(nod['row_count']) + '" />\n')
+            g.write('\t\t\t<node id="' + str(nod['id']) + '" label="' + str(nod['row_count']) + '" />\n')
             rowcount.append(float(nod['row_count']))
         g.write('\t\t</nodes>\n')
         g.write('\t\t<edges>\n')
@@ -41,7 +44,6 @@ def ParseAyasdiGraph(source, network, user, password, name):
         g.write('\t\t</edges>\n')
         g.write('\t</graph>\n')
         g.write('</gexf>\n')
-
 
 headers = {"Content-type": "application/json"}
 session = requests.Session()
@@ -98,5 +100,6 @@ for g in gain_range:
 		ParseAyasdiGraph(args.source,net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
 
 writer = csv.writer(open('dict.csv', 'wb'))
+writer.writerow(["file","source"])
 for key, value in dict.items():
    writer.writerow([key, value])
