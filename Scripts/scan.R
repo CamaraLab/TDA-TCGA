@@ -26,7 +26,7 @@ networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_proce
 #scan<-read.csv("dict.csv",as.is=T)
 
 scan<-data.frame(networks=networks,stringsAsFactors = F)
-#scan$file<-gsub('.{5}$', '', scan$file)
+#scan$networks<-gsub('.{5}$', '', scan$networks)
 
 scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][4]
@@ -40,27 +40,23 @@ scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
 scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 
 # Mutational load connectivity
-if (arg$hyper) {
-  scan<-data.frame(network=list.files(pattern=paste0(".json")),stringsAsFactors = F)
-  count<-0
-  for (file in scan$file) {
+count<-0
+for (file in scan$networks[scan$mutload_connectivity]) {
     count<-count+1  
     print("*********************************************")
-    print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",nrow(scan)))
+    print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
     run_line<-paste("Rscript connectivity5.R -p 1000 -h TRUE -n",file,"-m","SKCM.h5")
     system(run_line)
   }
-  
-  #Extracting information from mut_results files
-  
-  
-  mutload_results_files<-sapply(scan$file,function (x) {  
+#Updating scan table with mutload files
+#Extracting information from mut_results files
+mutload_results_files<-sapply(scan$networks,function (x) {  
     results<-list.files(pattern=paste0("^",x,".*_mutload_results"))
     if (length(results)==0) {results<-NA}
     return(results)
     })
   
-  p_value_mutload<-sapply(mutload_results_files,function (file) {
+p_value_mutload<-sapply(mutload_results_files,function (file) {
     if (length(file)!=1 | is.na(file)) {
       results<-NA
     } else results<-read.csv(file,as.is=T)$p_value 
@@ -68,7 +64,7 @@ if (arg$hyper) {
   
   
   
-  #Hyper mutations plot
+#Hyper mutations plot
   png('mutload_grid.jpg')
   ggplot(scan, aes(x=factor(resolution), y=gain)) + 
     geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
@@ -76,15 +72,11 @@ if (arg$hyper) {
                                 title.theme = element_text(size=10,angle=0,color="blue")))
 
   dev.off()
-} 
 
 
 
 #Genes connectivity
-
-if (arg$regular) {
-  count<-0
-  for (file in scan$file) {
+  for (file in scan$networks[scan$genes_connectivity]) {
     count<-count+1  
     print("*********************************************")
     print (paste("Connectivity for Graph:",file,"-",count,"out of",nrow(scan)))
@@ -93,17 +85,15 @@ if (arg$regular) {
   }
   
   genes_results_files<-
-    sapply(scan$file,function (x) {
+    sapply(scan$networks,function (x) {
       results<-list.files(pattern=paste0("^",x,".*_genes_results"))
       if (length(results)==0) {results<-NA}
       return(results)
     })
-  
-  
-  
+
   #Extracting information from genes_results files
   p_value_dist<-sapply(genes_results_files,function (file) {
-    
+    print (length(file))
     if (length(file)!=1 | is.na(file)) {
       results<-NA
     } else {
@@ -130,7 +120,7 @@ if (arg$regular) {
   ggplot(scan, aes(x=factor(resolution), y=gain, color=p_value_dist, label=p_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<=0.05")
-}
+
 
 
 
@@ -161,7 +151,7 @@ write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0
 # Average p_value
 sapply(unique_genes,function (genes) {
   
- average<-sapply(scan$file,function (x)
+ average<-sapply(scan$networks,function (x)
   {
     results<-list.files(pattern=paste0("^",x,".*_results_final"))
     if (length(results) !=0) {
@@ -179,7 +169,7 @@ sapply(unique_genes,function (genes) {
 sum(genes=="TP53")
 
 
-y<-scan$file
+y<-scan$networks
 y
 split_Str(y)
 
