@@ -44,7 +44,7 @@ if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
-if ( is.null(arg$chunk ) ) {arg$chunk= 50}
+if ( is.null(arg$chunk ) ) {arg$chunk= arg$g_score_threshold/arg$cores}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
 if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
@@ -60,6 +60,12 @@ if ( is.null(arg$score_type ) ) {arg$score_type= "syn"}
 if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
   if (is.null(arg$maf)) stop("PROCESSED MAF file must be provided for resscaling")
 }
+
+#Printing run parameters
+print (paste("Number of permutations:",arg$permutations)
+print (paste("Number of cores:",arg$cores)
+print (paste("Chunk size:",arg$chunk)
+      
 
 
 #Loading matrix file to memory and log transforming if log2=TRUE
