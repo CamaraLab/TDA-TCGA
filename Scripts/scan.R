@@ -9,23 +9,39 @@ arg<-getopt(spec) #Conmment this line for debug mode
 if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
 if ( is.null(arg$regular ) ) {arg$regular= FALSE}
 
-
-
 library(ggplot2)
-scan<-read.csv("dict.csv",as.is=T)
 
-scan<-data.frame(file=list.files(pattern=paste0(".json")),stringsAsFactors = F)
-scan$file<-gsub('.{5}$', '', scan$file)
+#Listing all files in the directory (Networks,genes_results and mutload results)
+networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
+genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
+mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
 
-scan$resolution<-as.numeric(sapply(scan$file, function (x) {
+networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
+networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
+networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
+networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
+
+
+
+#scan<-read.csv("dict.csv",as.is=T)
+
+scan<-data.frame(networks=networks,stringsAsFactors = F)
+#scan$file<-gsub('.{5}$', '', scan$file)
+
+scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][4]
 }))
 
-scan$gain<-as.numeric(sapply(scan$file, function (x) {
+scan$gain<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][5]
 }))
+
+scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
+scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
+
 # Mutational load connectivity
 if (arg$hyper) {
+  scan<-data.frame(network=list.files(pattern=paste0(".json")),stringsAsFactors = F)
   count<-0
   for (file in scan$file) {
     count<-count+1  
@@ -54,7 +70,7 @@ if (arg$hyper) {
   
   #Hyper mutations plot
   png('mutload_grid.jpg')
-  ggplot(scan, aes(x=resolution, y=gain)) + 
+  ggplot(scan, aes(x=factor(resolution), y=gain)) + 
     geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
     guides(color = guide_legend(title = "mutload<=0.05",
                                 title.theme = element_text(size=10,angle=0,color="blue")))
@@ -106,12 +122,12 @@ if (arg$regular) {
   })
   
   #q_value plot
-  ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
+  ggplot(scan, aes(x=factor(resolution), y=gain, color=q_value_dist, label=q_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<=0.2")
   
   #p_value_plot
-  ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
+  ggplot(scan, aes(x=factor(resolution), y=gain, color=p_value_dist, label=p_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<=0.05")
 }
