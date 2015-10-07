@@ -1,13 +1,16 @@
+library(getopt,quietly = T,warn.conflicts = FALSE)
+
+
 spec = matrix(c(
-  "file","f",1,"character"
+  "connectivity","c",1,"character",
+  "permutations","p",1,"integer",
   "matrix", "m",1,"character"
-  "hyper","h",2,"logical"
-  "regular","g",2,"logical",
 ), byrow=TRUE, ncol=4)
 
+connectivity_script<-"../../../Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity5.R"
+
 arg<-getopt(spec) #Conmment this line for debug mode
-if ( is.null(arg$hyper ) ) {arg$hyper= FALSE}
-if ( is.null(arg$regular ) ) {arg$regular= FALSE}
+if ( is.null(arg$connectivity ) ) {arg$connectivity= connectivity_script}
 
 library(ggplot2)
 
@@ -16,17 +19,15 @@ networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
 genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
 mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
 
+# Inferring network files that have not been processed yet
 networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
 networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
 networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
 networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
 
 
-
 #scan<-read.csv("dict.csv",as.is=T)
-
 scan<-data.frame(networks=networks,stringsAsFactors = F)
-#scan$networks<-gsub('.{5}$', '', scan$networks)
 
 scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][4]
@@ -45,7 +46,7 @@ for (file in scan$networks[scan$mutload_connectivity]) {
     count<-count+1  
     print("*********************************************")
     print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
-    run_line<-paste("Rscript connectivity5.R -p 500 -h TRUE -n",file,"-m","SKCM.h5")
+    run_line<-paste("Rscript", arg$connectivity, "-p 500 -h TRUE -n",file,"-m",arg$matrix)
     system(run_line)
   }
 #Updating scan table with mutload files
@@ -81,7 +82,8 @@ for (file in scan$networks[scan$genes_connectivity]) {
     count<-count+1  
     print("*********************************************")
     print (paste("Connectivity for Graph:",file,"-",count,"out of",sum(scan$genes_connectivity)))
-    run_line<-paste("Rscript connectivity5.R -p 500 -t 20 -g 100 -n",file,"-m","SKCM.h5")
+    #run_line<-paste("Rscript", arg$arg$connectivity, "-p 500 -h TRUE -n",file,"-m",arg$matrix)
+    run_line<-paste("Rscript",arg$connectivity,"-p 500 -t 20 -g 100 -n",file,"-m",arg$matrix)
     system(run_line)
   }
   
@@ -145,25 +147,25 @@ number_of_events<-function(genes_results_files,feature,threshold) {
 
 
 
-write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
-write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
+#write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
+#write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
 
 
 # Average p_value
-sapply(unique_genes,function (genes) {
+#sapply(unique_genes,function (genes) {
   
- average<-sapply(scan$networks,function (x)
-  {
-    results<-list.files(pattern=paste0("^",x,".*_results_final"))
-    if (length(results) !=0) {
-      results<-read.csv(results,as.is=T)
-      results<-results$p_value[results$Gene_Symbol=="TP53"]
-    } else {results<-NA}
-    results<-as.numeric(results)
-  })
+## average<-sapply(scan$networks,function (x)
+#  {
+#    results<-list.files(pattern=paste0("^",x,".*_results_final"))
+#    if (length(results) !=0) {
+#      results<-read.csv(results,as.is=T)
+#      results<-results$p_value[results$Gene_Symbol=="TP53"]
+#    } else {results<-NA}
+#    results<-as.numeric(results)
+#  })
   
   
-})
+#})
 
 
 
