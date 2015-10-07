@@ -14,14 +14,16 @@ if ( is.null(arg$regular ) ) {arg$regular= FALSE}
 library(ggplot2)
 scan<-read.csv("dict.csv",as.is=T)
 
-scan$resolution<-sapply(scan$file, function (x) {
+scan<-data.frame(file=list.files(pattern=paste0(".json")),stringsAsFactors = F)
+scan$file<-gsub('.{5}$', '', scan$file)
+
+scan$resolution<-as.numeric(sapply(scan$file, function (x) {
   strsplit(x,"_")[[1]][4]
-})
+}))
 
-scan$gain<-sapply(scan$file, function (x) {
+scan$gain<-as.numeric(sapply(scan$file, function (x) {
   strsplit(x,"_")[[1]][5]
-})
-
+}))
 # Mutational load connectivity
 if (arg$hyper) {
   count<-0
@@ -29,7 +31,7 @@ if (arg$hyper) {
     count<-count+1  
     print("*********************************************")
     print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",nrow(scan)))
-    run_line<-paste("Rscript connectivity5.R -p 500 -h TRUE -n",file,"-m","SKCM.h5")
+    run_line<-paste("Rscript connectivity5.R -p 1000 -h TRUE -n",file,"-m","SKCM.h5")
     system(run_line)
   }
   
@@ -38,24 +40,26 @@ if (arg$hyper) {
   
   mutload_results_files<-sapply(scan$file,function (x) {  
     results<-list.files(pattern=paste0("^",x,".*_mutload_results"))
+    if (length(results)==0) {results<-NA}
+    return(results)
     })
   
   p_value_mutload<-sapply(mutload_results_files,function (file) {
-    if (length(mutload_results_files[[1]])==1){
-      results<-read.csv(file,as.is=T)$p_value  
-    } else print ("Different than 1 unique files")
-    
+    if (length(file)!=1 | is.na(file)) {
+      results<-NA
+    } else results<-read.csv(file,as.is=T)$p_value 
   })
   
   
   
   #Hyper mutations plot
-  
+  png('mutload_grid.jpg')
   ggplot(scan, aes(x=resolution, y=gain)) + 
-    geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("p value<0.05") + 
-    guides(color = guide_legend(title = "Significant mutload",
+    geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+    guides(color = guide_legend(title = "mutload<=0.05",
                                 title.theme = element_text(size=10,angle=0,color="blue")))
-  
+
+  dev.off()
 } 
 
 
