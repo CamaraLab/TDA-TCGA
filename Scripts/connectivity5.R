@@ -15,7 +15,7 @@ suppressWarnings({
 })
 
 #Setting defaults for debug mode
-arg<-list("SKCM_Cor_Neigh_25_2.0","SKCM.h5","all",200,detectCores(),FALSE,TRUE,50,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("SKCM_Cor_Neigh_15_6.0","SKCM.h5","all",200,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -62,9 +62,9 @@ if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
 }
 
 #Printing run parameters
-print (paste("Number of permutations:",arg$permutations)
-print (paste("Number of cores:",arg$cores)
-print (paste("Chunk size:",arg$chunk)
+print (paste("Number of permutations:",arg$permutations))
+print (paste("Number of cores:",arg$cores))
+print (paste("Chunk size:",arg$chunk))
       
 
 
