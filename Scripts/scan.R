@@ -45,7 +45,7 @@ for (file in scan$networks[scan$mutload_connectivity]) {
     count<-count+1  
     print("*********************************************")
     print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
-    run_line<-paste("Rscript connectivity5.R -p 1000 -h TRUE -n",file,"-m","SKCM.h5")
+    run_line<-paste("Rscript connectivity5.R -p 500 -h TRUE -n",file,"-m","SKCM.h5")
     system(run_line)
   }
 #Updating scan table with mutload files
@@ -76,10 +76,11 @@ p_value_mutload<-sapply(mutload_results_files,function (file) {
 
 
 #Genes connectivity
-  for (file in scan$networks[scan$genes_connectivity]) {
+count<-0  
+for (file in scan$networks[scan$genes_connectivity]) {
     count<-count+1  
     print("*********************************************")
-    print (paste("Connectivity for Graph:",file,"-",count,"out of",nrow(scan)))
+    print (paste("Connectivity for Graph:",file,"-",count,"out of",sum(scan$genes_connectivity)))
     run_line<-paste("Rscript connectivity5.R -p 500 -t 20 -g 100 -n",file,"-m","SKCM.h5")
     system(run_line)
   }
