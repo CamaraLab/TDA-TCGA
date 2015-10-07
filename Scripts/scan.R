@@ -78,20 +78,31 @@ if (arg$regular) {
   
   genes_results_files<-
     sapply(scan$file,function (x) {
-      results<-list.files(pattern=paste0("^",x,".*_results_final"))
+      results<-list.files(pattern=paste0("^",x,".*_genes_results"))
+      if (length(results)==0) {results<-NA}
+      return(results)
     })
   
   
   
   #Extracting information from genes_results files
   p_value_dist<-sapply(genes_results_files,function (file) {
-    results<-read.csv(file,as.is=T)$p_value
-    results<-sum(results<=0.05,na.rm=T)
+    
+    if (length(file)!=1 | is.na(file)) {
+      results<-NA
+    } else {
+      results<-read.csv(file,as.is=T)$p_value
+      results<-sum(results<=0.05,na.rm=T)
+    }
   })
   
   q_value_dist<-sapply(genes_results_files,function (file) {
-    results<-read.csv(file,as.is=T)$q_value
-    results<-sum(results<=0.2,na.rm=T)
+    if (length(file)!=1 | is.na(file)) {
+      results<-NA
+    } else {
+      results<-read.csv(file,as.is=T)$q_value
+      results<-sum(results<=0.2,na.rm=T)
+    }
   })
   
   #q_value plot
