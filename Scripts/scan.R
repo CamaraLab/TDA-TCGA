@@ -3,14 +3,17 @@ library(getopt,quietly = T,warn.conflicts = FALSE)
 
 spec = matrix(c(
   "connectivity","c",1,"character",
-  "permutations","p",1,"integer",
+  "permutations","p",2,"integer",
   "matrix", "m",1,"character"
 ), byrow=TRUE, ncol=4)
-
-connectivity_script<-"../../../Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity5.R"
+  
+#connectivity_script<-"../../../Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity5.R"
 
 arg<-getopt(spec) #Conmment this line for debug mode
-if ( is.null(arg$connectivity ) ) {arg$connectivity= connectivity_script}
+if ( is.null(arg$connectivity ) ) {arg$connectivity = "connectivity5.R"}
+if ( is.null(arg$permutations ) ) {arg$permutations = 500}
+
+
 
 library(ggplot2)
 
@@ -46,7 +49,7 @@ for (file in scan$networks[scan$mutload_connectivity]) {
     count<-count+1  
     print("*********************************************")
     print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
-    run_line<-paste("Rscript", arg$connectivity, "-p 500 -h TRUE -n",file,"-m",arg$matrix)
+    run_line<-paste("Rscript", arg$connectivity, "-p",arg$matrixtations,"-h TRUE -n",file,"-m",arg$matrix)
     system(run_line)
   }
 #Updating scan table with mutload files
@@ -83,7 +86,7 @@ for (file in scan$networks[scan$genes_connectivity]) {
     print("*********************************************")
     print (paste("Connectivity for Graph:",file,"-",count,"out of",sum(scan$genes_connectivity)))
     #run_line<-paste("Rscript", arg$arg$connectivity, "-p 500 -h TRUE -n",file,"-m",arg$matrix)
-    run_line<-paste("Rscript",arg$connectivity,"-p 500 -t 20 -g 100 -n",file,"-m",arg$matrix)
+    run_line<-paste("Rscript",arg$connectivity,"-p",arg$permutations, "-t 20 -g 100 -n",file,"-m",arg$matrix)
     system(run_line)
   }
   
@@ -94,33 +97,65 @@ for (file in scan$networks[scan$genes_connectivity]) {
       return(results)
     })
 
-  #Extracting information from genes_results files
-  p_value_dist<-sapply(genes_results_files,function (file) {
-    print (length(file))
-    if (length(file)!=1 | is.na(file)) {
-      results<-NA
-    } else {
-      results<-read.csv(file,as.is=T)$p_value
-      results<-sum(results<=0.05,na.rm=T)
-    }
-  })
   
-  q_value_dist<-sapply(genes_results_files,function (file) {
-    if (length(file)!=1 | is.na(file)) {
-      results<-NA
-    } else {
-      results<-read.csv(file,as.is=T)$q_value
-      results<-sum(results<=0.2,na.rm=T)
-    }
-  })
+  extract_value<-function (files,feature,threshold)  {
+    #Gets a feature(p_value) and a threshold (0.05) and extract the number of observations across list of files below that threshold for this feature
+    ans<-sapply(files,function (file) {
+      if (length(file)!=1 | is.na(file)) {
+        results<-NA
+      } else {
+        results<-read.csv(file,as.is=T)[,feature]
+        results<-sum(results<=threshold,na.rm=T)
+      }
+    })
+    return (as.numeric(ans))
+  }
   
-  #q_value plot
-  ggplot(scan, aes(x=factor(resolution), y=gain, color=q_value_dist, label=q_value_dist)) + 
-    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-    geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<=0.2")
+  plot_grid<-function (data1,feature_name,threshold,title) {
+    
+    #png(filename = paste0("grid_","_",threshold,".png"))
+    filename = paste0(title,"_",feature_name,'_',threshold,".png")
+    data1<-data1
+    ggplot(scan, aes(x=resolution, y=gain, color=data1, label=data1)) + 
+      scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+      geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title)
+    
+    
+      #labs (y="Gain",x="Resolution") 
+    #+ 
+     # ggsave(filename,width=length(unique(scan$resolution)),height=length(unique(scan$gain)))
+    
+      
+       #print (filename)
+    
+    #dev.off()
+  }
+
+  #q_value plot 0.1
+  threshold_range<-c(0.1,0.15,0.2)
+  for (threshold in threshold_range) {
+    
+    q_value_dist<-extract_value(genes_results_files,"q_value",threshold)
+    title<-paste("Genes_results_q_value <=",threshold)
+    ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
+      scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+      geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title) +
+      ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))
+         
+   # plot_grid(q_value_dist,"q_value",0.01,"Grid_Genes_Connectivity")
+    
+  }
   
+
+# ggplot(scan[1:18,], aes(x=factor(resolution), y=factor(gain), color=q_value_dist, label=q_value_dist)) + 
+  #  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+  #  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<=0.1")
+  
+
+
   #p_value_plot
-  ggplot(scan, aes(x=factor(resolution), y=gain, color=p_value_dist, label=p_value_dist)) + 
+  p_value_dist<-extract_value(genes_results_files,"p_value",0.05)
+  ggplot(scan, aes(x=factor(resolution), y=gain, color=data, label=data)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<=0.05")
 
@@ -145,7 +180,8 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   
 }
 
-
+files_to_tar<-list.files(pattern="SKCM_")
+zip(zipfile = "a.zip",files = files_to_tar)
 
 #write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
 #write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
@@ -167,18 +203,3 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   
 #})
 
-
-
-sum(genes=="TP53")
-
-
-y<-scan$networks
-y
-split_Str(y)
-
-d<-1
-
-
-t<-rbind(scan,sc)
-
-strsplit(y,"_")[[1]][4]
