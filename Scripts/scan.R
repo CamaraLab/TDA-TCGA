@@ -83,7 +83,7 @@ for (file in scan$networks[scan$genes_connectivity]) {
     print("*********************************************")
     print (paste("Connectivity for Graph:",file,"-",count,"out of",sum(scan$genes_connectivity)))
     #run_line<-paste("Rscript", arg$arg$connectivity, "-p 500 -h TRUE -n",file,"-m",arg$matrix)
-    run_line<-paste("Rscript",arg$connectivity,"-p 500 -t 20 -g 100 -n",file,"-m",arg$matrix)
+    run_line<-paste("Rscript",arg$connectivity,"-p",arg$permutations,"-t 20 -g 100 -n",file,"-m",arg$matrix)
     system(run_line)
   }
   
