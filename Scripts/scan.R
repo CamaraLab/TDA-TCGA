@@ -111,27 +111,9 @@ for (file in scan$networks[scan$genes_connectivity]) {
     return (as.numeric(ans))
   }
   
-  plot_grid<-function (data1,feature_name,threshold,title) {
-    
-    #png(filename = paste0("grid_","_",threshold,".png"))
-    filename = paste0(title,"_",feature_name,'_',threshold,".png")
-    data1<-data1
-    ggplot(scan, aes(x=resolution, y=gain, color=data1, label=data1)) + 
-      scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-      geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title)
-    
-    
-      #labs (y="Gain",x="Resolution") 
-    #+ 
-     # ggsave(filename,width=length(unique(scan$resolution)),height=length(unique(scan$gain)))
-    
-      
-       #print (filename)
-    
-    #dev.off()
-  }
 
-  #q_value plot 0.1
+
+  #genes q_value plot
   threshold_range<-c(0.1,0.15,0.2)
   for (threshold in threshold_range) {
     
@@ -140,24 +122,16 @@ for (file in scan$networks[scan$genes_connectivity]) {
     ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
       scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
       geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title) +
-      ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))
-         
-   # plot_grid(q_value_dist,"q_value",0.01,"Grid_Genes_Connectivity")
-    
+      ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))    
   }
   
-
-# ggplot(scan[1:18,], aes(x=factor(resolution), y=factor(gain), color=q_value_dist, label=q_value_dist)) + 
-  #  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  #  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("q value<=0.1")
-  
-
-
   #p_value_plot
   p_value_dist<-extract_value(genes_results_files,"p_value",0.05)
-  ggplot(scan, aes(x=factor(resolution), y=gain, color=data, label=data)) + 
+  ggplot(scan, aes(x=factor(resolution), y=gain, color=p_value_dist, label=p_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-    geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("p value<=0.05")
+    geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("Genes_results_p_value<=0.05") +
+    ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
+  
 
 
 
@@ -180,8 +154,8 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   
 }
 
-files_to_tar<-list.files(pattern="SKCM_")
-zip(zipfile = "a.zip",files = files_to_tar)
+#files_to_tar<-list.files(pattern="SKCM_")
+#zip(zipfile = "a.zip",files = files_to_tar)
 
 #write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
 #write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
@@ -203,3 +177,22 @@ zip(zipfile = "a.zip",files = files_to_tar)
   
 #})
 
+#plot_grid<-function (data1,feature_name,threshold,title) {
+
+#png(filename = paste0("grid_","_",threshold,".png"))
+#  filename = paste0(title,"_",feature_name,'_',threshold,".png")
+#  data1<-data1
+#  ggplot(scan, aes(x=resolution, y=gain, color=data1, label=data1)) + 
+##   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+#  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title)
+
+
+#labs (y="Gain",x="Resolution") 
+#+ 
+# ggsave(filename,width=length(unique(scan$resolution)),height=length(unique(scan$gain)))
+
+
+#print (filename)
+
+#dev.off()
+#}
