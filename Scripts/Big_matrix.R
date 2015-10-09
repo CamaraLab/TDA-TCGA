@@ -1,6 +1,11 @@
-require(data.table)
-require(rhdf5)
-require(getopt)
+suppressWarnings({
+  suppressMessages ({
+    library(data.table,quietly = T,warn.conflicts = FALSE)
+    library(rhdf5,quietly = T,warn.conflicts = FALSE)
+    library(getopt,quietly = T,warn.conflicts = FALSE)
+  })
+  
+})
 
 spec = matrix(c(
   "expression", "e",1, "character",
