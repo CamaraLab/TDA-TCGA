@@ -1,7 +1,13 @@
-library(data.table)
-library(org.Hs.eg.db)
-library(dplyr)
-library(getopt)
+suppressWarnings({
+  suppressMessages ({
+    library(data.table,quietly = T,warn.conflicts = FALSE)
+    library(org.Hs.eg.db,quietly = T,warn.conflicts = FALSE)
+    library(dplyr,quietly = T,warn.conflicts = FALSE)
+    library(getopt,quietly = T,warn.conflicts = FALSE)
+  })
+  
+})
+
 
 spec = matrix(c(
   "maf", "m",1, "character",
@@ -36,7 +42,7 @@ anno_old_new<-read.csv(arg$anno_old,as.is=T,row.names=1)
 
 
 #This file cleans and created a file wit
-
+print ("Reading and reformatting maf file")
 maf_file<-arg$maf
 maf<-read.delim(maf_file,header = TRUE,as.is=T,comment.char = "#")
 colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample_Barcode")
@@ -44,6 +50,7 @@ maf<-maf[,colInfo]
 
 #Replacing unknown entrezids (0) in original maf file
 #entrez_to_symbol<-as.list(org.Hs.egSYMBOL)
+print ("Annotations fix")
 symbol_to_entrez<-as.list(org.Hs.egALIAS2EG)
 symbol_to_entrez_short<-unlist(symbol_to_entrez[sapply(symbol_to_entrez,length)==1]) #Keeping only records with 1 entrez id
 r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original maf
