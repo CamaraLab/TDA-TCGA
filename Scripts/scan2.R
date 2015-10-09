@@ -81,13 +81,12 @@ p_value_mutload<-sapply(mutload_results_files,function (file) {
 
 
 #Hyper mutations plot
-png('mutload_grid.jpg')
+
 ggplot(scan, aes(x=factor(resolution), y=gain)) + 
   geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
   guides(color = guide_legend(title = paste("mutload <= 0.05"),
-                              title.theme = element_text(size=10,angle=0,color="blue")))
+                              title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")    
 
-dev.off()
 
 }
 
