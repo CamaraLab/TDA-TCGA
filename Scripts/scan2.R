@@ -6,7 +6,9 @@ spec = matrix(c(
   "permutations","p",2,"integer",
   "matrix", "m",1,"character",
   "cores", "q",1,"integer",
-  "chunk", "k",2,"integer"
+  "chunk", "k",2,"integer",
+  "mutload", "y",1,"logical",
+  "genes","z",1,"logical"
   
 ), byrow=TRUE, ncol=4)
 
@@ -17,6 +19,8 @@ if ( is.null(arg$connectivity ) ) {arg$connectivity = "connectivity5.R"}
 if ( is.null(arg$permutations ) ) {arg$permutations = 500}
 if ( is.null(arg$cores ) ) {arg$cores = 4}
 if ( is.null(arg$chunk ) ) {arg$chunk = 25}
+if ( is.null(arg$mutload ) ) {arg$mutload = FALSE}
+if ( is.null(arg$genes ) ) {arg$genes = FALSE}
 
 
 library(ggplot2)
@@ -47,6 +51,10 @@ scan$gain<-as.numeric(sapply(scan$networks, function (x) {
 scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
 scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 
+
+
+if (arg$mutload==TRUE) {
+	
 # Mutational load connectivity
 count<-0
 for (file in scan$networks[scan$mutload_connectivity]) {
@@ -76,13 +84,15 @@ p_value_mutload<-sapply(mutload_results_files,function (file) {
 png('mutload_grid.jpg')
 ggplot(scan, aes(x=factor(resolution), y=gain)) + 
   geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
-  guides(color = guide_legend(title = "mutload<=0.05",
+  guides(color = guide_legend(title = paste("mutload <= 0.05"),
                               title.theme = element_text(size=10,angle=0,color="blue")))
 
 dev.off()
 
+}
 
-
+if (arg$genes==TRUE) {
+	
 #Genes connectivity
 count<-0  
 for (file in scan$networks[scan$genes_connectivity]) {
@@ -122,7 +132,7 @@ threshold_range<-c(0.1,0.15,0.2)
 for (threshold in threshold_range) {
   
   q_value_dist<-extract_value(genes_results_files,"q_value",threshold)
-  title<-paste("Genes_results_q_value <=",threshold)
+  title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
   ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title) +
@@ -137,7 +147,9 @@ ggplot(scan, aes(x=factor(resolution), y=gain, color=p_value_dist, label=p_value
   ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
 
 
+}
 
+file.remove ("Rplots.pdf")
 
 
 #Calculates sum of a particular feature for a list of genes across scan results
@@ -161,8 +173,10 @@ number_of_events<-function(genes_results_files,feature,threshold) {
 #files_to_tar<-list.files(pattern="SKCM_")
 #zip(zipfile = "a.zip",files = files_to_tar)
 
-#write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
-#write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
+write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
+write.csv(number_of_events(genes_results_files,"q_value",0.15),"number_q_value_0.15.csv")
+write.csv(number_of_events(genes_results_files,"q_value",0.1),"number_q_value_0.1.csv")
+write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
 
 
 # Average p_value
