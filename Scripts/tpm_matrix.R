@@ -1,10 +1,16 @@
 # Environemnt settings
 #setwd("C:/Users/Udi/Downloads/LUAD_3.1.14.0")
 #library(org.Hs.eg.db)
-library(dplyr)
-library(stringr)
-library(parallel)
-require(getopt,quietly = T)
+
+suppressWarnings({
+  suppressMessages ({
+    library(dplyr,quietly = T,warn.conflicts = FALSE)
+    library(stringr,quietly = T,warn.conflicts = FALSE)
+    library(parallel,quietly = T,warn.conflicts = FALSE)
+    library(getopt,quietly = T,warn.conflicts = FALSE)
+  })
+  
+})
 
 
 spec = matrix(c(
@@ -12,7 +18,8 @@ spec = matrix(c(
   "index", "i",1, "character",
   "anno", "a",1, "character",
   "anno_old", "o",1, "character",
-  "project", "p", 1, "character"
+  "project", "p", 1, "character",
+  "cores", "q", 1, "integer"
   
 ), byrow=TRUE, ncol=4)
 
@@ -21,6 +28,7 @@ arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$anno ) ) {arg$anno= "C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv"}
 if ( is.null(arg$anno_old ) ) {arg$anno_old= "C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv"}
+if ( is.null(arg$cores ) ) {arg$cores= 1}
 
 
 PROJECT_NAME<-arg$project
@@ -65,7 +73,9 @@ gene_id[withdrawn_genes_indices,"symbol"]<-rep("withdrawn",length(original_id))
 
 
 # Reading scaled expression level into scale.estimates matrix
-cl <- makeCluster(detectCores())
+print (paste("Extracting TPM values from rsem files"))
+print (paste("Utilizing",arg$cores,"CPU's cores"))
+cl <- makeCluster(arg$cores)
 clusterExport(cl=cl, varlist=c("rsem_files"))
 scale.estimates<-parSapply(cl,rsem_files,function (x) return(read.table(x,header=T)[,3]))
 stopCluster(cl)
@@ -75,6 +85,7 @@ scale.estimates<-t(scale.estimates)
 
 
 #Creating TPM matrix - 
+print ("Creating TPM_matrix") 
 samples<-index$PatientID
 TPM.matrix<-as.data.frame(round(log2(1+scale.estimates*10^6),4))
 rownames(TPM.matrix)<-samples
