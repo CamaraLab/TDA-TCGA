@@ -75,6 +75,7 @@ gene_id[withdrawn_genes_indices,"symbol"]<-rep("withdrawn",length(original_id))
 # Reading scaled expression level into scale.estimates matrix
 print (paste("Extracting TPM values from rsem files"))
 print (paste("Utilizing",arg$cores,"CPU's cores"))
+print ("This might take a few minutes")
 cl <- makeCluster(arg$cores)
 clusterExport(cl=cl, varlist=c("rsem_files"))
 scale.estimates<-parSapply(cl,rsem_files,function (x) return(read.table(x,header=T)[,3]))
