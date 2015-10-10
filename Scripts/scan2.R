@@ -1,4 +1,9 @@
-library(getopt,quietly = T,warn.conflicts = FALSE)
+suppressWarnings({
+  suppressMessages ({
+    library(getopt,quietly = T,warn.conflicts = FALSE)
+  })
+  
+})
 
 
 spec = matrix(c(
@@ -8,7 +13,8 @@ spec = matrix(c(
   "cores", "q",1,"integer",
   "chunk", "k",2,"integer",
   "mutload", "y",1,"logical",
-  "genes","z",1,"logical"
+  "genes","z",1,"logical",
+  "test_mode","t",1,"logical"
   
 ), byrow=TRUE, ncol=4)
 
@@ -21,6 +27,7 @@ if ( is.null(arg$cores ) ) {arg$cores = 4}
 if ( is.null(arg$chunk ) ) {arg$chunk = 25}
 if ( is.null(arg$mutload ) ) {arg$mutload = FALSE}
 if ( is.null(arg$genes ) ) {arg$genes = FALSE}
+if ( is.null(arg$test_mode ) ) {arg$test_mode = FALSE}
 
 
 library(ggplot2)
@@ -51,7 +58,9 @@ scan$gain<-as.numeric(sapply(scan$networks, function (x) {
 scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
 scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 
-
+if (arg$test_mode==TRUE) {
+  scan<-scan[1:10,]
+}
 
 if (arg$mutload==TRUE) {
 	
@@ -60,7 +69,7 @@ count<-0
 for (file in scan$networks[scan$mutload_connectivity]) {
   count<-count+1  
   print("*********************************************")
-  print (paste("Mut load Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
+  print (paste("Mutload Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
   run_line<-paste("Rscript", arg$connectivity, "-p",arg$permutations,"-h TRUE -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
   system(run_line)
 }
@@ -140,7 +149,7 @@ for (threshold in threshold_range) {
 
 #p_value_plot
 p_value_dist<-extract_value(genes_results_files,"p_value",0.05)
-ggplot(scan, aes(x=factor(resolution), y=gain, color=p_value_dist, label=p_value_dist)) + 
+ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
   geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("Genes_results_p_value<=0.05") +
   ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
@@ -156,8 +165,11 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   
   genes<-sapply(genes_results_files,function (file)
   {
-    results<-read.csv(file,as.is=T)
-    results<-results$Gene_Symbol[results[,feature]<=threshold]
+    if (!is.na(file)) {
+      results<-read.csv(file,as.is=T)
+      results<-results$Gene_Symbol[results[,feature]<=threshold]  
+    }
+    
   })
   
   genes<-unlist(genes)
