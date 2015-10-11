@@ -72,7 +72,13 @@ if args.lens=="Neigh" :
 	len1="Neighborhood Lens 1"
 	len2="Neighborhood Lens 2"
 
+if args.lens=="MDS" :
+	len1="MDS coord 1"
+	len2="MDS coord 2"
 
+if args.lens=="MDS" :
+	len1="PCA coord 1"
+	len2="PCA coord 2"
 
 dict={}
 gain_range=list(numpy.arange(float(args.gain_start),float(args.gain_stop)+float(args.gain_interval),float(args.gain_interval)))
