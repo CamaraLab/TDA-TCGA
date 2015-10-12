@@ -15,7 +15,7 @@ suppressWarnings({
 })
 
 #Setting defaults for debug mode
-arg<-list("SKCM_Cor_Neigh_15_6.0","SKCM.h5","all",200,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("LUAD_Cor_PCA_15_1.5","LUAD.h5","all",200,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -331,6 +331,27 @@ suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),
 suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
 suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
+suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
+
+
+#logger <- create.logger(logfile = 'debugging.log', level = 1)
+#info(logger,paste("Number of permutations: ",arg$permutations))
+#info(logger,paste("Samples threshold: ",arg$samples_threshold))
+
+
+
+#sink(file = paste0(file_prefix,"_log.csv"), append = TRUE, type =c("output", "aaaaaaaaa"))
+#fileConn<-file(paste0(file_prefix,"_log.csv"))
+#writeLines(paste("Number of permutations: ",arg$permutations), fileConn,append=TRUE)
+#writeLines(paste("Samples threshold: ",arg$samples_threshold), fileConn,append=TRUE)
+#writeLines(paste("g_score threshold: ",arg$g_score_threshold), fileConn,append=TRUE)
+#writeLines(paste("Columns above threshold:",length(columns_of_interest)), fileConn,append=TRUE)
+#writeLines(paste0("Original sample size:",length(all_samples)), fileConn,append=TRUE)
+#writeLines(paste0("First connected sample size:",length(samples_of_interest)), fileConn,append=TRUE)
+
+#close(fileConn)
+
 
 perm_values<-function(dict_matrix,column,matrix) {
   #Takes dictionary matrix and all samples- returns translated_matrix with corersponding values
