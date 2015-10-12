@@ -143,8 +143,8 @@ for (file in scan$networks[scan$genes_connectivity]) {
   if (length(log_file!=0)){
     log_file<-log_file[1] # Taking first log file in case two exists. I t doesnt matter since first connected component is always the same for the same network.
     ans<-extract_sample_size(log_file)
-    scan[count,"original_samples"]<-ans[1]
-    scan[count,"first_connected_samples"]<-ans[2]
+    scan[scan$networks==file,"original_samples"]<-ans[1]
+    scan[scan$networks==file,"first_connected_samples"]<-ans[2]
   } 
 }
 
