@@ -1,6 +1,8 @@
 suppressWarnings({
   suppressMessages ({
     library(getopt,quietly = T,warn.conflicts = FALSE)
+    library(stringr,quietly = T,warn.conflicts = FALSE)
+    library(ggplot2,quietly = T,warn.conflicts = FALSE)
   })
   
 })
@@ -14,11 +16,17 @@ spec = matrix(c(
   "chunk", "k",2,"integer",
   "mutload", "y",1,"logical",
   "genes","z",1,"logical",
-  "test_mode","t",1,"logical"
+  "test_mode","t",1,"integer"
   
 ), byrow=TRUE, ncol=4)
 
 #connectivity_script<-"../../../Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity5.R"
+
+output_dir<-"Results"
+dir.create(output_dir)
+
+
+arg<-list(matrix="LUAD.h5",genes=TRUE,connectivity=NULL,permutations=1,cores=4,chunk=25,mutload=FALSE,genes=TRUE,test_mode=3)
 
 arg<-getopt(spec) #Conmment this line for debug mode
 if ( is.null(arg$connectivity ) ) {arg$connectivity = "connectivity5.R"}
@@ -27,10 +35,24 @@ if ( is.null(arg$cores ) ) {arg$cores = 4}
 if ( is.null(arg$chunk ) ) {arg$chunk = 25}
 if ( is.null(arg$mutload ) ) {arg$mutload = FALSE}
 if ( is.null(arg$genes ) ) {arg$genes = FALSE}
-if ( is.null(arg$test_mode ) ) {arg$test_mode = FALSE}
+if ( is.null(arg$test_mode ) ) {arg$test_mode = 0}
+
+#arg$test_mode=4
+
+#log_file<-"LUAD_Cor_PCA_15_1.5_LUAD.h5-162926-2015-10-12_log.csv"
+
+extract_sample_size<-function(log_file) {
+  log_file<-readLines(log_file)
+  line_original<-grep(pattern = "Original",log_file)
+  line_first_connected<-grep(pattern = "First connected",log_file)
+  sample_original<-as.numeric(substring(str_match(log_file[line_original],":\\d*"),2))
+  sample_first_connected<-as.numeric(substring(str_match(log_file[line_first_connected],":\\d*"),2))
+  return(c(sample_original,sample_first_connected))
+}
 
 
-library(ggplot2)
+
+
 
 #Listing all files in the directory (Networks,genes_results and mutload results)
 networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
@@ -58,8 +80,11 @@ scan$gain<-as.numeric(sapply(scan$networks, function (x) {
 scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
 scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 
-if (arg$test_mode==TRUE) {
-  scan<-scan[1:10,]
+scan$original_samples<-NA
+scan$first_connected_samples<-NA
+
+if (arg$test_mode!=0) {
+  scan<-scan[1:arg$test_mode,]
 }
 
 if (arg$mutload==TRUE) {
@@ -72,6 +97,7 @@ for (file in scan$networks[scan$mutload_connectivity]) {
   print (paste("Mutload Connectivity for Graph:",file,"-",count,"out of",length(scan$mutload_connectivity)))
   run_line<-paste("Rscript", arg$connectivity, "-p",arg$permutations,"-h TRUE -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
   system(run_line)
+  
 }
 #Updating scan table with mutload files
 #Extracting information from mut_results files
@@ -84,7 +110,7 @@ mutload_results_files<-sapply(scan$networks,function (x) {
 p_value_mutload<-sapply(mutload_results_files,function (file) {
   if (length(file)!=1 | is.na(file)) {
     results<-NA
-  } else results<-read.csv(file,as.is=T)$p_value 
+  } else results<-round(read.csv(file,as.is=T)$p_value ,3)
 })
 
 
@@ -92,7 +118,7 @@ p_value_mutload<-sapply(mutload_results_files,function (file) {
 #Hyper mutations plot
 
 ggplot(scan, aes(x=factor(resolution), y=gain)) + 
-  geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=round(p_value_mutload,2),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+  geom_point(size=5,aes(color=p_value_mutload<=0.05)) + geom_text(label=p_value_mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
   guides(color = guide_legend(title = paste("mutload <= 0.05"),
                               title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")    
 
@@ -110,6 +136,16 @@ for (file in scan$networks[scan$genes_connectivity]) {
   #run_line<-paste("Rscript", arg$arg$connectivity, "-p 500 -h TRUE -n",file,"-m",arg$matrix)
   run_line<-paste("Rscript",arg$connectivity,"-p",arg$permutations, "-t 20 -g 100 -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
   system(run_line)
+  
+  print ("Extracting samples count:")
+  log_file<-list.files(pattern=paste0("^",file,".*_log"))
+  print(log_file)
+  if (length(log_file!=0)){
+    log_file<-log_file[1] # Taking first log file in case two exists. I t doesnt matter since first connected component is always the same for the same network.
+    ans<-extract_sample_size(log_file)
+    scan[count,"original_samples"]<-ans[1]
+    scan[count,"first_connected_samples"]<-ans[2]
+  } 
 }
 
 genes_results_files<-
@@ -157,7 +193,9 @@ ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) 
 
 }
 
-file.remove ("Rplots.pdf")
+#file.remove ("Rplots.pdf")
+
+print(scan)
 
 
 #Calculates sum of a particular feature for a list of genes across scan results
@@ -188,6 +226,24 @@ write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.
 write.csv(number_of_events(genes_results_files,"q_value",0.15),"number_q_value_0.15.csv")
 write.csv(number_of_events(genes_results_files,"q_value",0.1),"number_q_value_0.1.csv")
 write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
+
+
+print ("Removing files to Results Directory")
+csv_files<-list.files(pattern = "*.csv")
+png_files<-list.files(pattern = "*.png")
+
+files_to_move_to_results<-c(csv_files,png_files)
+x<-file.rename(files_to_move_to_results,paste0("Results/",files_to_move_to_results))
+#x<-file.rename(files_to_move_to_results,paste0("Results\",files_to_move_to_results))
+
+if (sum(x)==length(files_to_move_to_results)) {
+  print ("All results files moved to Results dir, archiving files")
+  tar(paste0("Results_",arg$matrix,".tar.gz"),"Results")
+} else {
+        print ("This files were not moved to Results dir:")
+        print (files_to_move_to_results[!x])
+}
+
 
 
 # Average p_value
@@ -225,3 +281,12 @@ write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0
 
 #dev.off()
 #}
+
+#connectivity_log<-readLines(paste0(file_prefix,"_log.csv"))
+##connectivity_log<-readLines("LUAD_Cor_PCA_15_1.5_LUAD.h5-162926-2015-10-12_log.csv")
+##line_original<-grep(pattern = "Original",connectivity_log)
+#line_first_connected<-grep(pattern = "First connected",connectivity_log)
+#sample_original<-as.numeric(substring(str_match(connectivity_log[line_original],":\\d*"),2))
+#sample_first_connected<-as.numeric(substring(str_match(x[line_first_connected],":\\d*"),2))
+
+
