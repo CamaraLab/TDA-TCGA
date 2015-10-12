@@ -103,7 +103,7 @@ for (file in scan$networks[scan$mutload_connectivity]) {
 #Extracting information from mut_results files
 mutload_results_files<-sapply(scan$networks,function (x) {  
   results<-list.files(pattern=paste0("^",x,".*_mutload_results"))
-  if (length(results)==0) {results<-NA}
+  if (length(results)==0) {results<-0}
   return(results)
 })
 
@@ -179,7 +179,7 @@ for (threshold in threshold_range) {
   title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
   ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
     scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-    geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title) +
+    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
     ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))    
 }
 
@@ -187,7 +187,7 @@ for (threshold in threshold_range) {
 p_value_dist<-extract_value(genes_results_files,"p_value",0.05)
 ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle("Genes_results_p_value<=0.05") +
+  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
   ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
 
 
@@ -195,7 +195,17 @@ ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) 
 
 #file.remove ("Rplots.pdf")
 
-print(scan)
+
+#Writing scanner summary file:
+write.csv(scan,"scanner_summary.csv")
+
+#Number of samples plot:
+ggplot(scan, aes(x=resolution, y=gain, color=first_connected_samples, label=first_connected_samples)) + 
+  scale_color_gradient2(low = 'white', mid='yellow', high = 'red') +
+  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
+  ggsave(filename = paste0("First_component_samples.png"))  
+
+
 
 
 #Calculates sum of a particular feature for a list of genes across scan results
@@ -269,7 +279,7 @@ if (sum(x)==length(files_to_move_to_results)) {
 #  data1<-data1
 #  ggplot(scan, aes(x=resolution, y=gain, color=data1, label=data1)) + 
 ##   scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-#  geom_point(size=5) + theme_bw() + geom_text(hjust=2) + ggtitle(title)
+#  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title)
 
 
 #labs (y="Gain",x="Resolution") 
