@@ -76,7 +76,7 @@ if args.lens=="MDS" :
 	len1="MDS coord 1"
 	len2="MDS coord 2"
 
-if args.lens=="MDS" :
+if args.lens=="PCA" :
 	len1="PCA coord 1"
 	len2="PCA coord 2"
 
