@@ -381,6 +381,17 @@ if (arg$scan==TRUE) {
 
 
 
+#################################################################
+###############Generating mutational load histogram##############
+#################################################################
+
+
+
+
+
+
+
+
 
 
 ############################################################################################################
@@ -758,6 +769,8 @@ ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) +
 print ("B")
 
 
+################ Number of events per gene###########################
+
 #Calculates sum of a particular feature for a list of genes across scan results
 number_of_events<-function(genes_results_files,feature,threshold) {
   
@@ -783,12 +796,27 @@ number_of_events<-function(genes_results_files,feature,threshold) {
 print ("C")
 
 
+print(number_of_events(genes_results_files,"q_value",0.1))
+number_of_events(genes_results_files,"q_value",0.15)
+number_of_events(genes_results_files,"q_value",0.2)
+number_of_events(genes_results_files,"p_value",0.05)
+
 #Generating number of events summary file
+q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
+q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
+q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
+p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
+
+n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
+print(n)
+length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
+
+
 events<-data.frame(
-          number_of_events(genes_results_files,"q_value",0.1),
-          number_of_events(genes_results_files,"q_value",0.15),
-          number_of_events(genes_results_files,"q_value",0.2),
-          number_of_events(genes_results_files,"p_value",0.05)
+          q_value_0.1,
+          q_value_0.15,
+          q_value_0.2,
+          p_value_0.05
           )
 
 print ("D")
@@ -796,6 +824,7 @@ print ("D")
 colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
 write.csv(events,"number_of_events.csv")
 
+#####################################################
 #write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
 #write.csv(number_of_events(genes_results_files,"q_value",0.15),"number_q_value_0.15.csv")
 #write.csv(number_of_events(genes_results_files,"q_value",0.1),"number_q_value_0.1.csv")
