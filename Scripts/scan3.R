@@ -228,17 +228,25 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   return(sort(genes_events,decreasing = T))
   
 }
+)
 
-#files_to_tar<-list.files(pattern="SKCM_")
-#zip(zipfile = "a.zip",files = files_to_tar)
+#Generating number of events summary file
+events<-data.frame(
+          number_of_events(genes_results_files,"q_value",0.1),
+          number_of_events(genes_results_files,"q_value",0.15),
+          number_of_events(genes_results_files,"q_value",0.2),
+          number_of_events(genes_results_files,"p_value",0.05)
+          )
+colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
+write.csv(events,"number_of_events.csv")
 
-write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
-write.csv(number_of_events(genes_results_files,"q_value",0.15),"number_q_value_0.15.csv")
-write.csv(number_of_events(genes_results_files,"q_value",0.1),"number_q_value_0.1.csv")
-write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
+#write.csv(number_of_events(genes_results_files,"q_value",0.2),"number_q_value_0.2.csv")
+#write.csv(number_of_events(genes_results_files,"q_value",0.15),"number_q_value_0.15.csv")
+#write.csv(number_of_events(genes_results_files,"q_value",0.1),"number_q_value_0.1.csv")
+#write.csv(number_of_events(genes_results_files,"p_value",0.05),"number_p_value_0.05.csv")
 
 
-print ("Removing files to Results Directory")
+print ("Moving files to Results Directory")
 csv_files<-list.files(pattern = "*.csv")
 png_files<-list.files(pattern = "*.png")
 
