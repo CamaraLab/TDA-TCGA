@@ -27,7 +27,7 @@ spec = matrix(c(
   "g_score_threshold", "g",1,"integer",
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
-  "samples_threshold","t",1,"integer", # Minimum number of samples to express column - Removing columns below that
+  "samples_threshold","t",1,"numeric", # Percentage of samples_of_interest
   "log2","l",2,"logical",
   "fdr","f",2,"logical",
   "chunk","k",2,"integer",  
@@ -67,6 +67,8 @@ if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
 
 if ( is.null(arg$scan ) ) {arg$scan= FALSE}
 if ( is.null(arg$test_mode ) ) {arg$test_mode= 0}
+if ( !is.null(arg$network ) ) {arg$test_mode= 0}
+
 
 #Printing run parameters
 print (paste("Number of permutations:",arg$permutations))
@@ -374,8 +376,6 @@ if (arg$scan==TRUE) {
 	if (arg$test_mode!=0) { #Removing network files file for test mode
 	  scan<-scan[1:arg$test_mode,]
 	}
-	print (scan)
-	write.csv(scan,"scan_summary.csv")
 
 }
 
@@ -440,7 +440,7 @@ for (file in scan$networks) {
 	 #Extracting columns from arguments
 	 columns<-column_range(arg$columns)
 	 #Removing columns below samples_threshold from the first connected graph
-	 matrix1<-mat_bin[,columns,drop=FALSE] #Subsetting for selected columns
+	 matrix1<-matrix1[,columns,drop=FALSE] #Subsetting for selected columns
 
 
 
@@ -448,6 +448,7 @@ for (file in scan$networks) {
 	 samples_of_interest<-rownames(matrix1)
 
 	 # Taking record of sample sizes
+	
 	 scan[scan$networks==file,]$original_samples<-length(all_samples)
 	 scan[scan$networks==file,]$first_connected_samples<-length(samples_of_interest)
 
@@ -504,11 +505,12 @@ for (file in scan$networks) {
 
 
 	# selecting genes based on thresholds
-	print (arg$samples_threshold)
-	print(	length(samples_of_interest))
+	
      samples_threshold<-ceiling(arg$samples_threshold*length(samples_of_interest))
+     scan[scan$networks==file,]$samples_threshold<-samples_threshold
+     print (paste("Samples in first connected graph:",length(samples_of_interest)))
      print (paste("Samples threshold is set to:",samples_threshold))
-     print (paste("Top genes threshold is set to:",arg$g_score_threshold))
+     print (paste("Top genes score threshold is set to:",arg$g_score_threshold))
      
 	 genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
 	 genes_below_samples_threshold<-names(which(genes_number_of_samples<samples_threshold))
@@ -542,10 +544,6 @@ for (file in scan$networks) {
      
 		 
 		  mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
-		  mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
-		  matrix1<-as.matrix(mutLoad,drop=FALSE)
-		  colnames(matrix1)<-"mutLoad"
-		  columns_of_interest<-"mutLoad"
 		  if (arg$rescale!=0) {
 		   png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
 		   hist(log10(mutLoad),breaks = 100,main="After rescaling")
@@ -555,6 +553,12 @@ for (file in scan$networks) {
 		   hist(log10(mutLoad),breaks = 100,main="Before rescaling")
 		   invisible(dev.off())
 		  }
+		  
+		  mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
+		  matrix1<-as.matrix(mutLoad,drop=FALSE)
+		  colnames(matrix1)<-"mutLoad"
+		  columns_of_interest<-"mutLoad"
+		  
 	 }
 
 	# info_cols was here
