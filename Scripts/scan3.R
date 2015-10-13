@@ -228,7 +228,7 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   return(sort(genes_events,decreasing = T))
   
 }
-)
+
 
 #Generating number of events summary file
 events<-data.frame(
