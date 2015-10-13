@@ -43,7 +43,7 @@ arg<-getopt(spec) #Conmment this line for debug mode
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
-if ( is.null(arg$cores ) ) {arg$cores= detectCores()}
+if ( is.null(arg$cores ) ) {arg$cores= 4}
 if ( is.null(arg$chunk ) ) {arg$chunk= 25}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0}
