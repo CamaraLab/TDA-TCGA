@@ -1,4 +1,6 @@
 
+############################LOADING LIBRARIES############################
+
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
 #Preping environment, loading necessary libraries
 suppressWarnings({
@@ -14,6 +16,10 @@ suppressWarnings({
   })
   
 })
+
+
+############################COMMAND LINE PARSING############################
+
 
 #Setting defaults for debug mode
 arg<-list("LUAD_Cor_PCA_15_1.5","LUAD.h5","all",200,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
@@ -77,6 +83,9 @@ print (paste("Chunk size:",arg$chunk))
       
 
 
+####################################### MUTATIONS MATRIX HANDLING #############################
+
+
 #Loading matrix file to memory and log transforming if log2=TRUE
 h5file<-arg$matrix
 print (paste0("Loading ",h5file, " file to memory"))
@@ -96,10 +105,90 @@ colnames(mat_syn)<-all_genes
 
 
 
+
+	##################RESCALING####################
+
+
+	 if (arg$rescale!=0) {
+	 cut<-10^arg$rescale
+	 print ("Initiating rescaling process")
+	 #maf<-read.delim("../../COAD_TEST/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,comment.char = "#",sep="\t")
+	 maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
+	 maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
+	 mat_total<-mat_non_syn+mat_syn #Total number of point mutations
+	 mutLoad<-rowSums(mat_total)
+	 above_cut<-mutLoad[mutLoad>cut]
+	 below_cut<-mutLoad[mutLoad<=cut]
+	 median(above_cut)
+	 median(below_cut)
+	 scale<-floor(median(above_cut)/median(below_cut)) # Rescaling parameter
+
+	 #Detecting mutloadmutated samples and removing from maf file based on scale
+	 mutloadmutated<-names(above_cut)
+	 x<-maf[maf$Tumor_Sample_Barcode %in% mutloadmutated,]
+	 rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
+	 rows_to_remove<-setdiff(rownames(x),rows_to_keep)
+	 maf<-maf[-match(rows_to_remove,rownames(maf)),]
+
+	 #Creating rescaled matrices 
+	 all_genes<-sort(unique(maf$Column_name))
+	 all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
+	 mat_syn<-matrix(0,length(all_samples),length(all_genes))  
+	 dimnames(mat_syn)<-list(all_samples,all_genes)
+	 mat_non_syn<-mat_syn #Replicating mat_syn
+
+	 #Creating table of Synonymous mutations for Sample vs Entrez_Gene_Id
+	 t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+	 t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+
+	 #Plugging tables into matrices
+	 mat_syn[rownames(t_syn),colnames(t_syn)]<-t_syn
+	 mat_non_syn[rownames(t_non_syn),colnames(t_non_syn)]<-t_non_syn
+	 mat_syn<-mat_syn[sort(rownames(mat_syn)),sort(colnames(mat_syn))]
+	 mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))]
+	 #Binary matrix for connectivity score
+	 mat_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
+
+	 }
+
+
 if (arg$log2==TRUE) {mat_bin<-(2^mat_bin)-1} #Preparing for calculation if matrix is log scale
 
 #Info_cols is used to set information columns in results output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
+
+
+
+
+
+
+	#################################################################
+	###############Generating mutational load histogram##############
+	#################################################################
+
+
+
+	if (arg$mutload==TRUE) {
+	#Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
+
+	 mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
+	 mutLoad<-rowSums(mutLoad)#rownames matrix1 is important to account only for samples_of_interes
+	 matrix1<-as.matrix(mutLoad,drop=FALSE)
+	 colnames(matrix1)<-"mutLoad"
+	 columns_of_interest<-"mutLoad"
+	 if (arg$rescale!=0) {
+	   png(paste0(arg$matrix,"_mutload_histogram.png"))
+	   hist(log10(mutLoad),breaks = 100,main="After rescaling")
+	   invisible(dev.off())  
+	 } else {
+	   png(paste0(arg$matrix,"_mutload_histogram.png"))
+	   hist(log10(mutLoad),breaks = 100,main="Before rescaling")
+	   invisible(dev.off())
+	 }
+   }
+
+
+
 
 #################################################################################
 ####################### Functions Section #######################################
@@ -368,22 +457,11 @@ p_integrate <- function (p,p_con,n,n_con)
 	  strsplit(x,"_")[[1]][5]
 	}))
 
-	scan$original_samples<-NA
-	scan$first_connected_samples<-NA
-	scan$mutload<-NA 
-	scan
 	if (arg$test_mode!=0) { #Removing network files file for test mode
 	  scan<-scan[1:arg$test_mode,]
 	}
 
 }
-
-
-
-#################################################################
-###############Generating mutational load histogram##############
-#################################################################
-
 
 
 
@@ -463,53 +541,10 @@ for (file in scan$networks) {
 	 scan[scan$networks==file,]$first_connected_samples<-length(samples_of_interest)
 
 	 ###############################################
-	 ##################RESCALING####################
+	 ##################RESCALING WAS HERE####################
 	 ###############################################
 
-	 if (arg$rescale!=0) {
-
-	 cut<-10^arg$rescale
-	 #maf<-read.delim("../../COAD_TEST/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,comment.char = "#",sep="\t")
-	 maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
-	 maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
-	 mat_total<-mat_non_syn+mat_syn #Total number of point mutations
-	 mutLoad<-rowSums(mat_total) #rownames matrix1 is important to account only for samples_of_interes
-	 above_cut<-mutLoad[mutLoad>cut]
-	 below_cut<-mutLoad[mutLoad<=cut]
-	 median(above_cut)
-	 median(below_cut)
-	 scale<-floor(median(above_cut)/median(below_cut))
-
-	 #Detecting mutloadmutated samples and removing from maf file based on scale
-	 mutloadmutated<-names(above_cut)
-	 x<-maf[maf$Tumor_Sample_Barcode %in% mutloadmutated,]
-	 rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
-	 rows_to_remove<-setdiff(rownames(x),rows_to_keep)
-	 maf<-maf[-match(rows_to_remove,rownames(maf)),]
-
-	 #Creating rescaled matrices 
-	 all_genes<-sort(unique(maf$Column_name))
-	 all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
-	 mat_syn<-matrix(0,length(all_samples),length(all_genes))
-	 dimnames(mat_syn)<-list(all_samples,all_genes)
-	 mat_non_syn<-mat_syn #Replicating mat_syn
-
-	 #Creating table of Synonymous mutations for Sample vs Entrez_Gene_Id
-	 t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
-	 t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
-
-	 #Plugging tables into 0 matrices
-	 mat_syn[rownames(t_syn),colnames(t_syn)]<-t_syn
-	 mat_non_syn[rownames(t_non_syn),colnames(t_non_syn)]<-t_non_syn
-	 mat_syn<-mat_syn[sort(rownames(mat_syn)),sort(colnames(mat_syn))]
-	 mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))]
-
-	 #Binary matrix for connectivity score
-	 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
-	 matrix1<-mat_non_syn_bin[samples_of_interest,]
-
-	 }
-
+	
 	
 	
 	##########################################
