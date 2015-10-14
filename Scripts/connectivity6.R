@@ -164,11 +164,8 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 	###############Generating mutational load histogra##############
 	#################################################################
 
-
-	 if (arg$mutload==TRUE) {
 	 
      
-		 
 		  mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 		  mutload_dist<-rowSums(mutload_matrix)
 		  if (arg$rescale!=0) {
@@ -180,9 +177,7 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 		   hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
 		   invisible(dev.off())
 		  }
-		  
-	 }
-
+		
 
 
 
