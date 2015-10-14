@@ -71,7 +71,7 @@ if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
 }
 
 if ( is.null(arg$scan ) ) {arg$scan= 0}
-if ( !is.null(arg$network ) ) {arg$test_mode= 0}
+if ( !is.null(arg$network ) ) {arg$scan= 0}
 
 
 #Printing run parameters
