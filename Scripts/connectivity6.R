@@ -55,7 +55,7 @@ if ( is.null(arg$mutload ) ) {arg$mutload= FALSE}
 if ( is.null(arg$g_score_threshold ) ) {arg$g_score_threshold= 100}
 if (arg$mutload==TRUE) {
   arg$samples_threshold<-0
-  arg$g_score_threshold<-2
+  arg$g_score_threshold<-1
   arg$syn_control<-FALSE
 }
 
@@ -98,7 +98,7 @@ colnames(mat_syn)<-all_genes
 
 if (arg$log2==TRUE) {mat_bin<-(2^mat_bin)-1} #Preparing for calculation if matrix is log scale
 
-#Info_cols is used to set information columns in output file as well as names for the variables that constitutes those columns
+#Info_cols is used to set information columns in results output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
 
 #################################################################################
@@ -335,10 +335,9 @@ p_integrate <- function (p,p_con,n,n_con)
 ##################################################################################################
 
 
+########################### Preparing scan file ###############################
 
-print (arg$scan)
-if (arg$scan==TRUE) {
-
+	if (arg$scan==TRUE) {
 
 	#Listing all files in the directory (Networks,genes_results and mutload results)
 	if (is.null(arg$network)) {
@@ -346,18 +345,20 @@ if (arg$scan==TRUE) {
 	
 	} else { networks<-arg$network	}
 	
-	genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
-	mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
+	#This commented out part can be used to exclude analysis of file results that exist in folder
+	#genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
+	#mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
 
 	# Inferring network files that have not been processed yet
-	networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
-	networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
-	networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
-	networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
-
-
+	#networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
+	#networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
+	#networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
+	#networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
+	#scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
+	#scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 	#scan<-read.csv("dict.csv",as.is=T)
-	scan<-data.frame(networks=networks,stringsAsFactors = F)
+	
+	scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,stringsAsFactors = F)
 
 	scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
 	  strsplit(x,"_")[[1]][4]
@@ -367,12 +368,10 @@ if (arg$scan==TRUE) {
 	  strsplit(x,"_")[[1]][5]
 	}))
 
-	scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
-	scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
-
 	scan$original_samples<-NA
 	scan$first_connected_samples<-NA
 	scan$mutload<-NA 
+	scan
 	if (arg$test_mode!=0) { #Removing network files file for test mode
 	  scan<-scan[1:arg$test_mode,]
 	}
@@ -511,14 +510,18 @@ for (file in scan$networks) {
 
 	 }
 
-	 #################################################
-
+	
+	
+	##########################################
+	############THRESHOLDING SECTION###########
+    ##########################################
 
 
 	# selecting genes based on thresholds
 	
      samples_threshold<-ceiling(arg$samples_threshold*length(samples_of_interest))
      scan[scan$networks==file,]$samples_threshold<-samples_threshold
+     print (paste("Samples in original dataset:",length(all_samples)))
      print (paste("Samples in first connected graph:",length(samples_of_interest)))
      print (paste("Samples threshold is set to:",samples_threshold))
      print (paste("Top genes score threshold is set to:",arg$g_score_threshold))
@@ -634,25 +637,14 @@ for (file in scan$networks) {
 	 			
 	 
 
-
-	 #############################################################
-	 #Generating pii_values table
-	 #pi_values_table<-NULL
-	 #for (i in 1:length(ans))
-	 #  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
-	 #colnames(pi_values_table)<-pi_values_table[1,]
-	 #pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
-	 #############################################################
-
-	 #Writing final results and pii_values files
-	 #write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
-	 #write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
+		################ pii_value generations goes here - pushed to end##################
+	
 
 
 
-
-	 if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
+	 
 	 ##################Synonymous control###############
+	 if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
 	 print ("Starting control connectivity analysis:")
 	 matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
 	 matrix1<-matrix1[samples_of_interest,names(columns_of_interest),drop=FALSE] # Subsetting for samples of interest
@@ -686,6 +678,9 @@ for (file in scan$networks) {
 
 	 }
 
+	##################Fixing final results file and some printings#####################
+
+		
 
 	 if (arg$mutload==TRUE) {
 	 file_sufix<-"_mutload_results.csv"
@@ -701,13 +696,61 @@ for (file in scan$networks) {
 	 speed_index<-run_t[3]*500/arg$permutations/length(columns)
 	 print(paste("Runtime in seconds:",run_t[3]))
 	 print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
-	  
-	  
+	    
 }
+
 
 
 #Writing scanner summary file:
 write.csv(scan,"scan_summary.csv")
+
+
+######################################## Plotting section######################################
+
+
+
+#Number of samples per graph plot:
+ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
+  #scale_color_gradient2(low = 'white', mid='yellow', high = 'red') +
+  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
+  ggsave(filename = paste0("First_component_samples.png"))  
+
+
+
+
+
+
+if (arg$mutload==TRUE) {  #Mutational load p_value plot
+
+	ggplot(scan, aes(x=factor(resolution), y=gain)) + 
+  	geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+  	guides(color = guide_legend(title = paste("mutload <= 0.05"),
+                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")    
+}
+
+
+#connectivity_q_value_plot
+q_threshold_range<-c(0.1,0.15,0.2)
+for (threshold in q_threshold_range) {
+
+  	q_value_dist<-scan[,paste0("q_",threshold)]
+	title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
+  	
+  	ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
+    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
+    ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
+        
+}
+
+#connectivity_p_value_plot
+p_value_dist<-scan$p_0.05
+ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
+  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
+  ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
+
+
 
 
 genes_results_files<-
@@ -718,55 +761,16 @@ genes_results_files<-
   })
 
 
-extract_value<-function (files,feature,threshold)  {
-  #Gets a feature(p_value) and a threshold (0.05) and extract the number of observations across list of files below that threshold for this feature
-  ans<-sapply(files,function (file) {
-    if (length(file)!=1 | is.na(file)) {
-      results<-NA
-    } else {
-      results<-read.csv(file,as.is=T)[,feature]
-      results<-sum(results<=threshold,na.rm=T)
-    }
-  })
-  return (as.numeric(ans))
-}
 
 
 
-#genes q_value plot
-threshold_range<-c(0.1,0.15,0.2)
-for (threshold in threshold_range) {
-  
-  q_value_dist<-extract_value(genes_results_files,"q_value",threshold)
-  title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
-  ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
-    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
-    ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))    
-}
 
 
 
-#p_value_plot
-p_value_dist<-extract_value(genes_results_files,"p_value",0.05)
-ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
-  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-  ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
+
 
 
 #file.remove ("Rplots.pdf")
-
-
-print ("A")
-
-#Number of samples per graph plot:
-ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
-  #scale_color_gradient2(low = 'white', mid='yellow', high = 'red') +
-  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
-  ggsave(filename = paste0("First_component_samples.png"))  
-
-print ("B")
 
 
 ################ Number of events per gene###########################
@@ -792,15 +796,6 @@ number_of_events<-function(genes_results_files,feature,threshold) {
   
 }
 
-
-print ("C")
-
-
-print(number_of_events(genes_results_files,"q_value",0.1))
-number_of_events(genes_results_files,"q_value",0.15)
-number_of_events(genes_results_files,"q_value",0.2)
-number_of_events(genes_results_files,"p_value",0.05)
-
 #Generating number of events summary file
 q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
 q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
@@ -808,9 +803,7 @@ q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
 p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
 
 n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
-print(n)
 length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
-
 
 events<-data.frame(
           q_value_0.1,
@@ -819,17 +812,17 @@ events<-data.frame(
           p_value_0.05
           )
 
-print ("D")
-
 colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
 write.csv(events,"number_of_events.csv")
 
-#####################################################
+
+###############MOVING FILES TO Results DIR####################
 
 
 
 print ("Moving files to Results Directory")
-dir.create("Results")
+if (!file.exists("Results")) {dir.create("Results")}
+
 
 csv_files<-list.files(pattern = "*.csv")
 png_files<-list.files(pattern = "*.png")
@@ -849,6 +842,53 @@ if (sum(x)==length(files_to_move_to_results)) {
 
 
 
+
+
+ #############################################################
+	 #Generating pii_values table
+	 #pi_values_table<-NULL
+	 #for (i in 1:length(ans))
+	 #  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
+	 #colnames(pi_values_table)<-pi_values_table[1,]
+	 #pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
+	 #############################################################
+
+	 #Writing final results and pii_values files
+	 #write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
+	 #write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
+
+
+
+
+
+
+
+#extract_value<-function (files,feature,threshold)  {
+  #Gets a feature(p_value) and a threshold (0.05) and extract the number of observations across list of files below that threshold for this feature
+#  ans<-sapply(files,function (file) {
+#    if (length(file)!=1 | is.na(file)) {
+#      results<-NA
+#    } else {
+#      results<-read.csv(file,as.is=T)[,feature]
+#      results<-sum(results<=threshold,na.rm=T)
+#    }
+#  })
+#  return (as.numeric(ans))
+#}
+
+
+
+#genes q_value plot
+#threshold_range<-c(0.1,0.15,0.2)
+#for (threshold in threshold_range) {
+  
+#  q_value_dist<-extract_value(genes_results_files,"q_value",threshold)
+#  title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
+#  ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
+#    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+#    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
+#    ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))    
+#}
 
 
 
