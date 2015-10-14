@@ -424,8 +424,8 @@ p_integrate <- function (p,p_con,n,n_con)
 
 ########################### Preparing scan file ###############################
 print("11111111")
-print (arg$scan)
-	if (arg$scan==TRUE) {
+#print (arg$scan)
+	#if (arg$scan==TRUE) {
 print("11111111")
 	#Listing all files in the directory (Networks,genes_results and mutload results)
 	if (is.null(arg$network)) {
@@ -448,7 +448,7 @@ print("11111111")
 	#scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 	#scan<-read.csv("dict.csv",as.is=T)
 	
-	scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,stringsAsFactors = F)
+	scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,samples_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,stringsAsFactors = F)
 
 	scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
 	  strsplit(x,"_")[[1]][4]
@@ -461,8 +461,6 @@ print("11111111")
 	if (arg$test_mode!=0) { #Removing network files file for test mode
 	  scan<-scan[1:arg$test_mode,]
 	}
-
-}
 
 
 
