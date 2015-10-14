@@ -720,100 +720,97 @@ ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) +
 
 
 
-if (arg$mutload==TRUE) {  #Mutational load p_value plot
+if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
+
+	 #connectivity_q_value_plot
+	 q_threshold_range<-c(0.1,0.15,0.2)
+	 for (threshold in q_threshold_range) {
+
+		q_value_dist<-scan[,paste0("q_",threshold)]
+		title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
+
+		ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
+		scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+		geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
+		ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
+ 
+	 }
+
+	 #connectivity_p_value_plot
+	 p_value_dist<-scan$p_0.05
+	 ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
+	  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+	  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
+	  ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
+
+
+
+
+	 genes_results_files<-
+	  sapply(scan$networks,function (x) {
+		results<-list.files(pattern=paste0("^",x,".*_genes_results"))
+		if (length(results)==0) {results<-NA}
+		return(results)
+	  })
+
+
+
+
+	 ################ Number of events per gene###########################
+
+	 #Calculates sum of a particular feature for a list of genes across scan results
+	 number_of_events<-function(genes_results_files,feature,threshold) {
+
+	  genes<-sapply(genes_results_files,function (file)
+	  {
+		if (!is.na(file)) {
+		  results<-read.csv(file,as.is=T)
+		  results<-results$Gene_Symbol[results[,feature]<=threshold]  
+		}
+
+	  })
+
+	  genes<-unlist(genes)
+	  genes<-genes[complete.cases(genes)]
+	  unique_genes<-unique(genes)
+
+	  genes_events<-sapply(unique_genes,function (x) sum(x==genes))
+	  return(sort(genes_events,decreasing = T))
+
+	 }
+
+	 #Generating number of events summary file
+	 q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
+	 q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
+	 q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
+	 p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
+
+	 n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
+	 length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
+
+	 events<-data.frame(
+			  q_value_0.1,
+			  q_value_0.15,
+			  q_value_0.2,
+			  p_value_0.05
+			  )
+
+	 colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
+	 write.csv(events,"number_of_events.csv")
+
+
+
+	    
+} else {   # MUTLOAD PLOT
 	ggplot(scan, aes(x=factor(resolution), y=gain)) + 
   	geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
   	guides(color = guide_legend(title = paste("mutload <= 0.05"),
-                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")    
+                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
+
 }
 
 
-#connectivity_q_value_plot
-q_threshold_range<-c(0.1,0.15,0.2)
-for (threshold in q_threshold_range) {
-
-  	q_value_dist<-scan[,paste0("q_",threshold)]
-	title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
-  	
-  	ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
-    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
-    ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
-        
-}
-
-#connectivity_p_value_plot
-p_value_dist<-scan$p_0.05
-ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
-  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-  ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
-
-
-
-
-genes_results_files<-
-  sapply(scan$networks,function (x) {
-    results<-list.files(pattern=paste0("^",x,".*_genes_results"))
-    if (length(results)==0) {results<-NA}
-    return(results)
-  })
-
-
-
-
-
-
-
-
-
-
-
-#file.remove ("Rplots.pdf")
-
-
-################ Number of events per gene###########################
-
-#Calculates sum of a particular feature for a list of genes across scan results
-number_of_events<-function(genes_results_files,feature,threshold) {
-  
-  genes<-sapply(genes_results_files,function (file)
-  {
-    if (!is.na(file)) {
-      results<-read.csv(file,as.is=T)
-      results<-results$Gene_Symbol[results[,feature]<=threshold]  
-    }
-    
-  })
-  
-  genes<-unlist(genes)
-  genes<-genes[complete.cases(genes)]
-  unique_genes<-unique(genes)
-  
-  genes_events<-sapply(unique_genes,function (x) sum(x==genes))
-  return(sort(genes_events,decreasing = T))
-  
-}
-
-#Generating number of events summary file
-q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
-q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
-q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
-p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
-
-n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
-length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
-
-events<-data.frame(
-          q_value_0.1,
-          q_value_0.15,
-          q_value_0.2,
-          p_value_0.05
-          )
-
-colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-write.csv(events,"number_of_events.csv")
 
 
 ###############MOVING FILES TO Results DIR####################
@@ -822,15 +819,13 @@ write.csv(events,"number_of_events.csv")
 
 print ("Moving files to Results Directory")
 if (!file.exists("Results")) {dir.create("Results")}
-
+if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
 csv_files<-list.files(pattern = "*.csv")
 png_files<-list.files(pattern = "*.png")
 
 files_to_move_to_results<-c(csv_files,png_files)
 x<-file.rename(files_to_move_to_results,paste0("Results/",files_to_move_to_results))
-#x<-file.rename(files_to_move_to_results,paste0("Results\",files_to_move_to_results))
-
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
   tar(paste0("Results_",arg$matrix,".tar.gz"),"Results")
@@ -842,7 +837,8 @@ if (sum(x)==length(files_to_move_to_results)) {
 
 
 
-
+#####################OLD FUNCTIONS AND PROCEDURES########################
+##########################################################################
 
  #############################################################
 	 #Generating pii_values table
