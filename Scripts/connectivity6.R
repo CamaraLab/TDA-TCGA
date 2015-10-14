@@ -692,7 +692,7 @@ for (file in scan$networks) {
 	 missing_p_value_con<-rep(NA,length(missing_genes))
 	 missing_q_value_con<-rep(NA,length(missing_genes))
 	 missing_c_value_con<-rep(NA,length(missing_genes))
-	 missing_x<-data.frame(missing_n_samples_con,missing_p_value_con,missing_q_value_con)
+	 missing_x<-data.frame(missing_n_samples_con,missing_c_value_con,missing_p_value_con,missing_q_value_con)
 	 final_results_control<-rbind(final_results_control,as.matrix(missing_x))
 	 final_results_control<-final_results_control[rownames(final_results),,drop=FALSE]
 	 final_results<-cbind(final_results,final_results_control)
