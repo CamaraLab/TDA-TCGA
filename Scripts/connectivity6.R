@@ -89,15 +89,15 @@ print (paste("Chunk size:",arg$chunk))
 #Loading matrix file to memory and log transforming if log2=TRUE
 h5file<-arg$matrix
 print (paste0("Loading ",h5file, " file to memory"))
-mat_bin<-h5read(h5file,"Mutations_Binary")
+mat_non_syn_bin<-h5read(h5file,"Mutations_Binary")
 mat_non_syn<-h5read(h5file,"Mutations_NS")
 mat_syn<-h5read(h5file,"Mutations_S")
 all_samples<-h5read(h5file,"Mutations_Samples")
 all_genes<-h5read(h5file,"Mutations_Genes")
 
 
-rownames(mat_bin)<-all_samples
-colnames(mat_bin)<-all_genes
+rownames(mat_non_syn_bin)<-all_samples
+colnames(mat_non_syn_bin)<-all_genes
 rownames(mat_non_syn)<-all_samples
 colnames(mat_non_syn)<-all_genes
 rownames(mat_syn)<-all_samples
@@ -147,12 +147,12 @@ colnames(mat_syn)<-all_genes
 	 mat_syn<-mat_syn[sort(rownames(mat_syn)),sort(colnames(mat_syn))]
 	 mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))]
 	 #Binary matrix for connectivity score
-	 mat_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
+	 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
 
 	 }
 
 
-if (arg$log2==TRUE) {mat_bin<-(2^mat_bin)-1} #Preparing for calculation if matrix is log scale
+if (arg$log2==TRUE) {mat_non_syn_bin<-(2^mat_non_syn_bin)-1} #Preparing for calculation if matrix is log scale
 
 #Info_cols is used to set information columns in results output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
@@ -523,7 +523,7 @@ for (file in scan$networks) {
 	 colnames(samples_relabling_table)<-c("original","new")
 	 nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
 	 samples<-unique(unlist(nodes))
-	 matrix1<-mat_bin[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
+	 matrix1<-mat_non_syn_bin[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
 
 	 #Extracting columns from arguments
 	 columns<-column_range(arg$columns)
