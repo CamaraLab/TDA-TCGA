@@ -43,8 +43,7 @@ spec = matrix(c(
   "syn_control","z",2,"logical",
   "rescale","r",2,"numeric",
   "maf","x",2,"character",
-  "scan","y",2,"logical",
-  "test_mode","w",2,"integer"
+  "scan","y",2,"integer"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -71,8 +70,7 @@ if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
   if (is.null(arg$maf)) stop("PROCESSED MAF file must be provided for resscaling")
 }
 
-if ( is.null(arg$scan ) ) {arg$scan= FALSE}
-if ( is.null(arg$test_mode ) ) {arg$test_mode= 0}
+if ( is.null(arg$scan ) ) {arg$scan= 0}
 if ( !is.null(arg$network ) ) {arg$test_mode= 0}
 
 
@@ -423,16 +421,12 @@ p_integrate <- function (p,p_con,n,n_con)
 
 
 ########################### Preparing scan file ###############################
-print("11111111")
-#print (arg$scan)
-	#if (arg$scan==TRUE) {
-print("11111111")
+
 	#Listing all files in the directory (Networks,genes_results and mutload results)
 	if (is.null(arg$network)) {
 	networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
 	
 	} else { networks<-arg$network	}
-print("11111111")	
 	
 	
 	#This commented out part can be used to exclude analysis of file results that exist in folder
@@ -458,8 +452,8 @@ print("11111111")
 	  strsplit(x,"_")[[1]][5]
 	}))
 
-	if (arg$test_mode!=0) { #Removing network files file for test mode
-	  scan<-scan[1:arg$test_mode,]
+	if (arg$scan!=0) { #Removing network files file for test mode
+	  scan<-scan[1:arg$scan,]
 	}
 
 
