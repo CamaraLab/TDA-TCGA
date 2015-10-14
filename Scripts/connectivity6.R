@@ -684,8 +684,8 @@ for (file in scan$networks) {
 	 final_results_control<-results_file(ans)
 
 	 #Coercing non_syn and control results
-	 final_results_control<-final_results_control[,c("n_samples","p_value","q_value"),drop=FALSE]
-	 colnames(final_results_control)<-c("n_samples_con","p_value_con","q_value_con")
+	 final_results_control<-final_results_control[,c("n_samples","c_value","p_value","q_value"),drop=FALSE]
+	 colnames(final_results_control)<-c("n_samples_con","c_value_con","p_value_con","q_value_con")
 	 missing_genes<-setdiff(rownames(final_results),rownames(final_results_control)) #Genes that do not exist in final_Results needed to be completed with NA and zeros
 
 	 missing_n_samples_con<-colSums(matrix1[,missing_genes])
@@ -695,7 +695,7 @@ for (file in scan$networks) {
 	 final_results_control<-rbind(final_results_control,as.matrix(missing_x))
 	 final_results_control<-final_results_control[rownames(final_results),,drop=FALSE]
 	 final_results<-cbind(final_results,final_results_control)
-	 final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","p_value_con","n_samples_con","g_score_syn"),drop=FALSE]
+	 final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","c_value_con","p_value_con","n_samples_con","g_score_syn"),drop=FALSE]
 
 	 #Calculating integrated p_value
 	 n<-as.numeric(final_results[,"n_samples"])
