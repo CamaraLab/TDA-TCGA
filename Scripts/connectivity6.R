@@ -163,29 +163,27 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 
 
 	#################################################################
-	###############Generating mutational load histogram##############
+	###############Generating mutational load histogra##############
 	#################################################################
 
 
-
-	if (arg$mutload==TRUE) {
-	#Adding to matrix1 a column with mutation rate, this will be used to assess hypermutated samples. 
-
-	 mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
-	 mutLoad<-rowSums(mutLoad)#rownames matrix1 is important to account only for samples_of_interes
-	 matrix1<-as.matrix(mutLoad,drop=FALSE)
-	 colnames(matrix1)<-"mutLoad"
-	 columns_of_interest<-"mutLoad"
-	 if (arg$rescale!=0) {
-	   png(paste0(arg$matrix,"_mutload_histogram.png"))
-	   hist(log10(mutLoad),breaks = 100,main="After rescaling")
-	   invisible(dev.off())  
-	 } else {
-	   png(paste0(arg$matrix,"_mutload_histogram.png"))
-	   hist(log10(mutLoad),breaks = 100,main="Before rescaling")
-	   invisible(dev.off())
+	 if (arg$mutload==TRUE) {
+	 
+     
+		 
+		  mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
+		  mutload_dist<-rowSums(mutload_matrix)
+		  if (arg$rescale!=0) {
+		   png("hist_mutLoad_Rescaled.png")
+		   hist(log10(mutload_dist),breaks = 100,main="After rescaling")
+		   invisible(dev.off())  
+		  } else {
+		   png("hist_mutLoad_NoRescaling.png")
+		   hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
+		   invisible(dev.off())
+		  }
+		  
 	 }
-   }
 
 
 
@@ -425,14 +423,17 @@ p_integrate <- function (p,p_con,n,n_con)
 
 
 ########################### Preparing scan file ###############################
-
+print("11111111")
+print (arg$scan)
 	if (arg$scan==TRUE) {
-
+print("11111111")
 	#Listing all files in the directory (Networks,genes_results and mutload results)
 	if (is.null(arg$network)) {
 	networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
 	
 	} else { networks<-arg$network	}
+print("11111111")	
+	
 	
 	#This commented out part can be used to exclude analysis of file results that exist in folder
 	#genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
@@ -577,10 +578,19 @@ for (file in scan$networks) {
 
 	 print(paste0("Columns above threshold: ",length(columns_of_interest)))
 
-
+	 
+	 
+	 
 	 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
-
-
+     
+     if (arg$mutload==TRUE) {
+     #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
+	 	
+		  matrix1<-as.matrix(mutload_dist[samples_of_interest],drop=FALSE)
+		  colnames(matrix1)<-"mutLoad"
+		  columns_of_interest<-"mutLoad"
+	 }
+		
 	 #Initializing results file name and unique id
 	 unique_id<-round(runif(1, min = 111111, max = 222222),0)
 	 file_prefix<-paste0(file,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
@@ -588,14 +598,14 @@ for (file in scan$networks) {
 
 	 
 
-	 if (arg$mutload==TRUE) {
+	 if (arg$mutload==12) {
+	 print ("CCCCC")
 	 #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
      
 		 
 		  mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
-		  if (arg$rescale!=0) {
+			  if (arg$rescale!=0) {
 		   png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
-		   hist(log10(mutLoad),breaks = 100,main="After rescaling")
 		   invisible(dev.off())  
 		  } else {
 		   png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
