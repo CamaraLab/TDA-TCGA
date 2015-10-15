@@ -127,6 +127,7 @@ colnames(mat_syn)<-all_genes
 	 rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
 	 rows_to_remove<-setdiff(rownames(x),rows_to_keep)
 	 maf<-maf[-match(rows_to_remove,rownames(maf)),]
+	 maf$Column_name<-paste0("mut_",maf$Column_name) #Neccesary for downstream process
 
 	 #Creating rescaled matrices 
 	 all_genes<-sort(unique(maf$Column_name))
