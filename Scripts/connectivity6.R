@@ -825,18 +825,16 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
       
     })
     
-    print ("C")
+
     genes<-unlist(genes)
     genes<-genes[complete.cases(genes)]
     unique_genes<-unique(genes)
-    print ("D")
     genes_events<-sapply(unique_genes,function (x) sum(x==genes))
-    print (genes_events)
     return(sort(genes_events,decreasing = T))
     
   }
   
-  print ("A")
+
   #Generating number of events summary file
   q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
   q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
@@ -844,7 +842,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
   
   
-  print ("B")
+
   n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
   length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
   
