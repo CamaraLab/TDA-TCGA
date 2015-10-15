@@ -78,7 +78,7 @@ if ( !is.null(arg$network ) ) {arg$scan= 0}
 print (paste("Number of permutations:",arg$permutations))
 print (paste("Number of cores:",arg$cores))
 print (paste("Chunk size:",arg$chunk))
-      
+
 
 
 ####################################### MUTATIONS MATRIX HANDLING #############################
@@ -104,51 +104,51 @@ colnames(mat_syn)<-all_genes
 
 
 
-	##################RESCALING####################
+##################RESCALING####################
 
 
-	 if (arg$rescale!=0) {
-	 cut<-10^arg$rescale
-	 print ("Initiating rescaling process")
-	 #maf<-read.delim("../../COAD_TEST/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,comment.char = "#",sep="\t")
-	 maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
-	 maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
-	 mat_total<-mat_non_syn+mat_syn #Total number of point mutations
-	 mutLoad<-rowSums(mat_total)
-	 above_cut<-mutLoad[mutLoad>cut]
-	 below_cut<-mutLoad[mutLoad<=cut]
-	 median(above_cut)
-	 median(below_cut)
-	 scale<-floor(median(above_cut)/median(below_cut)) # Rescaling parameter
-
-	 #Detecting mutloadmutated samples and removing from maf file based on scale
-	 mutloadmutated<-names(above_cut)
-	 x<-maf[maf$Tumor_Sample_Barcode %in% mutloadmutated,]
-	 rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
-	 rows_to_remove<-setdiff(rownames(x),rows_to_keep)
-	 maf<-maf[-match(rows_to_remove,rownames(maf)),]
-	 maf$Column_name<-paste0("mut_",maf$Column_name) #Neccesary for downstream process
-
-	 #Creating rescaled matrices 
-	 all_genes<-sort(unique(maf$Column_name))
-	 all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
-	 mat_syn<-matrix(0,length(all_samples),length(all_genes))  
-	 dimnames(mat_syn)<-list(all_samples,all_genes)
-	 mat_non_syn<-mat_syn #Replicating mat_syn
-
-	 #Creating table of Synonymous mutations for Sample vs Entrez_Gene_Id
-	 t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
-	 t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
-
-	 #Plugging tables into matrices
-	 mat_syn[rownames(t_syn),colnames(t_syn)]<-t_syn
-	 mat_non_syn[rownames(t_non_syn),colnames(t_non_syn)]<-t_non_syn
-	 mat_syn<-mat_syn[sort(rownames(mat_syn)),sort(colnames(mat_syn))]
-	 mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))]
-	 #Binary matrix for connectivity score
-	 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
-
-	 }
+if (arg$rescale!=0) {
+  cut<-10^arg$rescale
+  print ("Initiating rescaling process")
+  #maf<-read.delim("../../COAD_TEST/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,comment.char = "#",sep="\t")
+  maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
+  maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
+  mat_total<-mat_non_syn+mat_syn #Total number of point mutations
+  mutLoad<-rowSums(mat_total)
+  above_cut<-mutLoad[mutLoad>cut]
+  below_cut<-mutLoad[mutLoad<=cut]
+  median(above_cut)
+  median(below_cut)
+  scale<-floor(median(above_cut)/median(below_cut)) # Rescaling parameter
+  
+  #Detecting mutloadmutated samples and removing from maf file based on scale
+  mutloadmutated<-names(above_cut)
+  x<-maf[maf$Tumor_Sample_Barcode %in% mutloadmutated,]
+  rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
+  rows_to_remove<-setdiff(rownames(x),rows_to_keep)
+  maf<-maf[-match(rows_to_remove,rownames(maf)),]
+  #maf$Column_name<-paste0("mut_",maf$Column_name) #Neccesary for downstream process
+  
+  #Creating rescaled matrices 
+  all_genes<-sort(unique(maf$Column_name))
+  all_samples<-sort(unique(maf$Tumor_Sample_Barcode))
+  mat_syn<-matrix(0,length(all_samples),length(all_genes))  
+  dimnames(mat_syn)<-list(all_samples,all_genes)
+  mat_non_syn<-mat_syn #Replicating mat_syn
+  
+  #Creating table of Synonymous mutations for Sample vs Entrez_Gene_Id
+  t_syn<-with(maf[maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+  t_non_syn<-with(maf[!maf$Synonymous,],table(Tumor_Sample_Barcode,Column_name))
+  
+  #Plugging tables into matrices
+  mat_syn[rownames(t_syn),colnames(t_syn)]<-t_syn
+  mat_non_syn[rownames(t_non_syn),colnames(t_non_syn)]<-t_non_syn
+  mat_syn<-mat_syn[sort(rownames(mat_syn)),sort(colnames(mat_syn))]
+  mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))]
+  #Binary matrix for connectivity score
+  mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
+  
+}
 
 
 if (arg$log2==TRUE) {mat_non_syn_bin<-(2^mat_non_syn_bin)-1} #Preparing for calculation if matrix is log scale
@@ -161,24 +161,24 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 
 
 
-	#################################################################
-	###############Generating mutational load histogra##############
-	#################################################################
+#################################################################
+###############Generating mutational load histogra##############
+#################################################################
 
-	 
-     
-		  mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
-		  mutload_dist<-rowSums(mutload_matrix)
-		  if (arg$rescale!=0) {
-		   png("hist_mutLoad_Rescaled.png")
-		   hist(log10(mutload_dist),breaks = 100,main="After rescaling")
-		   invisible(dev.off())  
-		  } else {
-		   png("hist_mutLoad_NoRescaling.png")
-		   hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
-		   invisible(dev.off())
-		  }
-		
+
+
+mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
+mutload_dist<-rowSums(mutload_matrix)
+if (arg$rescale!=0) {
+  png("hist_mutLoad_Rescaled.png")
+  hist(log10(mutload_dist),breaks = 100,main="After rescaling")
+  invisible(dev.off())  
+} else {
+  png("hist_mutLoad_NoRescaling.png")
+  hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
+  invisible(dev.off())
+}
+
 
 
 
@@ -358,7 +358,7 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     ans<-list(output,rbind(Genes,pi_values))
     
     return(ans) 
-   
+    
   })
   print("Releasing cores")
   stopCluster(cl) # Releasing acquired CPU cores
@@ -375,7 +375,7 @@ results_file<-function(ans) {
   final_results<-NULL
   for (i in 1:length(ans))
     final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
-
+  
   final_results<-as.matrix(final_results,rownames.force = T,drop=FALSE)
   pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
   #final_results<-final_results[!pi_zero_genes,,drop=FALSE]
@@ -418,39 +418,39 @@ p_integrate <- function (p,p_con,n,n_con)
 
 ########################### Preparing scan file ###############################
 
-	#Listing all files in the directory (Networks,genes_results and mutload results)
-	if (is.null(arg$network)) {
-	networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
-	
-	} else { networks<-arg$network	}
-	
-	
-	#This commented out part can be used to exclude analysis of file results that exist in folder
-	#genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
-	#mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
+#Listing all files in the directory (Networks,genes_results and mutload results)
+if (is.null(arg$network)) {
+  networks<-gsub('.{5}$', '', list.files(pattern=paste0(".json")))
+  
+} else { networks<-arg$network	}
 
-	# Inferring network files that have not been processed yet
-	#networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
-	#networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
-	#networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
-	#networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
-	#scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
-	#scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
-	#scan<-read.csv("dict.csv",as.is=T)
-	
-	scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,samples_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,stringsAsFactors = F)
 
-	scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
-	  strsplit(x,"_")[[1]][4]
-	}))
+#This commented out part can be used to exclude analysis of file results that exist in folder
+#genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
+#mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
 
-	scan$gain<-as.numeric(sapply(scan$networks, function (x) {
-	  strsplit(x,"_")[[1]][5]
-	}))
+# Inferring network files that have not been processed yet
+#networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
+#networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
+#networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
+#networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
+#scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
+#scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
+#scan<-read.csv("dict.csv",as.is=T)
 
-	if (arg$scan!=0) { #Removing network files file for test mode
-	  scan<-scan[1:arg$scan,]
-	}
+scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,samples_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,stringsAsFactors = F)
+
+scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
+  strsplit(x,"_")[[1]][4]
+}))
+
+scan$gain<-as.numeric(sapply(scan$networks, function (x) {
+  strsplit(x,"_")[[1]][5]
+}))
+
+if (arg$scan!=0) { #Removing network files file for test mode
+  scan<-scan[1:arg$scan,]
+}
 
 
 
@@ -463,275 +463,295 @@ p_integrate <- function (p,p_con,n,n_con)
 ############################################################################################################
 ################### Running connectivity analysis for networks in scan table ##############################
 ############################################################################################################
-	
-count<-0
 
+count<-0
+global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
 #for (file in scan$networks[scan$mutload_connectivity]) {
 for (file in scan$networks) {
-	   count<-count+1  
-	   print("*********************************************")
-	   print (paste("Analyzing network:",file,"-",count,"out of",nrow(scan)))
-	   print (paste("Number of permutations:",arg$permutations))
-	   print (paste("Number of CPU cores:",arg$cores))
-	  
-	  #run_line<-paste("Rscript", arg$connectivity, "-p",arg$permutations,"-h TRUE -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
-	  #system(run_line)
-
-	 #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
-	 print ("Parsing json and gexf files")
-	 graph_name<-file
-	 json_file<-paste0(graph_name,".json")
-	 gexf_file<-paste0(graph_name,".gexf")
-	 graph_gexf<-read.gexf(gexf_file)
-	 graph_igraph<-gexf.to.igraph(graph_gexf)
-
-	 nodes<-fromJSON(json_file) #List of samples within nodes
-	 names(nodes)<-as.numeric(names(nodes))+1 # Starting node is 1 - rownames
-	 edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
-
-	 #Subsetting for the largest connected subgraph
-	 cluster_list<-clusters(graph_igraph)
-	 largest_cluster_id<-which.max(cluster_list$csize)
-	 largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
-	 edges<-subset(edges,edges[,1] %in% (largest_cluster_nodes))
-	 nodes<-nodes[largest_cluster_nodes]
-
-
-	 #relabling nodes and updating edges accordingly
-	 nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
-	 rownames(nodes_relabling_table)<-largest_cluster_nodes
-	 colnames(nodes_relabling_table)<-c("original","new")
-	 edges<-apply(edges,2,function(x) sapply(x,function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"]))
-	 if(length(edges)==2) edges<-t(as.matrix(edges)) #extreme event when there is only one edge
-	 names(nodes)<-sapply(names(nodes),function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"])
-
-	 #Relabling samples
-	 nodes<-lapply(nodes,function(x) x+1) #Adding one to each smaple label min(sample)==1 
-	 samples<-unique(unlist(nodes))
-	 samples_relabling_table<-cbind(samples,1:length(samples)) #Creating relabling table
-	 rownames(samples_relabling_table)<-samples
-	 colnames(samples_relabling_table)<-c("original","new")
-	 nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
-	 samples<-unique(unlist(nodes))
-	 matrix1<-mat_non_syn_bin[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
-
-	 #Extracting columns from arguments
-	 columns<-column_range(arg$columns)
-	 #Removing columns below samples_threshold from the first connected graph
-	 matrix1<-matrix1[,columns,drop=FALSE] #Subsetting for selected columns
-
-
-
-	 #Choosing genes based on score
-	 samples_of_interest<-rownames(matrix1)
-
-	 # Taking record of sample sizes
-	
-	 scan[scan$networks==file,]$original_samples<-length(all_samples)
-	 scan[scan$networks==file,]$first_connected_samples<-length(samples_of_interest)
-
-	 ###############################################
-	 ##################RESCALING WAS HERE####################
-	 ###############################################
-
-	
-	
-	
-	##########################################
-	############THRESHOLDING SECTION###########
-    ##########################################
-
-
-	# selecting genes based on thresholds
-	
-     samples_threshold<-ceiling(arg$samples_threshold*length(samples_of_interest))
-     scan[scan$networks==file,]$samples_threshold<-samples_threshold
-     print (paste("Samples in original dataset:",length(all_samples)))
-     print (paste("Samples in first connected graph:",length(samples_of_interest)))
-     print (paste("Samples threshold is set to:",samples_threshold))
-     print (paste("Top genes score threshold is set to:",arg$g_score_threshold))
-     
-	 genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
-	 genes_below_samples_threshold<-names(which(genes_number_of_samples<samples_threshold))
-	 genes_above_samples_threshold<-names(which(genes_number_of_samples>=samples_threshold)) #For filtering by number  of mutations exist in a sample
-
-
-	 
-
-	 if (arg$score_type=="lam") {
-	 g_score<-g_score_calc(arg$score_type,samples_of_interest,all_genes) #all_genes_Lambda scores needs all genes into account 
-	 } else
-	 g_score<-g_score_calc(arg$score_type,samples_of_interest,genes_above_samples_threshold) #Syn/old only over sample thresholded genes 
-
-	 columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #Filtering by g-score
-
-	 print(paste0("Columns above threshold: ",length(columns_of_interest)))
-
-	 
-	 
-	 
-	 matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
-     
-     if (arg$mutload==TRUE) {
-     #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
-	 	
-		  matrix1<-as.matrix(mutload_dist[samples_of_interest],drop=FALSE)
-		  colnames(matrix1)<-"mutLoad"
-		  columns_of_interest<-"mutLoad"
-	 }
-		
-	 #Initializing results file name and unique id
-	 unique_id<-round(runif(1, min = 111111, max = 222222),0)
-	 file_prefix<-paste0(file,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
-	 print(paste("File unique identifier:",unique_id))
-
-	 
-
-	 if (arg$mutload==12) {
-	 print ("CCCCC")
-	 #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
-     
-		 
-		  mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
-			  if (arg$rescale!=0) {
-		   png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
-		   invisible(dev.off())  
-		  } else {
-		   png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
-		   hist(log10(mutLoad),breaks = 100,main="Before rescaling")
-		   invisible(dev.off())
-		  }
-		  
-		  mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
-		  matrix1<-as.matrix(mutLoad,drop=FALSE)
-		  colnames(matrix1)<-"mutLoad"
-		  columns_of_interest<-"mutLoad"
-		  
-	 }
-
-	# info_cols was here
-
-	 #Printing thresholded genes
-	 #thresholded_genes1<-genes_below_samples_threshold
-	 #thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
-	 #write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
-	 #write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
-
-
-
-	 
-	 #Writing log file
-	 suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
-	 suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
-	 suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
-	 suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
-	 suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
-	 suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
-	 suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
-
-
-
-
-	 #logger <- create.logger(logfile = 'debugging.log', level = 1)
-	 #info(logger,paste("Number of permutations: ",arg$permutations))
-	 #info(logger,paste("Samples threshold: ",arg$samples_threshold))
-
-
-	 permutations<-arg$permutations
-	 edges1<-edges[,1] #Nodes i
-	 edges2<-edges[,2] #Nodes j
-	 num_nodes<-length(nodes)
-
-
-	 print (Sys.time())
-	 ptm<-proc.time()
-
-
-
-
-	 ######################### CONNECTIVITY ANALYSIS ##############################################3
-	 
-	 print ("Starting connectivity analysis:")
-	 if (arg$mutload==TRUE) {
-		print (paste("Mutload Connectivity for Graph"))
-	 	ans<-connectivity_analysis(columns_of_interest,matrix1)
-	 	final_results<-results_file(ans)
-	 	scan[scan$networks==file,]$mutload<-final_results[,"p_value"]
-
-	 
-	 } else {   # Genes analysys
-			print (paste("Genes Connectivity for Graph"))
-			ans<-connectivity_analysis(columns_of_interest,matrix1)
-	 		final_results<-results_file(ans)
-	 		scan[scan$networks==file,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
-	 		scan[scan$networks==file,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
-	 		scan[scan$networks==file,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
-	 		scan[scan$networks==file,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
-	 }
-	 			
-	 
-
-		################ pii_value generations goes here - pushed to end##################
-	
-
-
-
-	 
-	 ##################Synonymous control###############
-	 if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
-	 print ("Starting control connectivity analysis:")
-	 matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
-	 matrix1<-matrix1[samples_of_interest,names(columns_of_interest),drop=FALSE] # Subsetting for samples of interest
-	 ans<-connectivity_analysis(columns_of_interest,matrix1) #Running connectivity analysis
-	 final_results_control<-results_file(ans)
-
-	 #Coercing non_syn and control results
-	 final_results_control<-final_results_control[,c("n_samples","c_value","p_value","q_value"),drop=FALSE]
-	 colnames(final_results_control)<-c("n_samples_con","c_value_con","p_value_con","q_value_con")
-	 missing_genes<-setdiff(rownames(final_results),rownames(final_results_control)) #Genes that do not exist in final_Results needed to be completed with NA and zeros
-
-	 missing_n_samples_con<-colSums(matrix1[,missing_genes])
-	 missing_p_value_con<-rep(NA,length(missing_genes))
-	 missing_q_value_con<-rep(NA,length(missing_genes))
-	 missing_c_value_con<-rep(NA,length(missing_genes))
-	 missing_x<-data.frame(missing_n_samples_con,missing_c_value_con,missing_p_value_con,missing_q_value_con)
-	 final_results_control<-rbind(final_results_control,as.matrix(missing_x))
-	 final_results_control<-final_results_control[rownames(final_results),,drop=FALSE]
-	 final_results<-cbind(final_results,final_results_control)
-	 final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","c_value_con","p_value_con","n_samples_con","g_score_syn"),drop=FALSE]
-
-	 #Calculating integrated p_value
-	 n<-as.numeric(final_results[,"n_samples"])
-	 n_con<-as.numeric(final_results[,"n_samples_con"])
-	 p<-as.numeric(final_results[,"p_value"])
-	 p_con<-as.numeric(final_results[,"p_value_con"])
-
-	 p_integrated<-p_integrate(p,p_con,n,n_con)
-	 q_integrated<-p.adjust(p_integrated,"fdr")
-
-	 final_results<-cbind(final_results,p_integrated,q_integrated)
-
-	 }
-
-	##################Fixing final results file and some printings#####################
-
-		
-
-	 if (arg$mutload==TRUE) {
-	 file_sufix<-"_mutload_results.csv"
-	 } else {file_sufix<-"_genes_results.csv"}
-
-	 if (arg$mutload==FALSE) {
-	 final_results[,"Gene_Symbol"]<-sapply(final_results[,"Gene_Symbol"],function (x) strsplit(x,"mut_")[[1]][2])  
-	 }
-
-	 write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
-
-	 run_t<-round(proc.time()-ptm,4) #Calculating run time
-	 speed_index<-run_t[3]*500/arg$permutations/length(columns)
-	 print(paste("Runtime in seconds:",run_t[3]))
-	 print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
-	    
+  count<-count+1  
+  print("*********************************************")
+  print (paste("Analyzing network:",file,"-",count,"out of",nrow(scan)))
+  print (paste("Number of permutations:",arg$permutations))
+  print (paste("Number of CPU cores:",arg$cores))
+  
+  #run_line<-paste("Rscript", arg$connectivity, "-p",arg$permutations,"-h TRUE -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
+  #system(run_line)
+  
+  #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
+  print ("Parsing json and gexf files")
+  graph_name<-file
+  json_file<-paste0(graph_name,".json")
+  gexf_file<-paste0(graph_name,".gexf")
+  graph_gexf<-read.gexf(gexf_file)
+  
+  ########### Checking number of edges by adding one edge to a test graph#########################
+  test_graph_gexf<-add.gexf.edge(graph_gexf,1,2)
+  test_graph_igraph<-gexf.to.igraph(test_graph_gexf)
+  edges_num<-ecount(test_graph_igraph)-1
+  print (paste("Number of edges in network:",edges_num))
+  
+  if (edges_num==0) {
+    graph_igraph<-gexf.to.igraph(test_graph_gexf)
+  } else graph_igraph<-gexf.to.igraph(graph_gexf)
+  
+  nodes<-fromJSON(json_file) #List of samples within nodes
+  names(nodes)<-as.numeric(names(nodes))+1 # Starting node is 1 - rownames
+  edges<-get.edgelist(graph_igraph,names=FALSE) # List of nodes and edges
+  
+  #Subsetting for the largest connected subgraph
+  cluster_list<-clusters(graph_igraph)
+  largest_cluster_id<-which.max(cluster_list$csize)
+  largest_cluster_nodes<-which(cluster_list$membership==largest_cluster_id)
+  edges<-subset(edges,edges[,1] %in% (largest_cluster_nodes))
+  nodes<-nodes[largest_cluster_nodes]
+  
+  
+  #relabling nodes and updating edges accordingly
+  nodes_relabling_table<-cbind(largest_cluster_nodes,1:length(largest_cluster_nodes))
+  rownames(nodes_relabling_table)<-largest_cluster_nodes
+  colnames(nodes_relabling_table)<-c("original","new")
+  edges<-apply(edges,2,function(x) sapply(x,function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"]))
+  if(length(edges)==2) edges<-t(as.matrix(edges)) #extreme event when there is only one edge
+  names(nodes)<-sapply(names(nodes),function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"])
+  
+  #Relabling samples
+  nodes<-lapply(nodes,function(x) x+1) #Adding one to each smaple label min(sample)==1 
+  samples<-unique(unlist(nodes))
+  samples_relabling_table<-cbind(samples,1:length(samples)) #Creating relabling table
+  rownames(samples_relabling_table)<-samples
+  colnames(samples_relabling_table)<-c("original","new")
+  nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
+  samples<-unique(unlist(nodes))
+  matrix1<-mat_non_syn_bin[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
+  
+  #Extracting columns from arguments
+  columns<-column_range(arg$columns)
+  #Removing columns below samples_threshold from the first connected graph
+  matrix1<-matrix1[,columns,drop=FALSE] #Subsetting for selected columns
+  
+  
+  
+  #Choosing genes based on score
+  samples_of_interest<-rownames(matrix1)
+  
+  # Taking record of sample sizes
+  
+  scan[scan$networks==file,]$original_samples<-length(all_samples)
+  scan[scan$networks==file,]$first_connected_samples<-length(samples_of_interest)
+  
+  ###############################################
+  ##################RESCALING WAS HERE####################
+  ###############################################
+  
+  
+  
+  
+  ##########################################
+  ############THRESHOLDING SECTION###########
+  ##########################################
+  
+  
+  # selecting genes based on thresholds
+  
+  samples_threshold<-ceiling(arg$samples_threshold*length(samples_of_interest))
+  scan[scan$networks==file,]$samples_threshold<-samples_threshold
+  print (paste("Samples in original dataset:",length(all_samples)))
+  print (paste("Samples in first connected graph:",length(samples_of_interest)))
+  print (paste("Samples threshold is set to:",samples_threshold))
+  print (paste("Top genes score threshold is set to:",arg$g_score_threshold))
+  
+  genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
+  genes_below_samples_threshold<-names(which(genes_number_of_samples<samples_threshold))
+  genes_above_samples_threshold<-names(which(genes_number_of_samples>=samples_threshold)) #For filtering by number  of mutations exist in a sample
+  
+  
+  
+  
+  if (arg$score_type=="lam") {
+    g_score<-g_score_calc(arg$score_type,samples_of_interest,all_genes) #all_genes_Lambda scores needs all genes into account 
+  } else
+    g_score<-g_score_calc(arg$score_type,samples_of_interest,genes_above_samples_threshold) #Syn/old only over sample thresholded genes 
+  
+  columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #Filtering by g-score
+  
+  print(paste0("Columns above threshold: ",length(columns_of_interest)))
+  
+  
+  
+  
+  matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
+  
+  if (arg$mutload==TRUE) {
+    #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
+    
+    matrix1<-as.matrix(mutload_dist[samples_of_interest],drop=FALSE)
+    colnames(matrix1)<-"mutLoad"
+    columns_of_interest<-"mutLoad"
+  }
+  
+  #Initializing results file name and unique id
+  unique_id<-round(runif(1, min = 111111, max = 222222),0)
+  file_prefix<-paste0(file,"_",arg$matrix,"-",unique_id,"-",Sys.Date())
+  print(paste("File unique identifier:",unique_id))
+  
+  
+  
+  if (arg$mutload==12) {
+    print ("CCCCC")
+    #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
+    
+    
+    mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
+    if (arg$rescale!=0) {
+      png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
+      invisible(dev.off())  
+    } else {
+      png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
+      hist(log10(mutLoad),breaks = 100,main="Before rescaling")
+      invisible(dev.off())
+    }
+    
+    mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
+    matrix1<-as.matrix(mutLoad,drop=FALSE)
+    colnames(matrix1)<-"mutLoad"
+    columns_of_interest<-"mutLoad"
+    
+  }
+  
+  # info_cols was here
+  
+  #Printing thresholded genes
+  #thresholded_genes1<-genes_below_samples_threshold
+  #thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
+  #write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
+  #write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
+  
+  
+  
+  
+  #Writing log file
+  suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
+  
+  
+  
+  
+  #logger <- create.logger(logfile = 'debugging.log', level = 1)
+  #info(logger,paste("Number of permutations: ",arg$permutations))
+  #info(logger,paste("Samples threshold: ",arg$samples_threshold))
+  
+  
+  permutations<-arg$permutations
+  edges1<-edges[,1] #Nodes i
+  edges2<-edges[,2] #Nodes j
+  num_nodes<-length(nodes)
+  
+  
+  print (Sys.time())
+  ptm<-proc.time()
+  
+  
+  
+  
+  ######################### CONNECTIVITY ANALYSIS ##############################################3
+  
+  if (edges_num!=0) {
+    
+    
+        print ("Starting connectivity analysis:")
+        if (arg$mutload==TRUE) {
+          print (paste("Mutload Connectivity for Graph"))
+          ans<-connectivity_analysis(columns_of_interest,matrix1)
+          final_results<-results_file(ans)
+          scan[scan$networks==file,]$mutload<-final_results[,"p_value"]
+          
+          
+        } else {   # Genes analysys
+          print (paste("Genes Connectivity for Graph"))
+          ans<-connectivity_analysis(columns_of_interest,matrix1)
+          final_results<-results_file(ans)
+          scan[scan$networks==file,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
+          scan[scan$networks==file,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
+          scan[scan$networks==file,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
+          scan[scan$networks==file,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
+        }
+        
+        
+        
+        ################ pii_value generations goes here - pushed to end##################
+    
+    
+    
+    
+          
+          ##################Synonymous control###############
+          if (arg$syn_control==TRUE & length(columns_of_interest)!=0) {
+            print ("Starting control connectivity analysis:")
+            matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
+            matrix1<-matrix1[samples_of_interest,names(columns_of_interest),drop=FALSE] # Subsetting for samples of interest
+            ans<-connectivity_analysis(columns_of_interest,matrix1) #Running connectivity analysis
+            final_results_control<-results_file(ans)
+            
+            #Coercing non_syn and control results
+            final_results_control<-final_results_control[,c("n_samples","c_value","p_value","q_value"),drop=FALSE]
+            colnames(final_results_control)<-c("n_samples_con","c_value_con","p_value_con","q_value_con")
+            missing_genes<-setdiff(rownames(final_results),rownames(final_results_control)) #Genes that do not exist in final_Results needed to be completed with NA and zeros
+            
+            missing_n_samples_con<-colSums(matrix1[,missing_genes])
+            missing_p_value_con<-rep(NA,length(missing_genes))
+            missing_q_value_con<-rep(NA,length(missing_genes))
+            missing_c_value_con<-rep(NA,length(missing_genes))
+            missing_x<-data.frame(missing_n_samples_con,missing_c_value_con,missing_p_value_con,missing_q_value_con)
+            final_results_control<-rbind(final_results_control,as.matrix(missing_x))
+            final_results_control<-final_results_control[rownames(final_results),,drop=FALSE]
+            final_results<-cbind(final_results,final_results_control)
+            final_results<-final_results[,c("Gene_Symbol","EntrezID","c_value","p_value","n_samples","q_value","c_value_con","p_value_con","n_samples_con","g_score_syn"),drop=FALSE]
+            
+            #Calculating integrated p_value
+            n<-as.numeric(final_results[,"n_samples"])
+            n_con<-as.numeric(final_results[,"n_samples_con"])
+            p<-as.numeric(final_results[,"p_value"])
+            p_con<-as.numeric(final_results[,"p_value_con"])
+            
+            p_integrated<-p_integrate(p,p_con,n,n_con)
+            q_integrated<-p.adjust(p_integrated,"fdr")
+            
+            final_results<-cbind(final_results,p_integrated,q_integrated)
+            
+          }
+          
+          ##################Fixing final results file and some printings#####################
+          
+          
+          
+          if (arg$mutload==TRUE) {
+            file_sufix<-"_mutload_results.csv"
+          } else {file_sufix<-"_genes_results.csv"}
+          
+          if (arg$mutload==FALSE) {
+            final_results[,"Gene_Symbol"]<-sapply(final_results[,"Gene_Symbol"],function (x) strsplit(x,"mut_")[[1]][2])  
+          }
+          
+          write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
+          
+          run_t<-round(proc.time()-ptm,4) #Calculating run time
+          speed_index<-run_t[3]*500/arg$permutations/length(columns)
+          print(paste("Runtime in seconds:",run_t[3]))
+          print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
+          
+        } else {
+          print ("NO EDGES IN THE GRAPH ONLY SCAN FILE IS PRODUCED")
+          scan[scan$networks==file,][,7:ncol(scan)]<-0  # NO EDGES IN THE GRAPH
+          
+        }
+        
+  
+  
 }
 
 
@@ -756,93 +776,97 @@ ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) +
 
 
 if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
-
-
-	 #connectivity_q_value_plot
-	 q_threshold_range<-c(0.1,0.15,0.2)
-	 for (threshold in q_threshold_range) {
-
-		q_value_dist<-scan[,paste0("q_",threshold)]
-		title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
-
-		ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
-		scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-		geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
-		ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
- 
-	 }
-
-	 #connectivity_p_value_plot
-	 p_value_dist<-scan$p_0.05
-	 ggplot(scan, aes(x=resolution, y=gain, color=p_value_dist, label=p_value_dist)) + 
-	  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-	  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-	  ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
-
-
-
-
-	 genes_results_files<-
-	  sapply(scan$networks,function (x) {
-		results<-list.files(pattern=paste0("^",x,".*_genes_results"))
-		if (length(results)==0) {results<-NA}
-		return(results)
-	  })
-
-
-
-
-	 ################ Number of events per gene###########################
-
-	 #Calculates sum of a particular feature for a list of genes across scan results
-	 number_of_events<-function(genes_results_files,feature,threshold) {
-
-	  genes<-sapply(genes_results_files,function (file)
-	  {
-		if (!is.na(file)) {
-		  results<-read.csv(file,as.is=T)
-		  results<-results$Gene_Symbol[results[,feature]<=threshold]  
-		}
-
-	  })
-
-	  genes<-unlist(genes)
-	  genes<-genes[complete.cases(genes)]
-	  unique_genes<-unique(genes)
-
-	  genes_events<-sapply(unique_genes,function (x) sum(x==genes))
-	  return(sort(genes_events,decreasing = T))
-
-	 }
-
-	 #Generating number of events summary file
-	 q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
-	 q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
-	 q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
-	 p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
-
-	 n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
-	 length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
-
-	 events<-data.frame(
-			  q_value_0.1,
-			  q_value_0.15,
-			  q_value_0.2,
-			  p_value_0.05
-			  )
-
-	 colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-	 write.csv(events,"number_of_events.csv")
-
-
-
-	    
+  
+  
+  #connectivity_q_value_plot
+  q_threshold_range<-c(0.1,0.15,0.2)
+  for (threshold in q_threshold_range) {
+    q_value_dist<-scan[,paste0("q_",threshold)]
+    title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
+    
+    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist)) + 
+      #scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
+      ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
+    
+  }
+  
+  #connectivity_p_value_plot
+  p_value_dist<-scan$p_0.05
+  ggplot(scan, aes(x=resolution, y=gain, label=p_value_dist)) + 
+    #scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
+    ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
+  
+  
+  
+  
+  genes_results_files<-
+    sapply(scan$networks,function (x) {
+      results<-list.files(pattern=paste0("^",x,".*_genes_results"))
+      if (length(results)==0) {results<-NA}
+      return(results)
+    })
+  
+  print (genes_results_files)
+  
+  
+  ################ Number of events per gene###########################
+  
+  #Calculates sum of a particular feature for a list of genes across scan results
+  number_of_events<-function(genes_results_files,feature,threshold) {
+    
+    genes<-sapply(genes_results_files,function (file)
+    {
+      if (!is.na(file)) {
+        results<-read.csv(file,as.is=T)
+        results<-results$Gene_Symbol[results[,feature]<=threshold]  
+      }
+      
+    })
+    
+    print ("C")
+    genes<-unlist(genes)
+    genes<-genes[complete.cases(genes)]
+    unique_genes<-unique(genes)
+    print ("D")
+    genes_events<-sapply(unique_genes,function (x) sum(x==genes))
+    print (genes_events)
+    return(sort(genes_events,decreasing = T))
+    
+  }
+  
+  print ("A")
+  #Generating number of events summary file
+  q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
+  q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
+  q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
+  p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
+  
+  
+  print ("B")
+  n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
+  length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
+  
+  events<-data.frame(
+    q_value_0.1,
+    q_value_0.15,
+    q_value_0.2,
+    p_value_0.05
+  )
+  
+  colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
+  write.csv(events,"number_of_events.csv")
+  
+  
+  
+  
 } else {   # MUTLOAD PLOT
-	ggplot(scan, aes(x=factor(resolution), y=gain)) + 
-  	geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
-  	guides(color = guide_legend(title = paste("mutload <= 0.05"),
-                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
-
+  ggplot(scan, aes(x=factor(resolution), y=gain)) + 
+    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+    guides(color = guide_legend(title = paste("mutload <= 0.05"),
+                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
+  
 }
 
 
@@ -852,21 +876,25 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 
 
-print ("Moving files to Results Directory")
-if (!file.exists("Results")) {dir.create("Results")}
+
+results_dir<-paste0("Results_",arg$matrix,"_",global_unique_id)
+results_tar<-paste0("Results_",arg$matrix,"_",global_unique_id,".tar.gz")
+print (paste("Moving files to Results Directory:",results_dir))
+
+dir.create(results_dir)
 if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
 csv_files<-list.files(pattern = "*.csv")
 png_files<-list.files(pattern = "*.png")
 
 files_to_move_to_results<-c(csv_files,png_files)
-x<-file.rename(files_to_move_to_results,paste0("Results/",files_to_move_to_results))
+x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
-  tar(paste0("Results_",arg$matrix,".tar.gz"),"Results")
+  tar(results_tar,results_dir)
 } else {
-        print ("This files were not moved to Results dir:")
-        print (files_to_move_to_results[!x])
+  print ("This files were not moved to Results dir:")
+  print (files_to_move_to_results[!x])
 }
 
 
@@ -875,18 +903,18 @@ if (sum(x)==length(files_to_move_to_results)) {
 #####################OLD FUNCTIONS AND PROCEDURES########################
 ##########################################################################
 
- #############################################################
-	 #Generating pii_values table
-	 #pi_values_table<-NULL
-	 #for (i in 1:length(ans))
-	 #  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
-	 #colnames(pi_values_table)<-pi_values_table[1,]
-	 #pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
-	 #############################################################
+#############################################################
+#Generating pii_values table
+#pi_values_table<-NULL
+#for (i in 1:length(ans))
+#  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
+#colnames(pi_values_table)<-pi_values_table[1,]
+#pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
+#############################################################
 
-	 #Writing final results and pii_values files
-	 #write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
-	 #write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
+#Writing final results and pii_values files
+#write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
+#write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
 
 
 
@@ -895,7 +923,7 @@ if (sum(x)==length(files_to_move_to_results)) {
 
 
 #extract_value<-function (files,feature,threshold)  {
-  #Gets a feature(p_value) and a threshold (0.05) and extract the number of observations across list of files below that threshold for this feature
+#Gets a feature(p_value) and a threshold (0.05) and extract the number of observations across list of files below that threshold for this feature
 #  ans<-sapply(files,function (file) {
 #    if (length(file)!=1 | is.na(file)) {
 #      results<-NA
@@ -912,7 +940,7 @@ if (sum(x)==length(files_to_move_to_results)) {
 #genes q_value plot
 #threshold_range<-c(0.1,0.15,0.2)
 #for (threshold in threshold_range) {
-  
+
 #  q_value_dist<-extract_value(genes_results_files,"q_value",threshold)
 #  title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
 #  ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
