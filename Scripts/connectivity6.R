@@ -502,6 +502,7 @@ for (file in scan$networks) {
 	 rownames(nodes_relabling_table)<-largest_cluster_nodes
 	 colnames(nodes_relabling_table)<-c("original","new")
 	 edges<-apply(edges,2,function(x) sapply(x,function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"]))
+	 if(length(edges)==2) edges<-t(as.matrix(edges)) #extreme event when there is only one edge
 	 names(nodes)<-sapply(names(nodes),function(old_label) old_label<-nodes_relabling_table[as.character(old_label),"new"])
 
 	 #Relabling samples
