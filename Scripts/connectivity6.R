@@ -111,9 +111,7 @@ if (arg$rescale!=0) {
   cut<-10^arg$rescale
   print ("Initiating rescaling process")
   #maf<-read.delim("../../COAD_TEST/Mutations/PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf",header = TRUE,as.is=T,comment.char = "#",sep="\t")
-  maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
-  maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
-  mat_total<-mat_non_syn+mat_syn #Total number of point mutations
+  mat_total<-mat_non_syn+mat_syn #Total number of point mutations before rescaling
   mutLoad<-rowSums(mat_total)
   above_cut<-mutLoad[mutLoad>cut]
   below_cut<-mutLoad[mutLoad<=cut]
@@ -122,12 +120,16 @@ if (arg$rescale!=0) {
   scale<-floor(median(above_cut)/median(below_cut)) # Rescaling parameter
   
   #Detecting mutloadmutated samples and removing from maf file based on scale
-  mutloadmutated<-names(above_cut)
+  maf<-read.delim(arg$maf,header = TRUE,as.is=T,comment.char = "#",sep="\t")
+  maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15)
+  
+  mutloadmutated<-names(above_cut) #samples that appear to be hyper mutated
   x<-maf[maf$Tumor_Sample_Barcode %in% mutloadmutated,]
   rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
   rows_to_remove<-setdiff(rownames(x),rows_to_keep)
   maf<-maf[-match(rows_to_remove,rownames(maf)),]
-  #maf$Column_name<-paste0("mut_",maf$Column_name) #Neccesary for downstream process
+  maf$Column_name<-paste0("mut_",maf$Column_name) #Necessary for downstream process
+  maf<-maf[maf$Tumor_Sample_Barcode %in% all_samples,] #Intersecting MAF file with all_samples
   
   #Creating rescaled matrices 
   all_genes<-sort(unique(maf$Column_name))
