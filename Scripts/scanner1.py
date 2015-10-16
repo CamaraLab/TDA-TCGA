@@ -7,6 +7,7 @@ import random
 import requests
 import pickle
 import csv
+import os
 
 def ParseAyasdiGraph(source, lab, user, password, name):
     """
@@ -95,15 +96,18 @@ for g in gain_range:
 	for r in res_range:
 		counter+=1
 		name = args.cancer_name + '_' + args.metric + '_' + args.lens + '_' + str(r) + '_' + str(g)
-		payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": metric} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":len1},{"resolution":r,"gain":g,"equalize":"false","id":len2}]}]}
-		'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
-		print ('Creating network '+ str(counter) + ' of ' + str(len(gain_range)*len(res_range)) + ' : ' + name)
-		a=session.post('https://core.ayasdi.com/v1/sources/'+args.source+'/networks',json.dumps(payload),headers=headers).content
-		b=json.loads(a)
-		net=b['id']
-		dict[name]=net # Saving a dictionary of network names and ID's - Could be used later
-		print('Downloading assigned network ID: ' + net)
-		ParseAyasdiGraph(args.source,net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
+		if os.path.isfile(name+'.json'):
+			print (name + " network exists, skipping")
+		else :
+			payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": metric} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":len1},{"resolution":r,"gain":g,"equalize":"false","id":len2}]}]}
+			'''payload={"network_specifications": [ {"name": name,"column_set_id": "-3616538532371804765", "metric": {"id": "Correlation"} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":"Neighborhood Lens 1"},{"resolution":r,"gain":g,"equalize":"false","id":"Neighborhood Lens 2"}]}],"async":{}}'''
+			print ('Creating network '+ str(counter) + ' of ' + str(len(gain_range)*len(res_range)) + ' : ' + name)
+			a=session.post('https://core.ayasdi.com/v1/sources/'+args.source+'/networks',json.dumps(payload),headers=headers).content
+			b=json.loads(a)
+			net=b['id']
+			dict[name]=net # Saving a dictionary of network names and ID's - Could be used later
+			print('Downloading assigned network ID: ' + net)
+			ParseAyasdiGraph(args.source,net,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
 
 writer = csv.writer(open('dict.csv', 'wb'))
 writer.writerow(["file","source"])
