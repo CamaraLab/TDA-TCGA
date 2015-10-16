@@ -96,7 +96,7 @@ for g in gain_range:
 	for r in res_range:
 		counter+=1
 		name = args.cancer_name + '_' + args.metric + '_' + args.lens + '_' + str(r) + '_' + str(g)
-		if os.path.isfile(name+'.json'):
+		if os.path.isfile(name+'.json') and os.path.isfile(name+'.gexf'):
 			print (name + " network exists, skipping")
 		else :
 			payload={"network_specifications": [ {"name": name,"column_set_id": args.column_set_id, "metric": {"id": metric} ,"lenses":[{"resolution":r,''"gain":g,"equalize":"false","id":len1},{"resolution":r,"gain":g,"equalize":"false","id":len2}]}]}
