@@ -791,9 +791,9 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
     q_value_dist<-scan[,paste0("q_",threshold)]
     title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
     
-    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist)) + 
-      #scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
+    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=first_connected_samples)) + 
+      scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.65) + ggtitle(title) +
       ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
     
   }
@@ -814,8 +814,6 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
       if (length(results)==0) {results<-NA}
       return(results)
     })
-  
-  print (genes_results_files)
   
   
   ################ Number of events per gene###########################
