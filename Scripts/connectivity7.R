@@ -23,7 +23,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_PCA_15_1.5","COAD.h5","all",2,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015")
+arg<-list("LUAD_Cor_PCA_15_1.5","COAD.h5","all",2,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
@@ -129,10 +129,10 @@ if (arg$rescale!=0) {
   x<-maf[maf$Tumor_Sample_Barcode %in% mutloadmutated,]
   shuffled_rows<-sample(1:nrow(x)) # Shuffling before subsampling
   x<-x[shuffled_rows,]
-  rows_to_keep<-rownames(x[seq.int(1,nrow(x),by =round(scale)),]) # Removing every SCALEth row
-  rows_to_remove<-setdiff(rownames(x),rows_to_keep)
-  
-  maf<-maf[-match(rows_to_remove,rownames(maf)),]
+  rows_index_to_keep<-seq.int(1,nrow(x),by=(scale)) # Removing every row such that the ratio is 
+  rows_index_to_remove<-setdiff(1:nrow(x),rows_index_to_keep)
+  rownames_to_remove<-rownames(x[rows_index_to_remove,])
+  maf<-maf[-match(rownames_to_remove,rownames(maf)),]
   maf$Column_name<-paste0("mut_",maf$Column_name) #Necessary for downstream process
   maf<-maf[maf$Tumor_Sample_Barcode %in% all_samples,] #Intersecting MAF file with all_samples
   
@@ -791,9 +791,9 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
     q_value_dist<-scan[,paste0("q_",threshold)]
     title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
     
-    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=first_connected_samples)) + 
+    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
       scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.65) + ggtitle(title) +
+      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
       ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
     
   }
