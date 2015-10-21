@@ -92,7 +92,8 @@ if (check==FALSE) {
   print (check)
 }
 
-
+removed_genes_for_log<-(as.data.frame(sort(table(removed_genes_for_log),decreasing=TRUE)))
+colnames(removed_genes_for_log)<-"Events"
 
 maf$Column_name<-paste0(maf$Hugo_Symbol,"|",maf$Entrez_Gene_Id) #Adding column name Symbol|Entrez for downstream traceback
 #maf$Tumor_Sample_Barcode<-substring(maf$Tumor_Sample_Barcode,1,15) #Trim Fix sample name
@@ -127,5 +128,4 @@ write.csv(mat_non_syn_bin,paste0(PROJECT_NAME,"_Full_Mutations_binary.csv"))
 write.csv(mat_non_syn,paste0(PROJECT_NAME,"_Full_Mutations_non_synonymous.csv"))
 write.csv(mat_syn,paste0(PROJECT_NAME,"_Full_Mutations_synonymous.csv"))
 write.table(maf,paste0("PROCESSED_",maf_file),sep="\t",row.names = FALSE)
-cat("Genes removed in the process",file="outfile.txt",append=TRUE)
-cat(removed_genes_for_log,file="outfile.txt",append=TRUE)
+write.csv(removed_genes_for_log,"removed_genes.csv")
