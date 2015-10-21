@@ -17,8 +17,10 @@ spec = matrix(c(
   
 ), byrow=TRUE, ncol=4)
 
+
 arg<-getopt(spec) #Conmment this line for debug mode
 
+#arg<-list(project="BRCA",anno="Annotations.csv",anno_old_new="anno_old_new.csv",maf="BRCA_genome.wustl.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT-20-2015.maf")
 
 if ( is.null(arg$anno ) ) {arg$anno= "C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv"}
 if ( is.null(arg$anno_old ) ) {arg$anno_old= "C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv"}
@@ -29,17 +31,6 @@ PROJECT_NAME<-arg$project
 anno<-read.csv(arg$anno,as.is=T,row.names = 1)
 anno$EntrezID<-rownames(anno)
 anno_old_new<-read.csv(arg$anno_old,as.is=T,row.names=1)
-
-
-#anno<-read.csv("../../../../Documents/Lab/GIT/TCGA-TDA/Annotations/Annotations.csv",as.is=T,row.names = 1)
-#anno$EntrezID<-rownames(anno)
-#anno_old_new<-read.csv("../../../../Documents/Lab/GIT/TCGA-TDA/Annotations/Anno_old_new.csv",as.is=T,row.names=1)
-#PROJECT_NAME<-"STAD"
-#maf_file<-"hgsc.bcm.edu__IlluminaGA_automated_DNA_sequencing_level2.maf"
-#anno<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/Annotations.csv",as.is=T)
-#row.names(anno)<-anno[,1]
-#anno_old_new<-read.csv("C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Annotations/anno_old_new.csv",as.is=T,row.names=1)
-
 
 #This file cleans and created a file wit
 print ("Reading and reformatting maf file")
@@ -58,7 +49,8 @@ r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original maf
 maf$Entrez_Gene_Id[r]<-symbol_to_entrez_short[maf$Hugo_Symbol[r]]
 maf$Entrez_Gene_Id<-as.numeric(maf$Entrez_Gene_Id)
 maf<-arrange(maf,Entrez_Gene_Id)
-            
+
+
 
 
 #Replacing old EntrezID's with new ones
@@ -69,10 +61,10 @@ new_id_indices<-match(ids_to_replace,anno_old_new$Old_ID)
 maf$Entrez_Gene_Id[ids_to_replace_indices]<-anno_old_new$New_ID[new_id_indices]
 
 #Replacing Hugo symbols with updated ones
+removed_genes_for_log<-maf[!complete.cases(maf),]$Hugo_Symbol
 maf$Hugo_Symbol<-anno[as.character(maf$Entrez_Gene_Id),"Symbol"]
 
 #Removing unknown EntrezIDs/Hugo_symbols
-removed_genes_for_log<-maf[!complete.cases(maf),]$Hugo_Symbol
 maf<-maf[complete.cases(maf),] 
 
 #Sanity check - Check if unique EntrezID=Unique hugo_symbols
