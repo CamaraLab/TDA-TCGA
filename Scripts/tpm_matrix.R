@@ -49,6 +49,12 @@ index<-unique(index.file[,index.cols]) # Remove duplicates
 colnames(index)<-c("File","PatientID")
 index<-arrange(index,File)
 
+#Checking if index file matches rsem files
+print ("Checking if index file matches rsem files (length)")
+if (length(rsem_files)==nrow(index)) {
+  print ("Length matches proceeding")
+} else stop ("Number of samples in index does not match rsem files population")
+
 #Creating gene list and file (gene_id)
 gene_id_raw<-read.table(rsem_files[1],header=T,stringsAsFactors = F)[,"gene_id"] #Reading gene names from first file
 gene_id_split<-strsplit(gene_id_raw,"|",fixed=TRUE)
