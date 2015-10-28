@@ -17,7 +17,7 @@ spec = matrix(c(
 
 arg<-getopt(spec) #Conmment this line for debug mode
 
-arg<-list(project="COAD",tar="gdac.broadinstitute.org_COAD.Mutation_Packager_Oncotated_Raw_Calls.Level_3.2015082100.1.0.tar.gz")
+#arg<-list(project="BLCA",tar="gdac.broadinstitute.org_BLCA.Mutation_Packager_Oncotated_Raw_Calls.Level_3.2015082100.1.0.tar.gz")
 
 
 
@@ -41,7 +41,7 @@ untar(tarfile = arg$tar,compressed = "gzip",exdir = extraction_dir)
 print ("Reading oconator files")
 mut_files_names<-list.files(extraction_dir,full.names = T,recursive = T,pattern = "TCGA")
 
-colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Tumor_Sample_Barcode")
+colInfo<-c("Hugo_Symbol","Entrez_Gene_Id","Variant_Classification","Variant_Type","Tumor_Sample_Barcode")
 
 print("Constructing maf file")
 maf<-NULL
