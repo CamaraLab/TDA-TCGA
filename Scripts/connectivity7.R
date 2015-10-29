@@ -445,7 +445,7 @@ if (is.null(arg$network)) {
 #scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 #scan<-read.csv("dict.csv",as.is=T)
 
-scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,samples_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,stringsAsFactors = F)
+scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,stringsAsFactors = F)
 
 scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][4]
@@ -460,6 +460,7 @@ if (arg$scan!=0) { #Removing network files file for test mode
 }
 
 
+  
 
 
 
@@ -477,6 +478,7 @@ global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
 for (file in scan$networks) {
   count<-count+1  
   print("*********************************************")
+  print (Sys.time())
   print (paste("Analyzing network:",file,"-",count,"out of",nrow(scan)))
   print (paste("Number of permutations:",arg$permutations))
   print (paste("Number of CPU cores:",arg$cores))
@@ -485,17 +487,22 @@ for (file in scan$networks) {
   #system(run_line)
   
   #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
+  parsing_time<-proc.time() #Calculating run time
   print ("Parsing json and gexf files")
   graph_name<-file
   json_file<-paste0(graph_name,".json")
   gexf_file<-paste0(graph_name,".gexf")
   graph_gexf<-read.gexf(gexf_file)
   
+  parsing_time<-round(proc.time()-parsing_time,4) #Calculating run tim
+  print (paste("Parsing time is:",parsing_time[3]))
+  scan[scan$networks==file,]$parsing_time<-parsing_time[3]
   ########### Checking number of edges by adding one edge to a test graph#########################
   test_graph_gexf<-add.gexf.edge(graph_gexf,1,2)
   test_graph_igraph<-gexf.to.igraph(test_graph_gexf)
   edges_num<-ecount(test_graph_igraph)-1
   print (paste("Number of edges in network:",edges_num))
+  scan[scan$networks==file,]$edges_num<-edges_num
   
   if (edges_num==0) {
     graph_igraph<-gexf.to.igraph(test_graph_gexf)
@@ -583,7 +590,8 @@ for (file in scan$networks) {
   
   print(paste0("Columns above threshold: ",length(columns_of_interest)))
   
-  
+  scan[scan$networks==file,]$above_samples_threshold<-length(genes_above_samples_threshold)
+  scan[scan$networks==file,]$above_gscore_threshold<-length(columns_of_interest)
   
   
   matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
@@ -628,8 +636,10 @@ for (file in scan$networks) {
   # info_cols was here
   
   #Printing thresholded genes
+  
   #thresholded_genes1<-genes_below_samples_threshold
   #thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
+  
   #write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
   #write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
   
@@ -659,7 +669,7 @@ for (file in scan$networks) {
   num_nodes<-length(nodes)
   
   
-  print (Sys.time())
+  
   ptm<-proc.time()
   
   
@@ -747,6 +757,7 @@ for (file in scan$networks) {
           write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
           
           run_t<-round(proc.time()-ptm,4) #Calculating run time
+		  scan[scan$networks==file,]$connectivity_time<-run_t[3]
           speed_index<-run_t[3]*500/arg$permutations/length(columns)
           print(paste("Runtime in seconds:",run_t[3]))
           print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
@@ -866,7 +877,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   
 } else {   # MUTLOAD PLOT
   ggplot(scan, aes(x=factor(resolution), y=gain)) + 
-    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=round(as.numeric(scan$mutload,2)),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
     guides(color = guide_legend(title = paste("mutload <= 0.05"),
                                 title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
   
@@ -898,7 +909,7 @@ files_to_move_to_results<-c(csv_files,png_files)
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
-  tar(results_tar,results_dir)
+  tar(results_tar,results_dir,compression="gzip")
 } else {
   print ("This files were not moved to Results dir:")
   print (files_to_move_to_results[!x])
