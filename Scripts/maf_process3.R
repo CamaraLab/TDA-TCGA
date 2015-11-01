@@ -18,7 +18,7 @@ spec = matrix(c(
 
 arg<-getopt(spec) #Conmment this line for debug mode
 
-arg<-list(project="BLCA",tar="gdac.broadinstitute.org_BLCA.Mutation_Packager_Oncotated_Raw_Calls.Level_3.2015082100.1.0.tar.gz")
+#arg<-list(project="BLCA",tar="gdac.broadinstitute.org_BLCA.Mutation_Packager_Oncotated_Raw_Calls.Level_3.2015082100.1.0.tar.gz")
 
 
 
