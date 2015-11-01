@@ -3,6 +3,7 @@ suppressWarnings({
     library(data.table,quietly = T,warn.conflicts = FALSE)
     library(dplyr,quietly = T,warn.conflicts = FALSE)
     library(getopt,quietly = T,warn.conflicts = FALSE)
+    library(parallel,quietly = T,warn.conflicts = FALSE)
   })
   
 })
@@ -17,7 +18,7 @@ spec = matrix(c(
 
 arg<-getopt(spec) #Conmment this line for debug mode
 
-#arg<-list(project="BLCA",tar="gdac.broadinstitute.org_BLCA.Mutation_Packager_Oncotated_Raw_Calls.Level_3.2015082100.1.0.tar.gz")
+arg<-list(project="BLCA",tar="gdac.broadinstitute.org_BLCA.Mutation_Packager_Oncotated_Raw_Calls.Level_3.2015082100.1.0.tar.gz")
 
 
 
@@ -25,11 +26,6 @@ PROJECT_NAME<-arg$project
 
 #This file cleans and created a file wit
 
-
-
-#setwd("C:/Users/Udi/Downloads/coad")
-
-#mut_files_names<-list.files(getwd())
 
 print ("Extracting oncotator files:")
 extraction_dir<-"Extracted_Onconator"
@@ -51,10 +47,15 @@ for (file in mut_files_names) {
 }
 
 print ("Deleting extraction dir")
-#unlink(extraction_dir,recursive = T,force = T)
+unlink(extraction_dir,recursive = T,force = T)
 
 r<-which(maf$Entrez_Gene_Id==0) #0 indicates unknown in original mut file
-removed_rows_for_log<-maf[maf$Entrez_Gene_Id==0,1:2]
+removed_rows_for_log<-maf$Hugo_Symbol[maf$Entrez_Gene_Id==0]
+removed_rows_for_log<-as.data.frame(table(removed_rows_for_log))
+removed_rows_for_log<-arrange(removed_rows_for_log,desc(Freq))
+removed_rows_for_log<-cbind(removed_rows_for_log,0)
+colnames(removed_rows_for_log)<-c("Hugo_Symbol","Occurences","Entrez_Gene_Id")
+
 maf<-maf[-r,]
 
 maf<-arrange(maf,Entrez_Gene_Id)
@@ -85,8 +86,12 @@ if (check==FALSE) {
     y<-length(unique(y))
   }
   
-  z<-sapply(unique_symbols,x)
-  z1<-sapply(unique(maf$Entrez_Gene_Id),x1)
+  cl <- makeCluster(4)
+  clusterExport(cl=cl,varlist=c("maf"),envir=environment())
+  
+  
+  z<-parSapply(cl,unique_symbols,x)
+  z1<-parSapply(cl,unique(maf$Entrez_Gene_Id),x1)
   print ("non unique corresponding entrez id for genes:")
   genes_to_remove<-names(which(z>1))
   print(genes_to_remove)
