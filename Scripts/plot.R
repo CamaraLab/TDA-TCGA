@@ -17,7 +17,7 @@ y<-read.csv("scan_summary_mutload.csv")
 
 ggplot(y, aes(x=factor(resolution), y=factor(gain), fill=mutload)) + 
   scale_fill_continuous(low = 'red',high = 'blue',guide_legend(title = "p_value")) +
-  geom_tile(alpha=0.7) + theme_minimal()+geom_text(label=round(y$mutload,2),size=7) + ggtitle(label="COAD \n Mutational load") + 
+  geom_tile(alpha=0.7,color="grey") + theme_minimal()+geom_text(label=round(y$mutload,2),size=7) + ggtitle(label="COAD \n Mutational load") + 
   xlab("Resolution") + ylab ("Gain") +
   theme(axis.text=element_text(size=10),axis.title = element_text(size=15),plot.title = element_text(size=20,face="bold"),panel.grid.major = element_blank()) +
   theme(panel.border=element_rect(fill=NA,color="grey")) + 
