@@ -631,6 +631,7 @@ for (file in scan$networks) {
   suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste0("Number of edges:",edges_num),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Resolution:",scan$resolution[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Gain:",scan$gain[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("UID:",unique_id),paste0(file_prefix,"_log.csv"),append=TRUE))
