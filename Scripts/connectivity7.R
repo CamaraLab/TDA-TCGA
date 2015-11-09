@@ -605,7 +605,7 @@ for (file in scan$networks) {
   
   #Initializing results file name and unique id
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
-  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"-",Sys.Date())
+  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"_",global_unique_id,"-",Sys.Date())
   print(paste("File unique identifier:",unique_id))
   scan[scan$networks==file,]$uid<-unique_id
   
@@ -638,19 +638,10 @@ for (file in scan$networks) {
   
   
   
-  
-  #logger <- create.logger(logfile = 'debugging.log', level = 1)
-  #info(logger,paste("Number of permutations: ",arg$permutations))
-  #info(logger,paste("Samples threshold: ",arg$samples_threshold))
-  
-  
   permutations<-arg$permutations
   edges1<-edges[,1] #Nodes i
   edges2<-edges[,2] #Nodes j
   num_nodes<-length(nodes)
-  
-  
-  
   ptm<-proc.time()
   
   
@@ -738,7 +729,7 @@ for (file in scan$networks) {
           write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
           
           run_t<-round(proc.time()-ptm,4) #Calculating run time
-		  scan[scan$networks==file,]$connectivity_time<-run_t[3]
+		      scan[scan$networks==file,]$connectivity_time<-run_t[3]
           speed_index<-run_t[3]*500/arg$permutations/length(columns)
           print(paste("Runtime in seconds:",run_t[3]))
           print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
@@ -749,14 +740,11 @@ for (file in scan$networks) {
           
         }
         
-  
+  #Rolling scan_summary file
   write.csv(scan,paste0("scan_summary_",global_unique_id,".csv"))
 }
 
 
-
-#Writing scanner summary file:
-#write.csv(scan,"scan_summary.csv")
 
 
 ######################################## Plotting section######################################
@@ -764,13 +752,26 @@ for (file in scan$networks) {
 
 
 #Number of samples per graph plot:
-ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
+#Number of samples
+svg_plot_samples<-paste0("First_connected_samples_grid_",global_unique_id,".svg")
+plot_samples<-ggplot(scan, aes(x=factor(resolution), y=factor(gain), label=first_connected_samples,fill=first_connected_samples))
+plot_samples<-plot_samples + scale_fill_gradient2(low = 'maroon',high = 'blue',guide_legend(title = "#Samples",alpha=0.8)) +
+  geom_tile(alpha=0.8) + theme_minimal() + geom_text(size=4) + ggtitle(label=paste(PROJECT_NAME,"\n First connected samples")) + 
+  xlab("Resolution") + ylab ("Gain") +
+  coord_equal() + theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=12,face="bold")) + 
+  theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
+  scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  coord_equal()  + ggsave(svg_plot_samples)
+
+
+
+
+
+#ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
   #scale_color_gradient2(low = 'white', mid='yellow', high = 'red') +
-  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
-  ggsave(filename = paste0("First_component_samples.png"))  
-
-
-
+  #geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
+  #ggsave(filename = paste0("First_component_samples.png"))  
 
 
 
@@ -851,7 +852,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   )
   
   colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-  write.csv(events,"number_of_events.csv")
+  write.csv(events,paste0("number_of_events_",global_unique_id,".csv"))
   
   
   
@@ -881,12 +882,10 @@ results_tar<-paste0(results_dir,".tar.gz")
 print (paste("Moving files to Results Directory:",results_dir))
 
 dir.create(results_dir)
-if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
+#if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
-csv_files<-list.files(pattern = "*.csv")
-png_files<-list.files(pattern = "*.png")
-
-files_to_move_to_results<-c(csv_files,png_files)
+files_to_move_to_results<-list.files(pattern = as.character(global_unique_id))
+print (files_to_move_to_results)
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
