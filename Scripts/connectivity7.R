@@ -782,12 +782,21 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   q_threshold_range<-c(0.1,0.15,0.2)
   for (threshold in q_threshold_range) {
     q_value_dist<-scan[,paste0("q_",threshold)]
-    title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
+    genes_svg_file<-paste0("Genes_results_q_value","_",threshold,"_",global_unique_id,".svg")
+    ggplot(scan, aes(x=factor(resolution), y=factor(gain), label=q_value_dist,fill=q_value_dist)) + 
+      scale_fill_gradient2(low = 'maroon',high = 'blue',guide_legend(title = "#Genes",alpha=0.8),breaks=seq(0,12,2)) +
+      geom_tile(alpha=0.8) + theme_minimal() + geom_text(size=4,vjust=-0.1) + ggtitle(label=paste0(PROJECT_NAME," \n significant genes_",threshold)) + 
+      xlab("Resolution") + ylab ("Gain") + geom_text(label=paste0("(",scan$first_connected_samples,")"),vjust=1.1,size=3) +
+      coord_equal() + theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=15,face="bold")) + 
+      theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
+      scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+      coord_equal()  + ggsave(genes_svg_file)
     
-    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
-      scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
-      ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
+    #ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
+    #  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+     # geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
+    #  ggsave(filename = paste0("Genes_results_q_value","_",threshold,"_",global_unique_id,".png"))   
     
   }
   
@@ -885,7 +894,6 @@ dir.create(results_dir)
 #if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
 files_to_move_to_results<-list.files(pattern = as.character(global_unique_id))
-print (files_to_move_to_results)
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
