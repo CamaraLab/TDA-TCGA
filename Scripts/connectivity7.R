@@ -167,7 +167,7 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 
 
 
-global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
+guid<-round(runif(1, min = 300000, max = 399999),0)
 
 #################################################################
 ###############Generating mutational load histogra##############
@@ -178,11 +178,11 @@ global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
 mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 mutload_dist<-rowSums(mutload_matrix)
 if (arg$rescale!=0) {
-  png(paste0("hist_mutLoad_Rescaled_",global_unique_id,".png"))
+  png(paste0("hist_mutLoad_Rescaled_",guid,".png"))
   hist(log10(mutload_dist),breaks = 100,main="after subsampling")
   invisible(dev.off())  
 } else {
-  png(paste0("hist_mutLoad_NoRescaling_",global_unique_id,".png"))
+  png(paste0("hist_mutLoad_NoRescaling_",guid,".png"))
   hist(log10(mutload_dist),breaks = 100,main="before subsampling")
   invisible(dev.off())
 }
@@ -605,7 +605,7 @@ for (file in scan$networks) {
   
   #Initializing results file name and unique id
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
-  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"_",global_unique_id,"-",Sys.Date())
+  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"_",guid,"-",Sys.Date())
   print(paste("File unique identifier:",unique_id))
   scan[scan$networks==file,]$uid<-unique_id
   
@@ -741,7 +741,7 @@ for (file in scan$networks) {
         }
         
   #Rolling scan_summary file
-  write.csv(scan,paste0("scan_summary_",global_unique_id,".csv"))
+  write.csv(scan,paste0("scan_summary_",guid,".csv"))
 }
 
 
@@ -753,7 +753,7 @@ for (file in scan$networks) {
 
 #Number of samples per graph plot:
 #Number of samples
-svg_plot_samples<-paste0("First_connected_samples_grid_",global_unique_id,".svg")
+svg_plot_samples<-paste0("First_connected_samples_grid_",guid,".svg")
 plot_samples<-ggplot(scan, aes(x=factor(resolution), y=factor(gain), label=first_connected_samples,fill=first_connected_samples))
 plot_samples<-plot_samples + scale_fill_gradient2(low = 'maroon',high = 'blue',guide_legend(title = "#Samples",alpha=0.8)) +
   geom_tile(alpha=0.8) + theme_minimal() + geom_text(size=4) + ggtitle(label=paste(PROJECT_NAME,"\n First connected samples")) + 
@@ -782,7 +782,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   q_threshold_range<-c(0.1,0.15,0.2)
   for (threshold in q_threshold_range) {
     q_value_dist<-scan[,paste0("q_",threshold)]
-    genes_svg_file<-paste0("Genes_results_q_value","_",threshold,"_",global_unique_id,".svg")
+    genes_svg_file<-paste0("Genes_results_q_value","_",threshold,"_",guid,".svg")
     ggplot(scan, aes(x=factor(resolution), y=factor(gain), label=q_value_dist,fill=q_value_dist)) + 
       scale_fill_gradient2(low = 'maroon',high = 'blue',guide_legend(title = "#Genes",alpha=0.8),breaks=seq(0,12,2)) +
       geom_tile(alpha=0.8) + theme_minimal() + geom_text(size=4,vjust=-0.1) + ggtitle(label=paste0(PROJECT_NAME," \n significant genes_",threshold)) + 
@@ -796,7 +796,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
     #ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
     #  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
      # geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
-    #  ggsave(filename = paste0("Genes_results_q_value","_",threshold,"_",global_unique_id,".png"))   
+    #  ggsave(filename = paste0("Genes_results_q_value","_",threshold,"_",guid,".png"))   
     
   }
   
@@ -805,17 +805,17 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   ggplot(scan, aes(x=resolution, y=gain, label=p_value_dist)) + 
     #scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-    ggsave(filename = paste0("Genes_results_p_value_0.05_",global_unique_id,".png"))    
+    ggsave(filename = paste0("Genes_results_p_value_0.05_",guid,".png"))    
   
   
   
-  
-  genes_results_files<-
-    sapply(scan$networks,function (x) {
-      results<-list.files(pattern=paste0("^",x,".*_genes_results"))
-      if (length(results)==0) {results<-NA}
-      return(results)
-    })
+  genes_results_files<-list.files(pattern=paste0(guid,".*_genes_results.csv"))
+  #genes_results_files<-
+  #  sapply(scan$networks,function (x) {
+  #    results<-list.files(pattern=paste0("^",x,".*_genes_results"))
+  #    if (length(results)==0) {results<-NA}
+  #    return(results)
+  #  })
   
   
   ################ Number of events per gene###########################
@@ -861,14 +861,14 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   )
   
   colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-  write.csv(events,paste0("number_of_events_",global_unique_id,".csv"))
+  write.csv(events,paste0("number_of_events_",guid,".csv"))
   
   
   
   
 } else {   # MUTLOAD PLOT
 
-  mutload_svg_file<-paste0("mutational_load_grid_",global_unique_id,".svg")
+  mutload_svg_file<-paste0("mutational_load_grid_",guid,".svg")
   round_mutload<-round(as.numeric(scan$mutload),2)
   ggplot(scan, aes(x=factor(resolution), y=factor(gain), fill=round_mutload,label=round_mutload)) + 
     scale_fill_gradient(low = 'red',high = 'blue',guide_legend(title = "p_value",aplha=0.7)) +
@@ -896,8 +896,8 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 
 if (arg$mutload==TRUE) {
-  results_dir<-paste0("Results_",PROJECT_NAME,"_",global_unique_id,"_mutload")
-} else { results_dir<-paste0("Results_",PROJECT_NAME,"_",global_unique_id,"_genes")}
+  results_dir<-paste0("Results_",PROJECT_NAME,"_",guid,"_mutload")
+} else { results_dir<-paste0("Results_",PROJECT_NAME,"_",guid,"_genes")}
   
 results_tar<-paste0(results_dir,".tar.gz")  
 
@@ -907,7 +907,7 @@ print (paste("Moving files to Results Directory:",results_dir))
 dir.create(results_dir)
 #if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
-files_to_move_to_results<-list.files(pattern = as.character(global_unique_id))
+files_to_move_to_results<-list.files(pattern = as.character(guid))
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
