@@ -167,6 +167,7 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 
 
 
+global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
 
 #################################################################
 ###############Generating mutational load histogra##############
@@ -177,12 +178,12 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 mutload_dist<-rowSums(mutload_matrix)
 if (arg$rescale!=0) {
-  png("hist_mutLoad_Rescaled.png")
-  hist(log10(mutload_dist),breaks = 100,main="After rescaling")
+  png(paste0("hist_mutLoad_Rescaled_",global_unique_id,".png"))
+  hist(log10(mutload_dist),breaks = 100,main="after subsampling")
   invisible(dev.off())  
 } else {
-  png("hist_mutLoad_NoRescaling.png")
-  hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
+  png(paste0("hist_mutLoad_NoRescaling_",global_unique_id,".png"))
+  hist(log10(mutload_dist),breaks = 100,main="before subsampling")
   invisible(dev.off())
 }
 
@@ -474,7 +475,6 @@ if (arg$scan!=0) { #Removing network files for test mode
 ############################################################################################################
 
 count<-0
-global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
 
 for (file in scan$networks) {
   count<-count+1  
@@ -805,7 +805,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   ggplot(scan, aes(x=resolution, y=gain, label=p_value_dist)) + 
     #scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-    ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
+    ggsave(filename = paste0("Genes_results_p_value_0.05_",global_unique_id,".png"))    
   
   
   
@@ -867,10 +867,24 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   
   
 } else {   # MUTLOAD PLOT
-  ggplot(scan, aes(x=factor(resolution), y=gain)) + 
-    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=round(as.numeric(scan$mutload,2)),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
-    guides(color = guide_legend(title = paste("mutload <= 0.05"),
-                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
+
+  mutload_svg_file<-paste0("mutational_load_grid_",global_unique_id,".svg")
+  round_mutload<-round(as.numeric(scan$mutload),2)
+  ggplot(scan, aes(x=factor(resolution), y=factor(gain), fill=round_mutload,label=round_mutload)) + 
+    scale_fill_gradient(low = 'red',high = 'blue',guide_legend(title = "p_value",aplha=0.7)) +
+    geom_tile(alpha=0.7) + theme_minimal()+geom_text(size=3) + ggtitle(label=paste0(PROJECT_NAME," \n Mutational load")) +
+    xlab("Resolution") + ylab ("Gain") +
+    theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=15,face="bold"),panel.grid.major = element_blank()) +
+    theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
+    scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    coord_equal() + ggsave(mutload_svg_file)
+  
+  
+  #ggplot(scan, aes(x=factor(resolution), y=gain)) + 
+   # geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=round(as.numeric(scan$mutload,2)),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+  #  guides(color = guide_legend(title = paste("mutload <= 0.05"),
+   #                             title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
   
 }
 
