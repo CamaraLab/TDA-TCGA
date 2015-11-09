@@ -445,7 +445,7 @@ if (is.null(arg$network)) {
 #scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 #scan<-read.csv("dict.csv",as.is=T)
 
-scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,stringsAsFactors = F)
+scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
 
 scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][4]
@@ -608,30 +608,8 @@ for (file in scan$networks) {
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
   file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"-",Sys.Date())
   print(paste("File unique identifier:",unique_id))
+  scan[scan$networks==file,]$uid<-unique_id
   
-  
-  
-  if (arg$mutload==12) {
-    print ("CCCCC")
-    #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
-    
-    
-    mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
-    if (arg$rescale!=0) {
-      png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
-      invisible(dev.off())  
-    } else {
-      png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
-      hist(log10(mutLoad),breaks = 100,main="Before rescaling")
-      invisible(dev.off())
-    }
-    
-    mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
-    matrix1<-as.matrix(mutLoad,drop=FALSE)
-    colnames(matrix1)<-"mutLoad"
-    columns_of_interest<-"mutLoad"
-    
-  }
   
   # info_cols was here
   
@@ -654,6 +632,8 @@ for (file in scan$networks) {
   suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste0("Resolution:",scan$resolution[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste0("Gain:",scan$gain[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
   
   
   
