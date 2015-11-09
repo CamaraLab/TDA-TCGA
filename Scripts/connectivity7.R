@@ -455,12 +455,13 @@ scan$gain<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][5]
 }))
 
-if (arg$scan!=0) { #Removing network files file for test mode
+if (arg$scan!=0) { #Removing network files for test mode
   scan<-scan[1:arg$scan,]
 }
 
+#write.table(scan,paste0(scan_summary.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
 
-  
+
 
 
 
@@ -474,7 +475,7 @@ if (arg$scan!=0) { #Removing network files file for test mode
 
 count<-0
 global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
-#for (file in scan$networks[scan$mutload_connectivity]) {
+
 for (file in scan$networks) {
   count<-count+1  
   print("*********************************************")
@@ -482,10 +483,7 @@ for (file in scan$networks) {
   print (paste("Analyzing network:",file,"-",count,"out of",nrow(scan)))
   print (paste("Number of permutations:",arg$permutations))
   print (paste("Number of CPU cores:",arg$cores))
-  
-  #run_line<-paste("Rscript", arg$connectivity, "-p",arg$permutations,"-h TRUE -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
-  #system(run_line)
-  
+    
   #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
   parsing_time<-proc.time() #Calculating run time
   print ("Parsing json and gexf files")
@@ -494,9 +492,6 @@ for (file in scan$networks) {
   gexf_file<-paste0(graph_name,".gexf")
   graph_gexf<-read.gexf(gexf_file)
   
-  parsing_time<-round(proc.time()-parsing_time,4) #Calculating run tim
-  print (paste("Parsing time is:",parsing_time[3]))
-  scan[scan$networks==file,]$parsing_time<-parsing_time[3]
   ########### Checking number of edges by adding one edge to a test graph#########################
   test_graph_gexf<-add.gexf.edge(graph_gexf,1,2)
   test_graph_igraph<-gexf.to.igraph(test_graph_gexf)
@@ -543,6 +538,10 @@ for (file in scan$networks) {
   #Removing columns below samples_threshold from the first connected graph
   matrix1<-matrix1[,columns,drop=FALSE] #Subsetting for selected columns
   
+  #Recording parsing time
+  parsing_time<-round(proc.time()-parsing_time,4) #Calculating run tim
+  print (paste("Parsing time is:",parsing_time[3]))
+  scan[scan$networks==file,]$parsing_time<-parsing_time[3]
   
   
   #Choosing genes based on score
@@ -634,6 +633,7 @@ for (file in scan$networks) {
   suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Resolution:",scan$resolution[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Gain:",scan$gain[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(paste0("UID:",unique_id),paste0(file_prefix,"_log.csv"),append=TRUE))
   
   
   
@@ -749,13 +749,13 @@ for (file in scan$networks) {
         }
         
   
-  
+  write.csv(scan,paste0("scan_summary_",global_unique_id,".csv"))
 }
 
 
 
 #Writing scanner summary file:
-write.csv(scan,"scan_summary.csv")
+#write.csv(scan,"scan_summary.csv")
 
 
 ######################################## Plotting section######################################
