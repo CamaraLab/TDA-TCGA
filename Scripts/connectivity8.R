@@ -1,7 +1,7 @@
 
 ############################LOADING LIBRARIES############################
 
-#setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
+#setwd("c:/users/udi/Downloads/test/")
 #Preping environment, loading necessary libraries
 suppressWarnings({
   suppressMessages ({
@@ -23,8 +23,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_PCA_15_1.5","COAD.h5","all",2,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
-names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
+arg<-list(NULL,"COAD.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,TRUE,0,5,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -178,11 +178,11 @@ guid<-round(runif(1, min = 300000, max = 399999),0)
 mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 mutload_dist<-rowSums(mutload_matrix)
 if (arg$rescale!=0) {
-  png(paste0("hist_mutLoad_Rescaled_",guid,".png"))
+  svg(paste0("hist_mutLoad_Rescaled_",guid,".svg"))
   hist(log10(mutload_dist),breaks = 100,main="after subsampling")
   invisible(dev.off())  
 } else {
-  png(paste0("hist_mutLoad_NoRescaling_",guid,".png"))
+  svg(paste0("hist_mutLoad_NoRescaling_",guid,".svg"))
   hist(log10(mutload_dist),breaks = 100,main="before subsampling")
   invisible(dev.off())
 }
@@ -760,9 +760,9 @@ plot_samples<-plot_samples + scale_fill_gradient2(low = 'maroon',high = 'blue',g
   xlab("Resolution") + ylab ("Gain") +
   coord_equal() + theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=12,face="bold")) + 
   theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
-  scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
+  scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0))  +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  coord_equal()  + ggsave(svg_plot_samples)
+  coord_equal() + ggsave(svg_plot_samples) 
 
 
 
