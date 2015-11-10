@@ -849,15 +849,15 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
   
   
-
+  all_genes<-unique(c(names(q_value_0.1),names(q_value_0.15),names(q_value_0.2),names(p_value_0.05)))
   n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
   length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
   
   events<-data.frame(
-    q_value_0.1,
-    q_value_0.15,
-    q_value_0.2,
-    p_value_0.05
+    q_value_0.1[all_genes],
+    q_value_0.15[all_genes],
+    q_value_0.2[all_genes],
+    p_value_0.05[all_genes]
   )
   
   colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
