@@ -821,27 +821,33 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   ################ Number of events per gene###########################
   
   #Calculates sum of a particular feature for a list of genes across scan results
-  number_of_events<-function(genes_results_files,feature,threshold) {
+  
+  number_of_events<-function(genes_results_files1,feature,threshold) {
+    results_file_list<-lapply(genes_results_files1,function (x) read.csv(x))
+    names(results_file_list)<-genes_results_files1
     
-    genes<-sapply(genes_results_files,function (file)
-    {
-      if (!is.na(file)) {
-        results<-read.csv(file,as.is=T)
-        results<-results$Gene_Symbol[results[,feature]<=threshold]  
+    genes_freq<-list()
+    count<-0
+    for (file_name in genes_results_files1) {
+      count<-count+1
+      #print(count)
+      file<-results_file_list[[file_name]]
+      new_genes<-setdiff(file$Gene_Symbol,names(genes_freq))
+      new_list<-lapply(new_genes,function (x) 0)
+      names(new_list)<-new_genes
+      genes_freq<-c(genes_freq,new_list)
+      for (gene in file$Gene_Symbol) {
+        if (file[file$Gene_Symbol==gene,feature]<=threshold) {
+          genes_freq[gene]<-genes_freq[[gene]] + 1
+        }
       }
-      
-    })
-    
-
-    genes<-unlist(genes)
-    genes<-genes[complete.cases(genes)]
-    unique_genes<-unique(genes)
-    genes_events<-sapply(unique_genes,function (x) sum(x==genes))
-    return(sort(genes_events,decreasing = T))
-    
+    }
+    return(genes_freq)
   }
   
-
+  
+  
+  
   #Generating number of events summary file
   q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
   q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
@@ -849,16 +855,12 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
   
   
-  all_genes<-unique(c(names(q_value_0.1),names(q_value_0.15),names(q_value_0.2),names(p_value_0.05)))
-  n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
-  length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
-  
-  events<-data.frame(
-    q_value_0.1[all_genes],
-    q_value_0.15[all_genes],
-    q_value_0.2[all_genes],
-    p_value_0.05[all_genes]
-  )
+  events<-t(rbind(
+    as.data.frame(q_value_0.1),
+    as.data.frame(q_value_0.15),
+    as.data.frame(q_value_0.2),
+    as.data.frame(p_value_0.05)
+  ))
   
   colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
   write.csv(events,paste0("number_of_events_",guid,".csv"))
@@ -909,69 +911,6 @@ dir.create(results_dir)
 
 files_to_move_to_results<-list.files(pattern = as.character(guid))
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
-if (sum(x)==length(files_to_move_to_results)) {
-  print ("All results files moved to Results dir, archiving files")
-  tar(results_tar,results_dir,compression="gzip")
-} else {
-  print ("This files were not moved to Results dir:")
-  print (files_to_move_to_results[!x])
-}
-
-
-
-
-#####################OLD FUNCTIONS AND PROCEDURES########################
-##########################################################################
-
-#############################################################
-#Generating pii_values table
-#pi_values_table<-NULL
-#for (i in 1:length(ans))
-#  pi_values_table<-cbind(pi_values_table,ans[[i]][[2]]) #Extracting pii_values from ans
-#colnames(pi_values_table)<-pi_values_table[1,]
-#pi_values_table<-pi_values_table[,!pi_zero_genes,drop=FALSE]
-#############################################################
-
-#Writing final results and pii_values files
-#write.table(final_results,paste0(file_prefix,"_results_final.csv"),row.names=FALSE,sep=",")
-#write.table(pi_values_table,paste0(file_prefix,"_pii_values.csv"),sep=",",row.names=FALSE,col.names=FALSE)
-
-
-
-
-
-
-
-#extract_value<-function (files,feature,threshold)  {
-#Gets a feature(p_value) and a threshold (0.05) and extract the number of observations across list of files below that threshold for this feature
-#  ans<-sapply(files,function (file) {
-#    if (length(file)!=1 | is.na(file)) {
-#      results<-NA
-#    } else {
-#      results<-read.csv(file,as.is=T)[,feature]
-#      results<-sum(results<=threshold,na.rm=T)
-#    }
-#  })
-#  return (as.numeric(ans))
-#}
-
-
-
-#genes q_value plot
-#threshold_range<-c(0.1,0.15,0.2)
-#for (threshold in threshold_range) {
-
-#  q_value_dist<-extract_value(genes_results_files,"q_value",threshold)
-#  title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
-#  ggplot(scan, aes(x=resolution, y=gain, color=q_value_dist, label=q_value_dist)) + 
-#    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-#    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(title) +
-#    ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))    
-#}
-
-
-
-
-
-
+print ("Archiving folder")
+tar(results_tar,results_dir,compression="gzip")
 
