@@ -167,7 +167,6 @@ info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd"
 
 
 
-guid<-round(runif(1, min = 300000, max = 399999),0)
 
 #################################################################
 ###############Generating mutational load histogra##############
@@ -178,12 +177,12 @@ guid<-round(runif(1, min = 300000, max = 399999),0)
 mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 mutload_dist<-rowSums(mutload_matrix)
 if (arg$rescale!=0) {
-  png(paste0("hist_mutLoad_Rescaled_",guid,".png"))
-  hist(log10(mutload_dist),breaks = 100,main="after subsampling")
+  png("hist_mutLoad_Rescaled.png")
+  hist(log10(mutload_dist),breaks = 100,main="After rescaling")
   invisible(dev.off())  
 } else {
-  png(paste0("hist_mutLoad_NoRescaling_",guid,".png"))
-  hist(log10(mutload_dist),breaks = 100,main="before subsampling")
+  png("hist_mutLoad_NoRescaling.png")
+  hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
   invisible(dev.off())
 }
 
@@ -446,7 +445,7 @@ if (is.null(arg$network)) {
 #scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
 #scan<-read.csv("dict.csv",as.is=T)
 
-scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
+scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,stringsAsFactors = F)
 
 scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][4]
@@ -456,13 +455,12 @@ scan$gain<-as.numeric(sapply(scan$networks, function (x) {
   strsplit(x,"_")[[1]][5]
 }))
 
-if (arg$scan!=0) { #Removing network files for test mode
+if (arg$scan!=0) { #Removing network files file for test mode
   scan<-scan[1:arg$scan,]
 }
 
-#write.table(scan,paste0(scan_summary.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
 
-
+  
 
 
 
@@ -475,7 +473,8 @@ if (arg$scan!=0) { #Removing network files for test mode
 ############################################################################################################
 
 count<-0
-
+global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
+#for (file in scan$networks[scan$mutload_connectivity]) {
 for (file in scan$networks) {
   count<-count+1  
   print("*********************************************")
@@ -483,7 +482,10 @@ for (file in scan$networks) {
   print (paste("Analyzing network:",file,"-",count,"out of",nrow(scan)))
   print (paste("Number of permutations:",arg$permutations))
   print (paste("Number of CPU cores:",arg$cores))
-    
+  
+  #run_line<-paste("Rscript", arg$connectivity, "-p",arg$permutations,"-h TRUE -n",file,"-m",arg$matrix,"-q",arg$cores,"-k",arg$chunk)
+  #system(run_line)
+  
   #Parsing and loading, gexf(edge file) and json (nodes file) to memory.
   parsing_time<-proc.time() #Calculating run time
   print ("Parsing json and gexf files")
@@ -492,6 +494,9 @@ for (file in scan$networks) {
   gexf_file<-paste0(graph_name,".gexf")
   graph_gexf<-read.gexf(gexf_file)
   
+  parsing_time<-round(proc.time()-parsing_time,4) #Calculating run tim
+  print (paste("Parsing time is:",parsing_time[3]))
+  scan[scan$networks==file,]$parsing_time<-parsing_time[3]
   ########### Checking number of edges by adding one edge to a test graph#########################
   test_graph_gexf<-add.gexf.edge(graph_gexf,1,2)
   test_graph_igraph<-gexf.to.igraph(test_graph_gexf)
@@ -538,10 +543,6 @@ for (file in scan$networks) {
   #Removing columns below samples_threshold from the first connected graph
   matrix1<-matrix1[,columns,drop=FALSE] #Subsetting for selected columns
   
-  #Recording parsing time
-  parsing_time<-round(proc.time()-parsing_time,4) #Calculating run tim
-  print (paste("Parsing time is:",parsing_time[3]))
-  scan[scan$networks==file,]$parsing_time<-parsing_time[3]
   
   
   #Choosing genes based on score
@@ -605,10 +606,32 @@ for (file in scan$networks) {
   
   #Initializing results file name and unique id
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
-  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"_",guid,"-",Sys.Date())
+  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"-",Sys.Date())
   print(paste("File unique identifier:",unique_id))
-  scan[scan$networks==file,]$uid<-unique_id
   
+  
+  
+  if (arg$mutload==12) {
+    print ("CCCCC")
+    #Adding to matrix1 a column with mutation rate, this will be used to assess mutload mutated samples. 
+    
+    
+    mutLoad<-mat_non_syn+mat_syn #Total number of point mutations
+    if (arg$rescale!=0) {
+      png(paste0(file_prefix,"_mutLoad_Rescaled.png"))
+      invisible(dev.off())  
+    } else {
+      png(paste0(file_prefix,"_mutLoad_NoRescaling.png"))
+      hist(log10(mutLoad),breaks = 100,main="Before rescaling")
+      invisible(dev.off())
+    }
+    
+    mutLoad<-rowSums(mutLoad)[samples_of_interest] #rownames matrix1 is important to account only for samples_of_interes
+    matrix1<-as.matrix(mutLoad,drop=FALSE)
+    colnames(matrix1)<-"mutLoad"
+    columns_of_interest<-"mutLoad"
+    
+  }
   
   # info_cols was here
   
@@ -631,17 +654,22 @@ for (file in scan$networks) {
   suppressWarnings(write.table(paste("Columns above threshold:",length(columns_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
-  suppressWarnings(write.table(paste0("Number of edges:",edges_num),paste0(file_prefix,"_log.csv"),append=TRUE))
-  suppressWarnings(write.table(paste0("Resolution:",scan$resolution[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
-  suppressWarnings(write.table(paste0("Gain:",scan$gain[count]),paste0(file_prefix,"_log.csv"),append=TRUE))
-  suppressWarnings(write.table(paste0("UID:",unique_id),paste0(file_prefix,"_log.csv"),append=TRUE))
   
+  
+  
+  
+  #logger <- create.logger(logfile = 'debugging.log', level = 1)
+  #info(logger,paste("Number of permutations: ",arg$permutations))
+  #info(logger,paste("Samples threshold: ",arg$samples_threshold))
   
   
   permutations<-arg$permutations
   edges1<-edges[,1] #Nodes i
   edges2<-edges[,2] #Nodes j
   num_nodes<-length(nodes)
+  
+  
+  
   ptm<-proc.time()
   
   
@@ -729,7 +757,7 @@ for (file in scan$networks) {
           write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
           
           run_t<-round(proc.time()-ptm,4) #Calculating run time
-		      scan[scan$networks==file,]$connectivity_time<-run_t[3]
+		  scan[scan$networks==file,]$connectivity_time<-run_t[3]
           speed_index<-run_t[3]*500/arg$permutations/length(columns)
           print(paste("Runtime in seconds:",run_t[3]))
           print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
@@ -740,11 +768,14 @@ for (file in scan$networks) {
           
         }
         
-  #Rolling scan_summary file
-  write.csv(scan,paste0("scan_summary_",guid,".csv"))
+  
+  
 }
 
 
+
+#Writing scanner summary file:
+write.csv(scan,"scan_summary.csv")
 
 
 ######################################## Plotting section######################################
@@ -752,26 +783,13 @@ for (file in scan$networks) {
 
 
 #Number of samples per graph plot:
-#Number of samples
-svg_plot_samples<-paste0("First_connected_samples_grid_",guid,".svg")
-plot_samples<-ggplot(scan, aes(x=factor(resolution), y=factor(gain), label=first_connected_samples,fill=first_connected_samples))
-plot_samples<-plot_samples + scale_fill_gradient2(low = 'maroon',high = 'blue',guide_legend(title = "#Samples",alpha=0.8)) +
-  geom_tile(alpha=0.8) + theme_minimal() + geom_text(size=4) + ggtitle(label=paste(PROJECT_NAME,"\n First connected samples")) + 
-  xlab("Resolution") + ylab ("Gain") +
-  coord_equal() + theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=12,face="bold")) + 
-  theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
-  scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  coord_equal()  + ggsave(svg_plot_samples)
-
-
-
-
-
-#ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
+ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
   #scale_color_gradient2(low = 'white', mid='yellow', high = 'red') +
-  #geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
-  #ggsave(filename = paste0("First_component_samples.png"))  
+  geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
+  ggsave(filename = paste0("First_component_samples.png"))  
+
+
+
 
 
 
@@ -782,21 +800,12 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   q_threshold_range<-c(0.1,0.15,0.2)
   for (threshold in q_threshold_range) {
     q_value_dist<-scan[,paste0("q_",threshold)]
-    genes_svg_file<-paste0("Genes_results_q_value","_",threshold,"_",guid,".svg")
-    ggplot(scan, aes(x=factor(resolution), y=factor(gain), label=q_value_dist,fill=q_value_dist)) + 
-      scale_fill_gradient2(low = 'maroon',high = 'blue',guide_legend(title = "#Genes",alpha=0.8),breaks=seq(0,12,2)) +
-      geom_tile(alpha=0.8) + theme_minimal() + geom_text(size=4,vjust=-0.1) + ggtitle(label=paste0(PROJECT_NAME," \n significant genes_",threshold)) + 
-      xlab("Resolution") + ylab ("Gain") + geom_text(label=paste0("(",scan$first_connected_samples,")"),vjust=1.1,size=3) +
-      coord_equal() + theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=15,face="bold")) + 
-      theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
-      scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
-      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-      coord_equal()  + ggsave(genes_svg_file)
+    title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
     
-    #ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
-    #  scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-     # geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
-    #  ggsave(filename = paste0("Genes_results_q_value","_",threshold,"_",guid,".png"))   
+    ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
+      scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
+      geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
+      ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
     
   }
   
@@ -805,17 +814,17 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   ggplot(scan, aes(x=resolution, y=gain, label=p_value_dist)) + 
     #scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
     geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-    ggsave(filename = paste0("Genes_results_p_value_0.05_",guid,".png"))    
+    ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
   
   
   
-  genes_results_files<-list.files(pattern=paste0(guid,".*_genes_results.csv"))
-  #genes_results_files<-
-  #  sapply(scan$networks,function (x) {
-  #    results<-list.files(pattern=paste0("^",x,".*_genes_results"))
-  #    if (length(results)==0) {results<-NA}
-  #    return(results)
-  #  })
+  
+  genes_results_files<-
+    sapply(scan$networks,function (x) {
+      results<-list.files(pattern=paste0("^",x,".*_genes_results"))
+      if (length(results)==0) {results<-NA}
+      return(results)
+    })
   
   
   ################ Number of events per gene###########################
@@ -861,30 +870,16 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   )
   
   colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-  write.csv(events,paste0("number_of_events_",guid,".csv"))
+  write.csv(events,"number_of_events.csv")
   
   
   
   
 } else {   # MUTLOAD PLOT
-
-  mutload_svg_file<-paste0("mutational_load_grid_",guid,".svg")
-  round_mutload<-round(as.numeric(scan$mutload),2)
-  ggplot(scan, aes(x=factor(resolution), y=factor(gain), fill=round_mutload,label=round_mutload)) + 
-    scale_fill_gradient(low = 'red',high = 'blue',guide_legend(title = "p_value",aplha=0.7)) +
-    geom_tile(alpha=0.7) + theme_minimal()+geom_text(size=3) + ggtitle(label=paste0(PROJECT_NAME," \n Mutational load")) +
-    xlab("Resolution") + ylab ("Gain") +
-    theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=15,face="bold"),panel.grid.major = element_blank()) +
-    theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
-    scale_y_discrete(expand = c(0,0)) + scale_x_discrete(expand = c(0,0)) + 
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    coord_equal() + ggsave(mutload_svg_file)
-  
-  
-  #ggplot(scan, aes(x=factor(resolution), y=gain)) + 
-   # geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=round(as.numeric(scan$mutload,2)),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
-  #  guides(color = guide_legend(title = paste("mutload <= 0.05"),
-   #                             title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
+  ggplot(scan, aes(x=factor(resolution), y=gain)) + 
+    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=round(as.numeric(scan$mutload,2)),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+    guides(color = guide_legend(title = paste("mutload <= 0.05"),
+                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
   
 }
 
@@ -896,8 +891,8 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 
 if (arg$mutload==TRUE) {
-  results_dir<-paste0("Results_",PROJECT_NAME,"_",guid,"_mutload")
-} else { results_dir<-paste0("Results_",PROJECT_NAME,"_",guid,"_genes")}
+  results_dir<-paste0("Results_",PROJECT_NAME,"_",global_unique_id,"_mutload")
+} else { results_dir<-paste0("Results_",PROJECT_NAME,"_",global_unique_id,"_genes")}
   
 results_tar<-paste0(results_dir,".tar.gz")  
 
@@ -905,9 +900,12 @@ results_tar<-paste0(results_dir,".tar.gz")
 print (paste("Moving files to Results Directory:",results_dir))
 
 dir.create(results_dir)
-#if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
+if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
-files_to_move_to_results<-list.files(pattern = as.character(guid))
+csv_files<-list.files(pattern = "*.csv")
+png_files<-list.files(pattern = "*.png")
+
+files_to_move_to_results<-c(csv_files,png_files)
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 if (sum(x)==length(files_to_move_to_results)) {
   print ("All results files moved to Results dir, archiving files")
