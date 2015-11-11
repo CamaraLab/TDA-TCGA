@@ -869,12 +869,18 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   
   
 } else {   # MUTLOAD PLOT
-
-  mutload_svg_file<-paste0("mutational_load_grid_",guid,".svg")
+	if (arg$rescale!=0) {
+		add_title<-paste("subsampled",arg$rescale)
+		mutload_svg_file<-paste0("mutational_load_grid_rescaled_",arg$rescale,"_",guid,".svg")
+	} else {
+		add_title<-NULL
+		mutload_svg_file<-paste0("mutational_load_grid_norescaling",guid,".svg")
+    }
+ 
   round_mutload<-round(as.numeric(scan$mutload),2)
   ggplot(scan, aes(x=factor(resolution), y=factor(gain), fill=round_mutload,label=round_mutload)) + 
-    scale_fill_gradient(low = 'red',high = 'blue',guide_legend(title = "p_value",aplha=0.7)) +
-    geom_tile(alpha=0.7) + theme_minimal()+geom_text(size=3) + ggtitle(label=paste0(PROJECT_NAME," \n Mutational load")) +
+    scale_fill_gradient2(low = 'red',mid='purple', high= 'blue',midpoint=0.5,guide_legend(title = "p_value",aplha=0.7)) +
+    geom_tile(alpha=0.7) + theme_minimal()+geom_text(size=3) + ggtitle(label=paste0(PROJECT_NAME," \n Mutational load ",add_title)) +
     xlab("Resolution") + ylab ("Gain") +
     theme(axis.text=element_text(size=8),axis.title = element_text(size=12),plot.title = element_text(size=15,face="bold"),panel.grid.major = element_blank()) +
     theme(panel.border=element_rect(fill=NA,color="grey",size = 0.5)) + 
