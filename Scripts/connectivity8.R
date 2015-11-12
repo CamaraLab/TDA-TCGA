@@ -874,7 +874,7 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 		mutload_svg_file<-paste0("mutational_load_grid_rescaled_",arg$rescale,"_",guid,".svg")
 	} else {
 		add_title<-NULL
-		mutload_svg_file<-paste0("mutational_load_grid_norescaling",guid,".svg")
+		mutload_svg_file<-paste0("mutational_load_grid_norescaling_",guid,".svg")
     }
  
   round_mutload<-round(as.numeric(scan$mutload),2)
@@ -904,9 +904,10 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 
 if (arg$mutload==TRUE) {
-  results_dir<-paste0("Results_",PROJECT_NAME,"_",guid,"_mutload")
-} else { results_dir<-paste0("Results_",PROJECT_NAME,"_",guid,"_genes")}
-  
+  results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_mutload")
+} else { results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_genes")}
+
+if (arg$rescale!=0) {results_dir<-paste0(results_dir,"_rescaled_",arg$rescale)}
 results_tar<-paste0(results_dir,".tar.gz")  
 
 
@@ -917,6 +918,5 @@ dir.create(results_dir)
 
 files_to_move_to_results<-list.files(pattern = as.character(guid))
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
-print ("Archiving folder")
 tar(results_tar,results_dir,compression="gzip")
 
