@@ -24,7 +24,7 @@ names(a)<-var_samples
 
 TPM<-read.csv("../../LUAD_CUR/Expression/LUAD_Full_TPM_matrix.csv",row.names = 1,as.is=T)
 tpm_samples<-substring(rownames(TPM),1,12)
-samples<-intersect(tpm_samples,var_samples)
+samples_of_interest<-intersect(tpm_samples,var_samples)
 
 all_chromosomes<-sapply(1:22,function(x) paste0("chr",x))
 noncode<-read.table("../NONCODEv5_hg19_linc.bed",as.is=T)[,1:4]
@@ -34,7 +34,7 @@ noncode<-subset(noncode,noncode$chr %in% all_chromosomes)
 dim(noncode)
 
 
-for (sample in names(a)[1:5]) {
+for (sample in names(a)) {
   print(sample)
   var<-a[[sample]]
   noncode[,sample]<-apply(noncode,1, function (n) {    
@@ -47,82 +47,13 @@ for (sample in names(a)[1:5]) {
 }
 
   
-var<-x
-  noncode$hits<-NA
-  noncode$<-apply(noncode,1, function (n) {    
-    chr<-n[1]
-    pos_start<-as.numeric(n[2])
-    pos_end<-as.numeric(n[3])
-    ans<-in_range(var$position[var$chrom==chr],pos_start,pos_end)
-    return(ans)
-  })
-  return(noncode)
-})
+noncode_mutation_matrix<-t(noncode[,5:ncol(noncode)])
+colnames(noncode_mutation_matrix)<-paste0("mut_",noncode[,4])
+noncode_binary_mutation_matrix<-ifelse(noncode_mutation_matrix>0,1,0)
+write.csv(noncode_mutation_matrix,"nonocode_mut_total.csv")
+write.csv(noncode_binary_mutation_matrix,"nonocode_mut_bin.csv")
 
 
-
-
-
-noncode$hits<-NA
-noncode$hits<-apply(noncode,1, function (n) {    
-  chr<-n[1]
-  pos_start<-as.numeric(n[2])
-  pos_end<-as.numeric(n[3])
-  ans<-in_range(var$position[var$chrom==chr],pos_start,pos_end)
-  return(ans)
-})
-
-
-  
-  
-  
-  
-  
-  }
-  
-}
-
-
-
-names(samples)<-samples
-t<-lapply(samples[1:2],function (var_file) {
-  var_file<-a[[var_file]]
-  var_file$chrom<-paste0("chr",var_file$chrom)
-  var_file_chr<-split(var_file,var_file$chrom)
-  chromosomes<-names(var_file_chr)
-  names(chromosomes)<-chromosomes
-  noncode_chr<-noncode_chr[chromosomes]
-  
-  hit_matrix_chr<-lapply(chromosomes, function (chr){
-    
-    hit_matrix<-sapply(var_file_chr[[chr]]$position,function (positions) {
-      x<-NULL
-      for (i in 1:nrow(noncode_chr[[chr]])) {
-        x[i]<-in_range(positions,noncode_chr[[chr]][i,"start"],noncode_chr[[chr]][i,"end"])
-      }
-      return(x)
-    })
-    rownames(hit_matrix)<-noncode_chr[[chr]]$id
-    return(hit_matrix)
-  })    
-})
-  
-})
-
-
-hit_matrix<-sapply(a[1:5],function (positions) {
-  x<-NULL
-  for (i in 1:nrow(noncode)) {
-    x[i]<-in_range(positions,noncode[i,"start"],noncode[i,"end"])
-  }
-  return(x)
-})
-rownames(hit_matrix)<-noncode$id
-
-x<-NULL
-for (i in 1:nrow(noncode)) {
-  x[i]<-in_range(a$position,noncode[i,"start"],noncode[i,"end"])
-}
 
 #tf<-read.table("../TF_ENCODE_narrowPeak_hg19.bed")
 #colnames(tf) <- c('chr','start','end','id')
