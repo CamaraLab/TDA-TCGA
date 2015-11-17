@@ -69,6 +69,7 @@ samples_of_interest<-intersect(rownames(TPM.matrix),rownames(mat_non_syn_bin))
 
 mat_non_syn_bin<-mat_non_syn_bin[samples_of_interest,]
 mat_non_syn<-mat_syn<-mat_non_syn_bin
+mat_syn<-ifelse(mat_syn!=(-1),0,0)
 
 TPM.matrix<-TPM.matrix[samples_of_interest,]
 #Inersecting samples
