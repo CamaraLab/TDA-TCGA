@@ -28,7 +28,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(5,NULL,NULL,"LUAD.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(10,NULL,NULL,"LUAD.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("filter","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
@@ -50,7 +50,8 @@ spec = matrix(c(
   "rescale","r",2,"numeric",
   "maf","x",2,"character",
   "scan","y",2,"integer",
-  "filter","F",2,"integer"
+  "filter","F",2,"integer",
+  "distance","d",2,"character"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -169,6 +170,8 @@ if (arg$rescale!=0) {
 ################################ END OF FUNCTIONS SECTION########################################
 ##################################################################################################
 
+
+
 som<-function(x) {sd(x)/mean(x)}
 exp_mean<-colMeans(mat_tpm)
 exp_var<-apply(mat_tpm[,exp_mean>0.5],2,som)
@@ -176,7 +179,9 @@ top5000<-names(head(sort(round(exp_var,3),decreasing = T),2000))
 
 exp_top5000<-mat_tpm[,top5000]
 exp_top5000<-t(exp_top5000)
-cor_exp_top5000<-1-cor(exp_top5000)
+#cor_exp_top5000<-1-cor(exp_top5000)
+cor_exp_top5000<-1-cor(exp_top5000,method = "spearman")
+
 #sum(is.na(cor_exp_top5000))
 
 epsilon_min<-min(cor_exp_top5000)
@@ -551,7 +556,15 @@ genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
   c$plot<-c$p_value<=0.05
   c<-c[c$plot,]
 
-  ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename="epsilon_plot_p.png")
+  
+  
+x<-ncol(epsilon_dist_q)
+cut_left<-1+ceiling(x/10)
+cut_right<-(x-(cut_left-1)*2)
+  
+  ggplot(c,aes(x=epsilon,y=gene)) + geom_point() + 
+  geom_vline(xintercept = c((cut_left-0.2),(cut_right+0.2)),col="red") +
+  ggsave(filename="epsilon_plot_p.png")
 
 
 k_som<-epsilon_dist_q
@@ -562,17 +575,30 @@ colnames(c)<-c("gene","epsilon","q_value")
 c$plot<-c$q_value<=0.15
 c<-c[c$plot,]
 
-ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_q.png")
+
+
+ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +
+  geom_vline(xintercept = c((cut_left-0.2),(cut_right+0.2)),col="red") +
+  ggsave(filename = "epsilon_plot_q.png")
 
 #PLot after removing outlier epsilons
-x<-ncol(epsilon_dist_q)
-cut_left<-ceiling(x/10)
-cut_right<-cut_left*2
 
-k_som<-epsilon_dist_q[(1+cut_left):(x-cut_right)]
+k_som<-epsilon_dist_q[cut_left:cut_right]
 k_som<-as.matrix(k_som)
 c<-melt(k_som)
 colnames(c)<-c("gene","epsilon","q_value")
+
+
+write.csv(k_som,"epsilon_dist_q_cut.csv")
+write.csv(epsilon_dist_q,"epsilon_dist_q.csv")
+
+k_som<-as.data.frame(k_som)
+#k_som<-as.matrix(k_som)
+k_som$average_q<-rowMeans(k_som)
+k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.15))
+write.csv(k_som,"epsilon_dist_q_cut.csv")
+
+
 
 c$plot<-c$q_value<=0.15
 c<-c[c$plot,]
@@ -580,14 +606,19 @@ ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_
 
 
 #plot p value after cut
-x<-ncol(epsilon_dist_p)
-cut_left<-ceiling(x/10)
-cut_right<-cut_left*2
 
-k_som<-epsilon_dist_p[(1+cut_left):(x-cut_right)]
+k_som<-epsilon_dist_p[cut_left:cut_right]
 k_som<-as.matrix(k_som)
 c<-melt(k_som)
 colnames(c)<-c("gene","epsilon","p_value")
+
+
+k_som<-as.data.frame(k_som)
+k_som$average_p<-rowMeans(k_som)
+k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.05))
+write.csv(k_som,"epsilon_dist_p_cut.csv")
+
+
 
 c$plot<-c$p_value<=0.05
 c<-c[c$plot,]
