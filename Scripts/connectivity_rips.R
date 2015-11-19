@@ -1,4 +1,5 @@
-#rm(list=ls())
+rm(list=ls())
+setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips/")
 del<-list.files(pattern = "*.csv")
 unlink(del)
 source('C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity_functions.R')
@@ -16,6 +17,8 @@ suppressWarnings({
     library(rhdf5,quietly = T,warn.conflicts = FALSE)
     library(ggplot2,quietly = T,warn.conflicts = FALSE)
     library(stringr,quietly = T,warn.conflicts = FALSE)
+    
+    require("reshape2")
   })
   
 })
@@ -25,8 +28,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"scan","LUAD.h5","all",500,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
-names(arg)<-c("network","3","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
+arg<-list(5,NULL,NULL,"LUAD.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+names(arg)<-c("filter","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -51,7 +54,7 @@ spec = matrix(c(
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
-#setwd("c:/Users/Udi/Documents/temp_udi/Rips/")
+
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -123,7 +126,7 @@ if (arg$rescale!=0) {
   mat_syn<-subsampled_matrices$mat_syn
 }
 
-if (arg$log2==TRUE) {mat_non_syn_bin<-(2^mat_non_syn_bin)-1} #Preparing for calculation if matrix is log scale
+if (arg$log2==TRUE) {mat_tpm<-(2^mat_tpm)-1} #Preparing for calculation if matrix is log scale
 
 #Info_cols is used to set information columns in results output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
@@ -166,8 +169,10 @@ if (arg$rescale!=0) {
 ################################ END OF FUNCTIONS SECTION########################################
 ##################################################################################################
 
-exp_var<-apply(mat_tpm,2,var)
-top5000<-names(head(sort(round(exp_var,3),decreasing = T),5000))
+som<-function(x) {sd(x)/mean(x)}
+exp_mean<-colMeans(mat_tpm)
+exp_var<-apply(mat_tpm[,exp_mean>0.5],2,som)
+top5000<-names(head(sort(round(exp_var,3),decreasing = T),2000))
 
 exp_top5000<-mat_tpm[,top5000]
 exp_top5000<-t(exp_top5000)
@@ -519,24 +524,87 @@ genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
   ee<-setdiff(epsilon_set,networks_with_no_edges)
 
 
-  d<-epsilon_p_value(genes_results_files)[gene_order]
-  average_p<-sapply(d,mean,na.rm=T)
+  dp<-epsilon_p_value(genes_results_files)[gene_order]
+  dq<-epsilon_q_value(genes_results_files)[gene_order]
+  average_p<-sapply(dp,mean,na.rm=T)
+  average_q<-sapply(dq,mean,na.rm=T)
   q_average_p<-p.adjust(average_p,method = "fdr")
   
-  epsilon_dist<-as.data.frame(t(as.data.frame(d)))
-  colnames(epsilon_dist)<-ee
-  epsilon_dist$average_p<-average_p
-  epsilon_dist$q_avearage_p<-q_average_p
+  epsilon_dist_p<-as.data.frame(t(as.data.frame(dp)))
+  epsilon_dist_q<-as.data.frame(t(as.data.frame(dq)))
+  colnames(epsilon_dist_p)<-ee
+  colnames(epsilon_dist_q)<-ee
+  epsilon_dist_p$average_p<-average_p
+  epsilon_dist_q$average_q<-average_q
+  #epsilon_dist$q_avearage_p<-q_average_p
 
 
-  write.csv(epsilon_dist,"epsilon_dist.csv")
+  write.csv(epsilon_dist_p,"epsilon_dist_p.csv")
+  write.csv(epsilon_dist_q,"epsilon_dist_q.csv")
 
-  require("reshape2")
-  b<-as.matrix(epsilon_dist)
-  b<-b[,as.character(ee)]
-  c<-melt(b,id=as.character(ee))
-  colnames(c)<-c("gene","filter","value")
-  g<-ggplot(c,aes(x=gene,y=value)) + geom_point() + ggsave("epsilon_plot.png") 
+  
+  k_som<-epsilon_dist_p
+  k_som<-as.matrix(k_som)
+  c<-melt(k_som)
+  colnames(c)<-c("gene","epsilon","p_value")
+
+  c$plot<-c$p_value<=0.05
+  c<-c[c$plot,]
+
+  ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename="epsilon_plot_p.png")
+
+
+k_som<-epsilon_dist_q
+k_som<-as.matrix(k_som)
+c<-melt(k_som)
+colnames(c)<-c("gene","epsilon","q_value")
+
+c$plot<-c$q_value<=0.15
+c<-c[c$plot,]
+
+ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_q.png")
+
+#PLot after removing outlier epsilons
+x<-ncol(epsilon_dist_q)
+cut_left<-ceiling(x/10)
+cut_right<-cut_left*2
+
+k_som<-epsilon_dist_q[(1+cut_left):(x-cut_right)]
+k_som<-as.matrix(k_som)
+c<-melt(k_som)
+colnames(c)<-c("gene","epsilon","q_value")
+
+c$plot<-c$q_value<=0.15
+c<-c[c$plot,]
+ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_q_cut.png")
+
+
+#plot p value after cut
+x<-ncol(epsilon_dist_p)
+cut_left<-ceiling(x/10)
+cut_right<-cut_left*2
+
+k_som<-epsilon_dist_p[(1+cut_left):(x-cut_right)]
+k_som<-as.matrix(k_som)
+c<-melt(k_som)
+colnames(c)<-c("gene","epsilon","p_value")
+
+c$plot<-c$p_value<=0.05
+c<-c[c$plot,]
+ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_p_cut.png")
+
+
+
+
+
+
+
+
+  #b<#-as.matrix(epsilon_dist)
+  #b<-b[,as.character(ee)]
+  #c<-melt(b,id=as.character(ee))
+  #colnames(c)<-c("gene","filter","value")
+  #g<-ggplot(c,aes(x=gene,y=value)) + geom_point() + ggsave(filename="epsilon_plot.png") 
 
 
 
