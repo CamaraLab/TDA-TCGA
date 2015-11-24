@@ -1,7 +1,7 @@
-rm(list=ls())
-setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips/")
-del<-list.files(pattern = "*.csv")
-unlink(del)
+#rm(list=ls())
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips/")
+#del<-list.files(pattern = "*.csv")
+#unlink(del)
 source('C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity_functions.R')
 ############################LOADING LIBRARIES############################
 
@@ -19,6 +19,7 @@ suppressWarnings({
     library(stringr,quietly = T,warn.conflicts = FALSE)
     
     require("reshape2")
+    require("bioDist")
   })
   
 })
@@ -28,14 +29,14 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(10,NULL,NULL,"LUAD.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
-names(arg)<-c("filter","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
+arg<-list(10,NULL,NULL,NULL,NULL,"STAD-CUR.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,2,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
 spec = matrix(c(
   "network", "n", 1, "character",
   "matrix", "m",1,"character",
-  "columns", "c",1,"character",
+  "columns", "i",1,"character",
   "g_score_threshold", "g",1,"integer",
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
@@ -50,8 +51,10 @@ spec = matrix(c(
   "rescale","r",2,"numeric",
   "maf","x",2,"character",
   "scan","y",2,"integer",
-  "filter","F",2,"integer",
-  "distance","d",2,"character"
+  "epsilon","e",2,"integer",
+  "distance","d",2,"character",
+  "topgenes","T",2,"integer",
+  "cut","c",2,"numeric"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -80,6 +83,10 @@ if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
 
 if ( is.null(arg$scan ) ) {arg$scan= 0}
 if ( !is.null(arg$network ) ) {arg$scan= 0}
+
+if ( is.null(arg$epsilon ) ) {arg$epsilon= 20}
+if ( is.null(arg$topgenes ) ) {arg$topgenes= 2000}
+if ( is.null(arg$cut) ) {arg$cut= 0.5}
 
 PROJECT_NAME<-as.character(str_match(string = arg$matrix,pattern="\\w+.h5"))
 PROJECT_NAME<-substring(text = PROJECT_NAME,first = 1,nchar(PROJECT_NAME)-3)
@@ -117,7 +124,13 @@ rownames(mat_tpm)<-all_samples
 colnames(mat_tpm)<-tpm_genes
 
 
+
+guid<-round(runif(1, min = 300000, max = 399999),0)
+
 ##################RESCALING####################
+
+
+
 
 
 if (arg$rescale!=0) { 
@@ -149,12 +162,12 @@ if (arg$rescale!=0) {
   #png("hist_mutLoad_Rescaled.png")
   #hist(log10(mutload_dist),breaks = 100,main="After rescaling")
   #invisible(dev.off())  
-  qplot(log10(mutload_dist),main = paste ("After rescale",PROJECT_NAME),) + ggsave(paste0("hist_mutLoad_Rescaled","_",as.character(arg$rescale),".png"))
+  qplot(log10(mutload_dist),main = paste ("After rescale",PROJECT_NAME),) + ggsave(paste0("hist_mutLoad_Rescaled_",as.character(arg$rescale),"_",guid,".png"))
 } else {
   #png("hist_mutLoad_NoRescaling.png")
   #hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
   #invisible(dev.off())
-  qplot(log10(mutload_dist),main = paste ("Before rescaling",PROJECT_NAME)) + ggsave(paste0("hist_mutLoad_NORescaling.png"))
+  qplot(log10(mutload_dist),main = paste ("Before rescaling",PROJECT_NAME)) + ggsave(paste0("hist_mutLoad_NORescaling_",guid,".png"))
 }
 
 
@@ -174,30 +187,27 @@ if (arg$rescale!=0) {
 
 som<-function(x) {sd(x)/mean(x)}
 exp_mean<-colMeans(mat_tpm)
-exp_var<-apply(mat_tpm[,exp_mean>0.5],2,som)
-top5000<-names(head(sort(round(exp_var,3),decreasing = T),2000))
+qplot(exp_mean,binwidth=0.1) + ggtitle("bin=0.1") + ggsave(paste0("exp_hist_",guid,".png"))
+
+exp_var<-apply(mat_tpm[,exp_mean>arg$cut],2,som)
+top5000<-names(head(sort(round(exp_var,3),decreasing = T),arg$topgenes))
 
 exp_top5000<-mat_tpm[,top5000]
 exp_top5000<-t(exp_top5000)
 #cor_exp_top5000<-1-cor(exp_top5000)
-cor_exp_top5000<-1-cor(exp_top5000,method = "spearman")
-
+cor_exp_top5000<-1-cor(exp_top5000)
+#require("hopach")
+#cor_exp_top5000<-1-as.matrix(mutualInfo(t(exp_top5000)))
+  #as.matrix(distancematrix(t(exp_top5000),"eucli"))
+#g<-1-cor(exp_top5000)
 #sum(is.na(cor_exp_top5000))
 
 epsilon_min<-min(cor_exp_top5000)
 epsilon_max<-max(cor_exp_top5000)
-epsilon_set<-round(seq(epsilon_min,epsilon_max,length.out=arg$filter),4)
+epsilon_set<-round(seq(epsilon_min,epsilon_max,length.out=arg$epsilon),2)
 print (epsilon_set)
 scan<-data.frame(networks=epsilon_set,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
-
-#scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
-#  strsplit(x,"_")[[1]][4]
-#}))
-
-#scan$gain<-as.numeric(sapply(scan$networks, function (x) {
-#  strsplit(x,"_")[[1]][5]
-#}))
-
+  
 if (arg$scan!=0) { #Removing network files file for test mode
   scan<-scan[1:arg$scan,]
 }
@@ -211,7 +221,7 @@ if (arg$scan!=0) { #Removing network files file for test mode
 ############################################################################################################
 
 count<-0
-global_unique_id<-round(runif(1, min = 300000, max = 399999),0)
+
 #for (file in scan$networks[scan$mutload_connectivity]) {
 for (file in scan$networks) {
   count<-count+1  
@@ -270,12 +280,7 @@ for (file in scan$networks) {
   genes_above_samples_threshold<-names(which(genes_number_of_samples>=samples_threshold)) #For filtering by number  of mutations exist in a sample
   
   
-  
-  
-  #if (arg$score_type=="lam") {
-  #  g_score<-g_score_calc(arg$score_type,samples_of_interest,all_genes) #all_genes_Lambda scores needs all genes into account 
-  #} else
-  
+    
   g_score<-g_score_calc(arg$score_type,samples_of_interest,genes_above_samples_threshold) #Syn/old only over sample thresholded genes
   columns_of_interest<-head(sort(g_score,decreasing = T),arg$g_score_threshold) #Filtering by g-score
   
@@ -297,26 +302,13 @@ for (file in scan$networks) {
   
   #Initializing results file name and unique id
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
-  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"-",Sys.Date())
+  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"_",guid,"-",Sys.Date())
   print(paste("File unique identifier:",unique_id))
   scan[scan$networks==file,]$uid<-unique_id
   
   
   
-  
-  # info_cols was here
-  
-  #Printing thresholded genes
-  
-  #thresholded_genes1<-genes_below_samples_threshold
-  #thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
-  
-  #write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
-  #write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
-  
-  
-  
-  
+    
   #Writing log file
   suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
@@ -326,12 +318,6 @@ for (file in scan$networks) {
   suppressWarnings(write.table(paste0("Original sample size:",length(all_samples)),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste0("First connected sample size:",length(samples_of_interest)),paste0(file_prefix,"_log.csv"),append=TRUE))
   
-  
-  
-  
-  #logger <- create.logger(logfile = 'debugging.log', level = 1)
-  #info(logger,paste("Number of permutations: ",arg$permutations))
-  #info(logger,paste("Samples threshold: ",arg$samples_threshold))
   
   
   permutations<-arg$permutations
@@ -446,50 +432,15 @@ for (file in scan$networks) {
 
 
 #Writing scanner summary file:
-write.csv(scan,"scan_summary.csv")
+write.csv(scan,paste0("scan_summary_",guid,".csv"))
 
 
 ######################################## Plotting section######################################
 
 
-
-#Number of samples per graph plot:
-#ggplot(scan, aes(x=resolution, y=gain, label=first_connected_samples)) + 
-  #scale_color_gradient2(low = 'white', mid='yellow', high = 'red') +
- # geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle(paste("Original number of samples:",scan$original_samples[1])) +
-  #ggsave(filename = paste0("First_component_samples.png"))  
-
-
-
-
-
-
 if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   
-  
-  #connectivity_q_value_plot
-  #q_threshold_range<-c(0.1,0.15,0.2)
-  #for (threshold in q_threshold_range) {
-  #  q_value_dist<-scan[,paste0("q_",threshold)]
-  #  title<-paste("Genes_results_q_value <=",threshold, "Permutations=",arg$permutations)
     
-   # ggplot(scan, aes(x=resolution, y=gain, label=q_value_dist, col=q_value_dist)) + 
-  #    scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-  #    geom_point(size=5) + theme_bw() + geom_text(vjust=1.6)+ geom_text(aes(label=first_connected_samples),vjust=-0.75) + ggtitle(title) +
-  #    ggsave(filename = paste0("Genes_results_q_value","_",threshold,".png"))   
-    
-  #}
-  
-  #connectivity_p_value_plot
-  #p_value_dist<-scan$p_0.05
-  #ggplot(scan, aes(x=resolution, y=gain, label=p_value_dist)) + 
-    ##scale_color_gradient2(low = 'white', mid='cyan', high = 'black') +
-   # geom_point(size=5) + theme_bw() + geom_text(vjust=1.6) + ggtitle("Genes_results_p_value<=0.05") +
-    #ggsave(filename = paste0("Genes_results_p_value_0.05.png"))    
-  
-  
-  
-  
 genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
 
 
@@ -541,11 +492,10 @@ genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
   colnames(epsilon_dist_q)<-ee
   epsilon_dist_p$average_p<-average_p
   epsilon_dist_q$average_q<-average_q
-  #epsilon_dist$q_avearage_p<-q_average_p
 
 
-  write.csv(epsilon_dist_p,"epsilon_dist_p.csv")
-  write.csv(epsilon_dist_q,"epsilon_dist_q.csv")
+  write.csv(epsilon_dist_p,paste0("epsilon_dist_p_",guid,".csv"))
+  write.csv(epsilon_dist_q,paste0("epsilon_dist_q_",guid,".csv"))
 
   
   k_som<-epsilon_dist_p
@@ -558,13 +508,13 @@ genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
 
   
   
-x<-ncol(epsilon_dist_q)
+x<-ncol(epsilon_dist_p)
 cut_left<-1+ceiling(x/10)
 cut_right<-(x-(cut_left-1)*2)
   
   ggplot(c,aes(x=epsilon,y=gene)) + geom_point() + 
   geom_vline(xintercept = c((cut_left-0.2),(cut_right+0.2)),col="red") +
-  ggsave(filename="epsilon_plot_p.png")
+  ggsave(filename=paste0("epsilon_plot_p_,",guid,".png"))
 
 
 k_som<-epsilon_dist_q
@@ -575,34 +525,37 @@ colnames(c)<-c("gene","epsilon","q_value")
 c$plot<-c$q_value<=0.15
 c<-c[c$plot,]
 
+x<-ncol(epsilon_dist_q)
+cut_left<-1+ceiling(x/10)
+cut_right<-(x-(cut_left-1)*2)
 
 
 ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +
-  geom_vline(xintercept = c((cut_left-0.2),(cut_right+0.2)),col="red") +
-  ggsave(filename = "epsilon_plot_q.png")
+  geom_vline(xintercept = c((cut_left),(cut_right)),col="red") +
+  ggsave(filename = paste0("epsilon_plot_q_",guid,".png"))
 
 #PLot after removing outlier epsilons
 
 k_som<-epsilon_dist_q[cut_left:cut_right]
 k_som<-as.matrix(k_som)
-c<-melt(k_som)
+(som)
 colnames(c)<-c("gene","epsilon","q_value")
 
 
-write.csv(k_som,"epsilon_dist_q_cut.csv")
-write.csv(epsilon_dist_q,"epsilon_dist_q.csv")
+write.csv(k_som,paste0("epsilon_dist_q_cut_",guid,".csv"))
+write.csv(epsilon_dist_q,paste0("epsilon_dist_q_",guid,".csv"))
 
 k_som<-as.data.frame(k_som)
 #k_som<-as.matrix(k_som)
 k_som$average_q<-rowMeans(k_som)
 k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.15))
-write.csv(k_som,"epsilon_dist_q_cut.csv")
+write.csv(k_som,paste0("epsilon_dist_q_cut_",guid,".csv"))
 
 
 
 c$plot<-c$q_value<=0.15
 c<-c[c$plot,]
-ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_q_cut.png")
+ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = paste0("epsilon_plot_q_cut_",guid,".png"))
 
 
 #plot p value after cut
@@ -616,13 +569,13 @@ colnames(c)<-c("gene","epsilon","p_value")
 k_som<-as.data.frame(k_som)
 k_som$average_p<-rowMeans(k_som)
 k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.05))
-write.csv(k_som,"epsilon_dist_p_cut.csv")
+write.csv(k_som,paste0("epsilon_dist_p_cut_",guid,".csv"))
 
 
 
 c$plot<-c$p_value<=0.05
 c<-c[c$plot,]
-ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_p_cut.png")
+ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = paste0("epsilon_plot_p_cut_",guid,".png"))
 
 
 
@@ -630,18 +583,6 @@ ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_
 
 
 
-
-  #b<#-as.matrix(epsilon_dist)
-  #b<-b[,as.character(ee)]
-  #c<-melt(b,id=as.character(ee))
-  #colnames(c)<-c("gene","filter","value")
-  #g<-ggplot(c,aes(x=gene,y=value)) + geom_point() + ggsave(filename="epsilon_plot.png") 
-
-
-
-
-
-  
   n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
   length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
   
@@ -653,7 +594,7 @@ ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_
   )
   
   colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-  write.csv(events,"number_of_events.csv")
+  write.csv(events,paste0("number_of_events_",guid,".csv"))
   
 
   
@@ -661,11 +602,11 @@ ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_
   
 } else {   # MUTLOAD PLOT
   print(as.numeric(scan$mutload))
-  scan$mutload<-round(scan$mutload,2)
-  ggplot(scan, aes(x=factor(resolution), y=gain)) + 
+  scan$mutload<-scan$mutload
+  ggplot(scan, aes(x=networks, y=mutload)) + 
     geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
     guides(color = guide_legend(title = paste("mutload <= 0.05"),
-                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
+                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = paste0("mutload_grid_",guid,".png"))
   
 }
 
@@ -677,31 +618,19 @@ ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = "epsilon_plot_
 
 
 if (arg$mutload==TRUE) {
-  results_dir<-paste0("Results_",PROJECT_NAME,"_",global_unique_id,"_mutload")
-} else { results_dir<-paste0("Results_",PROJECT_NAME,"_",global_unique_id,"_genes")}
+  results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_mutload")
+} else { results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_genes")}
 
+if (arg$rescale!=0) {results_dir<-paste0(results_dir,"_rescaled_",arg$rescale)}
 results_tar<-paste0(results_dir,".tar.gz")  
 
 
 print (paste("Moving files to Results Directory:",results_dir))
 
 dir.create(results_dir)
-if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
+#if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
 
-csv_files<-list.files(pattern = "*.csv")
-png_files<-list.files(pattern = "*.png")
-
-files_to_move_to_results<-c(csv_files,png_files)
+files_to_move_to_results<-list.files(pattern = as.character(guid))
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
-if (sum(x)==length(files_to_move_to_results)) {
-  print ("All results files moved to Results dir, archiving files")
-  tar(results_tar,results_dir,compression="gzip")
-} else {
-  print ("This files were not moved to Results dir:")
-  print (files_to_move_to_results[!x])
-}
+tar(results_tar,results_dir,compression="gzip")
 
-
-#ggplot(data = epsilon_dist,aes(x=1:100,y=a_0.1589,group=rownames(epsilon_dist))) + geom_point()
-
-#qplot(epsilon_dist$a_0.4766,epsilon_dist$a_0.1589)
