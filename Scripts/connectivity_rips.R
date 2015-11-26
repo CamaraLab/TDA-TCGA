@@ -29,7 +29,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(10,NULL,NULL,NULL,NULL,"STAD-CUR.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,2,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(10,NULL,NULL,NULL,NULL,"STADCUR.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,2,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
@@ -87,6 +87,7 @@ if ( !is.null(arg$network ) ) {arg$scan= 0}
 if ( is.null(arg$epsilon ) ) {arg$epsilon= 20}
 if ( is.null(arg$topgenes ) ) {arg$topgenes= 2000}
 if ( is.null(arg$cut) ) {arg$cut= 0.5}
+if ( is.null(arg$dist) ) {arg$dist= 1}
 
 PROJECT_NAME<-as.character(str_match(string = arg$matrix,pattern="\\w+.h5"))
 PROJECT_NAME<-substring(text = PROJECT_NAME,first = 1,nchar(PROJECT_NAME)-3)
@@ -124,6 +125,16 @@ rownames(mat_tpm)<-all_samples
 colnames(mat_tpm)<-tpm_genes
 
 
+samples_to_remove1<-c("TCGA-FP-8209-01","TCGA-FP-8210-01","TCGA-BR-A4IZ-01")
+samples_to_remove2<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
+samples_to_remove<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
+r<-match(samples_to_remove,all_samples)
+mat_tpm<-mat_tpm[-r,]
+mat_syn<-mat_syn[-r,]
+mat_non_syn<-mat_non_syn[-r,]
+mat_non_syn_bin<-mat_non_syn_bin[-r,]
+
+all_samples<-all_samples[-r]
 
 guid<-round(runif(1, min = 300000, max = 399999),0)
 
@@ -195,7 +206,18 @@ top5000<-names(head(sort(round(exp_var,3),decreasing = T),arg$topgenes))
 exp_top5000<-mat_tpm[,top5000]
 exp_top5000<-t(exp_top5000)
 #cor_exp_top5000<-1-cor(exp_top5000)
-cor_exp_top5000<-1-cor(exp_top5000)
+if (arg$dist==1) {
+	cor_exp_top5000<-1-cor(exp_top5000,method="pearson")
+} 
+
+if (arg$dist==2) {
+	cor_exp_top5000<-1-cor(exp_top5000,method="spearman")
+} 
+
+if (arg$dist==3) {
+	cor_exp_top5000<-as.matrix(dist(exp_top5000,upper = T))
+}
+
 #require("hopach")
 #cor_exp_top5000<-1-as.matrix(mutualInfo(t(exp_top5000)))
   #as.matrix(distancematrix(t(exp_top5000),"eucli"))
