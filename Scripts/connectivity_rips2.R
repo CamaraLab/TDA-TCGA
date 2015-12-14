@@ -1002,3 +1002,12 @@ files_to_move_to_results<-list.files(pattern = as.character(guid))
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 tar(results_tar,results_dir,compression="gzip")
 
+x<-list()
+for (i in 1:length(columns_of_interest)) {
+  gene<-names(columns_of_interest[i])
+  x[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
+  
+}
+
+
+
