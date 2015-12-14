@@ -130,8 +130,8 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
   split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
   
   #count<-0
-  #ans<-parLapply(cl,split.column,function (columns_range)  {
-  ans<-lapply(split.column,function (columns_range)  {
+  ans<-parLapply(cl,split.column,function (columns_range)  {
+  #ans<-lapply(split.column,function (columns_range)  {
     #calculating c-scores and p-values for each chunk of columns
     #count<-count+1
     matrix2<-matrix[,columns_range,drop=FALSE]
@@ -366,7 +366,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(20,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",10,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(30,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
