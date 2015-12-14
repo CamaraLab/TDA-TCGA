@@ -2,7 +2,7 @@
 #setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips/")
 #del<-list.files(pattern = "*.csv")
 #unlink(del)
-source('C:/Users/Udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/Scripts/connectivity_functions.R')
+source('connectivity_functions.R')
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
@@ -125,16 +125,16 @@ rownames(mat_tpm)<-all_samples
 colnames(mat_tpm)<-tpm_genes
 
 
-samples_to_remove1<-c("TCGA-FP-8209-01","TCGA-FP-8210-01","TCGA-BR-A4IZ-01")
-samples_to_remove2<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
-samples_to_remove<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
-r<-match(samples_to_remove,all_samples)
-mat_tpm<-mat_tpm[-r,]
-mat_syn<-mat_syn[-r,]
-mat_non_syn<-mat_non_syn[-r,]
-mat_non_syn_bin<-mat_non_syn_bin[-r,]
+#amples_to_remove1<-c("TCGA-FP-8209-01","TCGA-FP-8210-01","TCGA-BR-A4IZ-01")
+#samples_to_remove2<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
+#samples_to_remove<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
+#r<-match(samples_to_remove,all_samples)
+#mat_tpm<-mat_tpm[-r,]
+#mat_syn<-mat_syn[-r,]
+#mat_non_syn<-mat_non_syn[-r,]
+#mat_non_syn_bin<-mat_non_syn_bin[-r,]
 
-all_samples<-all_samples[-r]
+#all_samples<-all_samples[-r]
 
 guid<-round(runif(1, min = 300000, max = 399999),0)
 
@@ -215,7 +215,7 @@ if (arg$dist==2) {
 } 
 
 if (arg$dist==3) {
-	cor_exp_top5000<-as.matrix(dist(exp_top5000,upper = T))
+	cor_exp_top5000<-as.matrix(dist(t(exp_top5000),upper = T))
 }
 
 #require("hopach")
@@ -560,7 +560,7 @@ ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +
 
 k_som<-epsilon_dist_q[cut_left:cut_right]
 k_som<-as.matrix(k_som)
-(som)
+c<-melt(k_som)
 colnames(c)<-c("gene","epsilon","q_value")
 
 
