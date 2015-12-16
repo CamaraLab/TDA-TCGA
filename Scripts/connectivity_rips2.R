@@ -553,10 +553,15 @@ if (arg$dist==3) {
 #g<-1-cor(exp_top5000)
 #sum(is.na(cor_exp_top5000))
 
-epsilon_min<-min(cor_exp_top5000)
-epsilon_max<-max(cor_exp_top5000)
-epsilon_set<-round(seq(epsilon_min,epsilon_max,length.out=arg$epsilon),2)
-print (epsilon_set)
+#epsilon_min<-min(cor_exp_top5000)
+#epsilon_max<-max(cor_exp_top5000)
+#epsilon_set<-round(seq(epsilon_min,epsilon_max,length.out=arg$epsilon),2)
+
+epsilon_set<-sort(unique(as.numeric(cor_exp_top5000))) #Extracting all possible distances
+#epsilon_set<-seq(min(epsilon_set),max(epsilon_set),length.out = arg$epsilon)
+epsilon_sub_index<-floor(seq(1,length(epsilon_set),length.out = arg$epsilon))
+epsilon_set<-epsilon_set[epsilon_sub_index]
+epsilon_set<-round(epsilon_set,3)
 scan<-data.frame(networks=epsilon_set,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
   
 if (arg$scan!=0) { #Removing network files file for test mode
@@ -1015,6 +1020,8 @@ for (i in seq_along(columns_of_interest)) {
   x[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
 }
 
-dim(x[[1]])
+#plot(x[[1]][1,])
 
+#dim(x[[1]])
 
+#apply(x[[1]],1,function (c_dist) average_slope<-)
