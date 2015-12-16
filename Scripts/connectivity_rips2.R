@@ -119,11 +119,11 @@ c_calc_fast<-function(pi_matrix)
 
 
 
-connectivity_analysis<-function(columns_of_interest,matrix) {
+connectivity_analysis<-function(columns_of_interest,matrix,perm_dict) {
   
   print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
   cl <- makeCluster(as.numeric(arg$cores))
-  varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","info_cols","columns")
+  varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","info_cols","columns","perm_dict")
   clusterExport(cl=cl, varlist=varlist,envir=environment())
   
   columns<-seq_along(columns_of_interest) #Subsetting columns
@@ -135,26 +135,26 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     #calculating c-scores and p-values for each chunk of columns
     #count<-count+1
     matrix2<-matrix[,columns_range,drop=FALSE]
-    dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
-    perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+    
+    #dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
+    #perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
     perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
     
-    perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
-      x<-apply(dict,2,function(x) x<-sample(samples))
-      x[,1]<-1:length(samples)
-      return(x)
-    }) 
+    #perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
+    #  x<-apply(dict,2,function(x) x<-sample(samples))
+    #  x[,1]<-1:length(samples)
+    #  return(x)
+    #}) 
     
     for (column in seq_along(columns_range)) {
-      perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],column,matrix2)
+      perm_values_list[[column]]<-perm_values(perm_dict,column,matrix2)
     }
+    #perm_values_list<-perm_values_list[[colnames(matrix2)]]
     
     
-    if (1==1) {
-      e_list<-perm_values_list
-    } else e_list<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted. 
-    
+    e_list<-perm_values_list
     pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
+    
     c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
     
     e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
@@ -165,13 +165,15 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     c_value<-sapply(c_vec_list,function (c_vec) c_vec[1]) #the first position is the connectivity value, the later are c_value for each permutation
     p_value<-sapply(c_vec_list,function(c_vec) {
       p_value<-sum(c_vec>c_vec[1])/permutations})
+    
     Genes<-colnames(matrix2)  
+    
     
     output<-cbind(Genes,c_value,p_value,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
     output1<-t(as.data.frame(c_vec_list))
-    rownames(output1)<-Genes
     
-    write.csv(output1,paste0("output_",columns_range[1],".csv"))
+    rownames(output1)<-Genes
+        write.csv(output1,paste0("output_",columns_range[1],".csv"))
     #write.csv(output1,"output1.csv")
     #write.csv("output1.csv",output1)
     #write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
@@ -366,7 +368,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(30,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(20,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",500,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
@@ -462,16 +464,6 @@ rownames(mat_tpm)<-all_samples
 colnames(mat_tpm)<-tpm_genes
 
 
-#amples_to_remove1<-c("TCGA-FP-8209-01","TCGA-FP-8210-01","TCGA-BR-A4IZ-01")
-#samples_to_remove2<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
-#samples_to_remove<-c("TCGA-BR-6452-01","TCGA-BR-8680-01","TCGA-CG-5721-01","TCGA-BR-8487-01","TCGA-BR-4361-01")
-#r<-match(samples_to_remove,all_samples)
-#mat_tpm<-mat_tpm[-r,]
-#mat_syn<-mat_syn[-r,]
-#mat_non_syn<-mat_non_syn[-r,]
-#mat_non_syn_bin<-mat_non_syn_bin[-r,]
-
-#all_samples<-all_samples[-r]
 
 guid<-round(runif(1, min = 300000, max = 399999),0)
 
@@ -578,6 +570,19 @@ if (arg$scan!=0) { #Removing network files file for test mode
 ############################################################################################################
 ################### Running connectivity analysis for networks in scan table ##############################
 ############################################################################################################
+
+
+dict<-matrix(NA,length(all_samples),arg$permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
+#perm_values_list<-as.list(rep(NA,length(columns_of_interest))) #Creating list of "column" elements
+perm_dict<-apply(dict,2,function(x) x<-sample(all_samples))
+perm_dict[,1]<-all_samples
+
+#for (column in seq_along(columns_of_interest)) {
+#  perm_values_list[[column]]<-perm_values(perm_dict,column,matrix1)
+#}
+
+
+
 
 count<-0
 c_matrix_list<-list()
@@ -699,7 +704,7 @@ for (file in scan$networks) {
     print ("Starting connectivity analysis:")
     if (arg$mutload==TRUE) {
       print (paste("Mutload Connectivity for Graph"))
-      ans<-connectivity_analysis(columns_of_interest,matrix1)
+      ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
      
       
       final_results<-results_file(ans)
@@ -708,7 +713,7 @@ for (file in scan$networks) {
       
     } else {   # Genes analysys
       print (paste("Genes Connectivity for Graph"))
-      ans<-connectivity_analysis(columns_of_interest,matrix1)
+      ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
       final_results<-results_file(ans)
       scan[scan$networks==file,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
       scan[scan$networks==file,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
@@ -736,7 +741,7 @@ for (file in scan$networks) {
       print ("Starting control connectivity analysis:")
       matrix1<-ifelse(mat_syn>0,1,0) #Using synonymous matrix as reference
       matrix1<-matrix1[samples_of_interest,names(columns_of_interest),drop=FALSE] # Subsetting for samples of interest
-      ans<-connectivity_analysis(columns_of_interest,matrix1) #Running connectivity analysis
+      ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict) #Running connectivity analysis
       final_results_control<-results_file(ans)
       
       #Coercing non_syn and control results
@@ -1002,12 +1007,14 @@ files_to_move_to_results<-list.files(pattern = as.character(guid))
 x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
 tar(results_tar,results_dir,compression="gzip")
 
+
+
 x<-list()
-for (i in 1:length(columns_of_interest)) {
+for (i in seq_along(columns_of_interest)) {
   gene<-names(columns_of_interest[i])
   x[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
-  
 }
 
+dim(x[[1]])
 
 
