@@ -1,3 +1,5 @@
+arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 
 column_range<-function(col_range,matrix)
@@ -116,6 +118,21 @@ c_calc_fast<-function(pi_matrix)
   c_vector<-c_vector*(num_nodes/(num_nodes-1))
 } 
 
+c_calc_fast2<-function(e_matrix)
+  #Calculate connectivity value of a prticular column, 
+  #pi values,based on current edges structure. (sim Adjacency matrix)
+  #c=pi*pj*Aij()
+{
+  c_base_outer_product<-e_matrix[,1]%o%e_matrix[,1]
+  c_base<-sum(c_base_outer_product[lower.tri(c_base_outer_product)])
+  c_vector<-apply(e_matrix,2,function(e_column) {
+    c<-sum(e_column[edges1]*e_column[edges2])
+  })
+  c_vector<-c_vector/c_base 
+  #c<-sum(pi_column[edges1]*pi_column[edges2]))
+  
+  #c_vector<-c_vector*(num_nodes/(num_nodes-1))
+} 
 
 
 
@@ -123,7 +140,7 @@ connectivity_analysis<-function(columns_of_interest,matrix,perm_dict) {
   
   print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
   cl <- makeCluster(as.numeric(arg$cores))
-  varlist=c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","info_cols","columns","perm_dict")
+  varlist=c("file_prefix","c_calc_fast","c_calc_fast2","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","info_cols","columns","perm_dict")
   clusterExport(cl=cl, varlist=varlist,envir=environment())
   
   columns<-seq_along(columns_of_interest) #Subsetting columns
@@ -155,7 +172,8 @@ connectivity_analysis<-function(columns_of_interest,matrix,perm_dict) {
     e_list<-perm_values_list
     pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
     
-    c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
+    #c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
+    c_vec_list<-lapply(e_list,function (e_matrix) c_calc_fast2(as.matrix(e_matrix)))
     
     e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
     e_sd<-sapply(e_list,function (x) sd(x[,1]))
@@ -368,8 +386,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
-names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
+#arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+#names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -1029,11 +1047,11 @@ for (i in seq_along(columns_of_interest)) {
 
 
 
-for (i in 2:nrow(x[[1]])) {
-  plot(epsilon_set,x[[1]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
+for (i in 2:nrow(x[[36]])) {
+  plot(epsilon_set,x[[36]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
   par(new=TRUE)
 }
-plot(epsilon_set,x[[1]][1,],col="red",type="l",lwd=10,xlab="Epsilon",ylab=("Connectivity"))
+plot(epsilon_set,x[[36]][1,],col="red",type="l",lwd=10,xlab="Epsilon",ylab=("Connectivity"))
 
 
 ##qplot(epsilon_set,x[[2]][1,],geom="line",color="white",size=7)
@@ -1048,22 +1066,39 @@ dist_mean<-function(c_dist) {
   return(average_slope)
 }
 
+dist_mean2<-function(c_dist) {
+  average_slope<-c_dist[1]*1
+  for (i in (2:length(c_dist))) {
+    dslope<-(c_dist[i]-c_dist[i-1])*i
+    average_slope<-average_slope+dslope
+  }
+  return(average_slope)
+}
+
+#dist_area<-function(c_dist) {
+#  a<-0
+#  for (i in (2:length(c_dist))) {
+#    rect_area<-(epsilon_set[i]-epsilon_set[i-1])*(c_dist[i-1]+c_dist[i])/2
+#    a<-a+rect_area
+#  }
+#  return(a)
+#}
+
 
 dist_mean_list<-lapply(x,function (z) apply(z,1,dist_mean))
+#dist_mean_list<-lapply(x,function (z) apply(z,1,dist_area))
 
 
-p_value<-sapply(dist_mean_list,function(dist_mean) {
-  p_value<-sum(dist_mean>dist_mean[1])/permutations})
+p_value<-sapply(dist_mean_list,function(q) {
+  p_value<-sum(q<q[1])/permutations})
 
-print(p_value)
-#dist_mean(c_dist)
+q_value<-p.adjust(p_value,"fdr")
+genes<-sort(names(columns_of_interest))
 
-#y<-apply(x[[1]],1,function(c_dist) dist_mean (c_dist))
 
-#function(hi)
-#y<-apply(x,1,function ())
-#plot(x[[1]][1,])
+results<-data.frame(p_value[genes],q_value[genes])
+results<-results[order(results$q_value.genes.),]
+head(results,20)
 
-#dim(x[[1]])
+write.csv(results,paste0(file_prefix,"_new_results.csv"))
 
-#apply(x[[1]],1,function (c_dist) average_slope<-)
