@@ -368,7 +368,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(20,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",500,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
 names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 #Argument section handling
@@ -553,15 +553,21 @@ if (arg$dist==3) {
 #g<-1-cor(exp_top5000)
 #sum(is.na(cor_exp_top5000))
 
+
+
+distance_set<-cor_exp_top5000[lower.tri(cor_exp_top5000,diag=FALSE)]
+epsilon_set<-sort(unique(distance_set)) #Extracting all possible distances
+#epsilon_set<-seq(min(epsilon_set),max(epsilon_set),length.out = arg$epsilon)
+epsilon_sub_index<-floor(seq(1,length(epsilon_set),length.out = arg$epsilon))
+epsilon_set<-epsilon_set[epsilon_sub_index]
+#epsilon_set<-round(epsilon_set,3)
+
+
 #epsilon_min<-min(cor_exp_top5000)
 #epsilon_max<-max(cor_exp_top5000)
 #epsilon_set<-round(seq(epsilon_min,epsilon_max,length.out=arg$epsilon),2)
 
-epsilon_set<-sort(unique(as.numeric(cor_exp_top5000))) #Extracting all possible distances
-#epsilon_set<-seq(min(epsilon_set),max(epsilon_set),length.out = arg$epsilon)
-epsilon_sub_index<-floor(seq(1,length(epsilon_set),length.out = arg$epsilon))
-epsilon_set<-epsilon_set[epsilon_sub_index]
-epsilon_set<-round(epsilon_set,3)
+
 scan<-data.frame(networks=epsilon_set,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
   
 if (arg$scan!=0) { #Removing network files file for test mode
@@ -592,15 +598,15 @@ perm_dict[,1]<-all_samples
 count<-0
 c_matrix_list<-list()
 #for (file in scan$networks[scan$mutload_connectivity]) {
-for (file in scan$networks) {
+for (epsilon in scan$networks) {
   count<-count+1  
   print("*********************************************")
   print (Sys.time())
-  print (paste("Analyzing network:",file,"-",count,"out of",nrow(scan)))
+  print (paste("Analyzing network:",epsilon,"-",count,"out of",nrow(scan)))
   print (paste("Number of permutations:",arg$permutations))
   print (paste("Number of CPU cores:",arg$cores))
   
-  adj_mat<-ifelse(cor_exp_top5000<=file,1,0)
+  adj_mat<-ifelse(cor_exp_top5000<=epsilon,1,0)
   adj_mat[lower.tri(adj_mat,diag = TRUE)]<-0
   rownames(adj_mat)<-1:nrow(adj_mat)
   colnames(adj_mat)<-1:ncol(adj_mat)
@@ -611,7 +617,7 @@ for (file in scan$networks) {
   
   edges_num<-nrow(edges)
   print (paste("Number of edges in network:",edges_num))
-  scan[scan$networks==file,]$edges_num<-edges_num
+  scan[scan$networks==epsilon,]$edges_num<-edges_num
   
   samples<-unique(unlist(nodes))
   matrix1<-mat_non_syn_bin[samples,,drop=FALSE] #Subseting matrix to contain only samples in first connected graph 
@@ -625,8 +631,8 @@ for (file in scan$networks) {
   
   # Taking record of sample sizes
   
-  scan[scan$networks==file,]$original_samples<-length(all_samples)
-  scan[scan$networks==file,]$first_connected_samples<-length(samples_of_interest)
+  scan[scan$networks==epsilon,]$original_samples<-length(all_samples)
+  scan[scan$networks==epsilon,]$first_connected_samples<-length(samples_of_interest)
   
   
   
@@ -638,7 +644,7 @@ for (file in scan$networks) {
   # selecting genes based on thresholds
   
   samples_threshold<-ceiling(arg$samples_threshold*length(samples_of_interest))
-  scan[scan$networks==file,]$samples_threshold<-samples_threshold
+  scan[scan$networks==epsilon,]$samples_threshold<-samples_threshold
   print (paste("Samples in original dataset:",length(all_samples)))
   print (paste("Samples in first connected graph:",length(samples_of_interest)))
   print (paste("Samples threshold is set to:",samples_threshold))
@@ -655,8 +661,8 @@ for (file in scan$networks) {
   
   print(paste0("Columns above threshold: ",length(columns_of_interest)))
   
-  scan[scan$networks==file,]$above_samples_threshold<-length(genes_above_samples_threshold)
-  scan[scan$networks==file,]$above_gscore_threshold<-length(columns_of_interest)
+  scan[scan$networks==epsilon,]$above_samples_threshold<-length(genes_above_samples_threshold)
+  scan[scan$networks==epsilon,]$above_gscore_threshold<-length(columns_of_interest)
   
   
   matrix1<-matrix1[,names(columns_of_interest),drop=FALSE] #Subsetting matrix to have above threshold columns
@@ -671,9 +677,9 @@ for (file in scan$networks) {
   
   #Initializing results file name and unique id
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
-  file_prefix<-paste0(file,"_",PROJECT_NAME,"-",unique_id,"_",guid,"-",Sys.Date())
+  file_prefix<-paste0(epsilon,"_",PROJECT_NAME,"-",unique_id,"_",guid,"-",Sys.Date())
   print(paste("File unique identifier:",unique_id))
-  scan[scan$networks==file,]$uid<-unique_id
+  scan[scan$networks==epsilon,]$uid<-unique_id
   
   
   
@@ -713,17 +719,17 @@ for (file in scan$networks) {
      
       
       final_results<-results_file(ans)
-      scan[scan$networks==file,]$mutload<-final_results[,"p_value"]
+      scan[scan$networks==epsilon,]$mutload<-final_results[,"p_value"]
       
       
     } else {   # Genes analysys
       print (paste("Genes Connectivity for Graph"))
       ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
       final_results<-results_file(ans)
-      scan[scan$networks==file,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
-      scan[scan$networks==file,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
-      scan[scan$networks==file,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
-      scan[scan$networks==file,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
+      scan[scan$networks==epsilon,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
+      scan[scan$networks==epsilon,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
+      scan[scan$networks==epsilon,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
+      scan[scan$networks==epsilon,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
     }
     
     
@@ -737,7 +743,7 @@ for (file in scan$networks) {
     write.csv(c_matrix,c_matrix_file)
     
     ################ pii_value generations goes here - pushed to end##################
-    c_matrix_list[[as.character(file)]]<-c_matrix    
+    c_matrix_list[[as.character(epsilon)]]<-c_matrix    
     
     
     
@@ -792,14 +798,14 @@ for (file in scan$networks) {
     write.table(final_results,paste0(file_prefix,file_sufix),row.names=FALSE,sep=",")
     
     run_t<-round(proc.time()-ptm,4) #Calculating run time
-    scan[scan$networks==file,]$connectivity_time<-run_t[3]
+    scan[scan$networks==epsilon,]$connectivity_time<-run_t[3]
     speed_index<-run_t[3]*500/arg$permutations/length(columns)
     print(paste("Runtime in seconds:",run_t[3]))
     print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
     
   } else {
     print ("NO EDGES IN THE GRAPH ONLY SCAN FILE IS PRODUCED")
-    scan[scan$networks==file,][,7:ncol(scan)]<-0  # NO EDGES IN THE GRAPH
+    scan[scan$networks==epsilon,][,7:ncol(scan)]<-0  # NO EDGES IN THE GRAPH
     
   }
   
@@ -816,177 +822,177 @@ write.csv(scan,paste0("scan_summary_",guid,".csv"))
 ######################################## Plotting section######################################
 
 
-if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
+#if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   
     
-genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
+#genes_results_files<-list.files(pattern=paste0(scan$uid,".*_genes_results.csv"))
 
 
   ################ Number of events per gene###########################
   
   #Calculates sum of a particular feature for a list of genes across scan results
-  number_of_events<-function(genes_results_files,feature,threshold) {
+#  number_of_events<-function(genes_results_files,feature,threshold) {
     
-    genes<-sapply(genes_results_files,function (file)
-    {
-      if (!is.na(file)) {
-        results<-read.csv(file,as.is=T)
-        results<-results$Gene_Symbol[results[,feature]<=threshold]  
-      }
-      
-    })
+#    genes<-sapply(genes_results_files,function (file)
+#    {
+#      if (!is.na(file)) {
+#        results<-read.csv(file,as.is=T)
+#        results<-results$Gene_Symbol[results[,feature]<=threshold]  
+#      }
+#      
+#    })
     
     
-    genes<-unlist(genes)
-    genes<-genes[complete.cases(genes)]
-    unique_genes<-unique(genes)
-    genes_events<-sapply(unique_genes,function (x) sum(x==genes))
-    return(sort(genes_events,decreasing = T))
+#    genes<-unlist(genes)
+#    genes<-genes[complete.cases(genes)]
+#    unique_genes<-unique(genes)
+#    genes_events<-sapply(unique_genes,function (x) sum(x==genes))
+#    return(sort(genes_events,decreasing = T))
     
-  }
+#  }
   
   
   #Generating number of events summary file
-  q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
-  q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
-  q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
-  p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
+#  q_value_0.1<-number_of_events(genes_results_files,"q_value",0.1)
+#  q_value_0.15<-number_of_events(genes_results_files,"q_value",0.15)
+#  q_value_0.2<-number_of_events(genes_results_files,"q_value",0.2)
+#  p_value_0.05<-number_of_events(genes_results_files,"p_value",0.05)
   
-  gene_order<-names(q_value_0.1)
+#  gene_order<-names(q_value_0.1)
   
-  networks_with_no_edges<-scan$networks[scan$edges_num==0] 
-  ee<-setdiff(epsilon_set,networks_with_no_edges)
+#  networks_with_no_edges<-scan$networks[scan$edges_num==0] 
+#  ee<-setdiff(epsilon_set,networks_with_no_edges)
 
 
-  dp<-epsilon_p_value(genes_results_files)[gene_order]
-  dq<-epsilon_q_value(genes_results_files)[gene_order]
-  average_p<-sapply(dp,mean,na.rm=T)
-  average_q<-sapply(dq,mean,na.rm=T)
-  q_average_p<-p.adjust(average_p,method = "fdr")
-  
-  epsilon_dist_p<-as.data.frame(t(as.data.frame(dp)))
-  epsilon_dist_q<-as.data.frame(t(as.data.frame(dq)))
-  colnames(epsilon_dist_p)<-ee
-  colnames(epsilon_dist_q)<-ee
-  epsilon_dist_p$average_p<-average_p
-  epsilon_dist_q$average_q<-average_q
+#  dp<-epsilon_p_value(genes_results_files)[gene_order]
+#  dq<-epsilon_q_value(genes_results_files)[gene_order]
+#  average_p<-sapply(dp,mean,na.rm=T)
+#  average_q<-sapply(dq,mean,na.rm=T)
+#  q_average_p<-p.adjust(average_p,method = "fdr")
+#  
+#  epsilon_dist_p<-as.data.frame(t(as.data.frame(dp)))
+#  epsilon_dist_q<-as.data.frame(t(as.data.frame(dq)))
+#  colnames(epsilon_dist_p)<-ee
+#  colnames(epsilon_dist_q)<-ee
+#  epsilon_dist_p$average_p<-average_p
+#  epsilon_dist_q$average_q<-average_q#
 
 
-  write.csv(epsilon_dist_p,paste0("epsilon_dist_p_",guid,".csv"))
-  write.csv(epsilon_dist_q,paste0("epsilon_dist_q_",guid,".csv"))
-
-  
-  k_som<-epsilon_dist_p
-  k_som<-as.matrix(k_som)
-  c<-melt(k_som)
-  colnames(c)<-c("gene","epsilon","p_value")
-
-  c$plot<-c$p_value<=0.05
-  c<-c[c$plot,]
+#  write.csv(epsilon_dist_p,paste0("epsilon_dist_p_",guid,".csv"))
+#  write.csv(epsilon_dist_q,paste0("epsilon_dist_q_",guid,".csv"))
 
   
+#  k_som<-epsilon_dist_p
+#  k_som<-as.matrix(k_som)
+#  c<-melt(k_som)
+#  colnames(c)<-c("gene","epsilon","p_value")
+
+#  c$plot<-c$p_value<=0.05
+#  c<-c[c$plot,]
+
   
-x<-ncol(epsilon_dist_p)
-cut_left<-1+ceiling(x/10)
-cut_right<-(x-(cut_left-1)*2)
   
-  ggplot(c,aes(x=epsilon,y=gene)) + geom_point() + 
-  geom_vline(xintercept = c((cut_left-0.2),(cut_right+0.2)),col="red") +
-  ggsave(filename=paste0("epsilon_plot_p_,",guid,".png"))
+#x<-ncol(epsilon_dist_p)
+#cut_left<-1+ceiling(x/10)
+#cut_right<-(x-(cut_left-1)*2)
+  
+#  ggplot(c,aes(x=epsilon,y=gene)) + geom_point() + 
+#  geom_vline(xintercept = c((cut_left-0.2),(cut_right+0.2)),col="red") +
+#  ggsave(filename=paste0("epsilon_plot_p_,",guid,".png"))
 
 
-k_som<-epsilon_dist_q
-k_som<-as.matrix(k_som)
-c<-melt(k_som)
-colnames(c)<-c("gene","epsilon","q_value")
+#k_som<-epsilon_dist_q
+#k_som<-as.matrix(k_som)
+#c<-melt(k_som)
+#colnames(c)<-c("gene","epsilon","q_value")
 
-c$plot<-c$q_value<=0.15
-c<-c[c$plot,]
+#c$plot<-c$q_value<=0.15
+#c<-c[c$plot,]
 
-x<-ncol(epsilon_dist_q)
-cut_left<-1+ceiling(x/10)
-cut_right<-(x-(cut_left-1)*2)
+#x<-ncol(epsilon_dist_q)
+#cut_left<-1+ceiling(x/10)
+#cut_right<-(x-(cut_left-1)*2)
 
 
-ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +
-  geom_vline(xintercept = c((cut_left),(cut_right)),col="red") +
-  ggsave(filename = paste0("epsilon_plot_q_",guid,".png"))
+#ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +
+#  geom_vline(xintercept = c((cut_left),(cut_right)),col="red") +
+#  ggsave(filename = paste0("epsilon_plot_q_",guid,".png"))
 
 #PLot after removing outlier epsilons
 
-k_som<-epsilon_dist_q[cut_left:cut_right]
-k_som<-as.matrix(k_som)
-c<-melt(k_som)
-colnames(c)<-c("gene","epsilon","q_value")
-
-
-write.csv(k_som,paste0("epsilon_dist_q_cut_",guid,".csv"))
-write.csv(epsilon_dist_q,paste0("epsilon_dist_q_",guid,".csv"))
-
-k_som<-as.data.frame(k_som)
+#k_som<-epsilon_dist_q[cut_left:cut_right]
 #k_som<-as.matrix(k_som)
-k_som$average_q<-rowMeans(k_som)
-k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.15))
-write.csv(k_som,paste0("epsilon_dist_q_cut_",guid,".csv"))
+#c<-melt(k_som)
+#colnames(c)<-c("gene","epsilon","q_value")
+
+
+#write.csv(k_som,paste0("epsilon_dist_q_cut_",guid,".csv"))
+#write.csv(epsilon_dist_q,paste0("epsilon_dist_q_",guid,".csv"))
+
+#k_som<-as.data.frame(k_som)
+#k_som<-as.matrix(k_som)
+#k_som$average_q<-rowMeans(k_som)
+#k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.15))
+#write.csv(k_som,paste0("epsilon_dist_q_cut_",guid,".csv"))
 
 
 
-c$plot<-c$q_value<=0.15
-c<-c[c$plot,]
-ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = paste0("epsilon_plot_q_cut_",guid,".png"))
+#c$plot<-c$q_value<=0.15
+#c<-c[c$plot,]
+#ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = paste0("epsilon_plot_q_cut_",guid,".png"))
 
 
 #plot p value after cut
 
-k_som<-epsilon_dist_p[cut_left:cut_right]
-k_som<-as.matrix(k_som)
-c<-melt(k_som)
-colnames(c)<-c("gene","epsilon","p_value")
+#k_som<-epsilon_dist_p[cut_left:cut_right]
+#k_som<-as.matrix(k_som)
+#c<-melt(k_som)
+#colnames(c)<-c("gene","epsilon","p_value")
 
 
-k_som<-as.data.frame(k_som)
-k_som$average_p<-rowMeans(k_som)
-k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.05))
-write.csv(k_som,paste0("epsilon_dist_p_cut_",guid,".csv"))
-
-
-
-c$plot<-c$p_value<=0.05
-c<-c[c$plot,]
-ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = paste0("epsilon_plot_p_cut_",guid,".png"))
+#k_som<-as.data.frame(k_som)
+#k_som$average_p<-rowMeans(k_som)
+#k_som$frequency<-apply(k_som[,1:(ncol(k_som)-1)],1,function (x) sum(x<=0.05))
+#write.csv(k_som,paste0("epsilon_dist_p_cut_",guid,".csv"))
 
 
 
+#c$plot<-c$p_value<=0.05
+#c<-c[c$plot,]
+#ggplot(c,aes(x=epsilon,y=gene)) + geom_point() +ggsave(filename = paste0("epsilon_plot_p_cut_",guid,".png"))
 
 
 
 
-  n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
-  length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
+
+
+
+#  n<-max(length(q_value_0.1),length(q_value_0.15),length(q_value_0.2),length(p_value_0.05))
+#  length(q_value_0.1)<-n ; length(q_value_0.15) <-n; length(q_value_0.2) <-n; length(p_value_0.05) <-n
   
-  events<-data.frame(
-    q_value_0.1,
-    q_value_0.15,
-    q_value_0.2,
-    p_value_0.05
-  )
+#  events<-data.frame(
+#    q_value_0.1,
+#    q_value_0.15,
+#    q_value_0.2,
+#    p_value_0.05
+#  )
   
-  colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
-  write.csv(events,paste0("number_of_events_",guid,".csv"))
+ # colnames(events)<-c("q_value_0.1","q_value_0.15","q_value_0.2","p_value_0.05")
+#  write.csv(events,paste0("number_of_events_",guid,".csv"))
   
 
   
   
   
-} else {   # MUTLOAD PLOT
-  print(as.numeric(scan$mutload))
-  scan$mutload<-scan$mutload
-  ggplot(scan, aes(x=networks, y=mutload)) + 
-    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
-    guides(color = guide_legend(title = paste("mutload <= 0.05"),
-                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = paste0("mutload_grid_",guid,".png"))
+#} else {   # MUTLOAD PLOT
+#  print(as.numeric(scan$mutload))
+#  scan$mutload<-scan$mutload
+#  ggplot(scan, aes(x=networks, y=mutload)) + 
+#    geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=scan$mutload,vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
+#    guides(color = guide_legend(title = paste("mutload <= 0.05"),
+#                                title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = paste0("mutload_grid_",guid,".png"))
   
-}
+#}
 
 
 
@@ -1020,6 +1026,42 @@ for (i in seq_along(columns_of_interest)) {
   x[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
 }
 
+
+
+
+for (i in 2:nrow(x[[1]])) {
+  plot(epsilon_set,x[[1]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
+  par(new=TRUE)
+}
+plot(epsilon_set,x[[1]][1,],col="red",type="l",lwd=10,xlab="Epsilon",ylab=("Connectivity"))
+
+
+##qplot(epsilon_set,x[[2]][1,],geom="line",color="white",size=7)
+#qplot(epsilon_set,x[[1]][1,]) + geom_line(color="blue",size=5)
+
+dist_mean<-function(c_dist) {
+  average_slope<-c_dist[1]*epsilon_set[1]
+  for (i in (2:length(c_dist))) {
+    dslope<-(c_dist[i]-c_dist[i-1])*epsilon_set[i]
+    average_slope<-average_slope+dslope
+  }
+  return(average_slope)
+}
+
+
+dist_mean_list<-lapply(x,function (z) apply(z,1,dist_mean))
+
+
+p_value<-sapply(dist_mean_list,function(dist_mean) {
+  p_value<-sum(dist_mean>dist_mean[1])/permutations})
+
+print(p_value)
+#dist_mean(c_dist)
+
+#y<-apply(x[[1]],1,function(c_dist) dist_mean (c_dist))
+
+#function(hi)
+#y<-apply(x,1,function ())
 #plot(x[[1]][1,])
 
 #dim(x[[1]])
