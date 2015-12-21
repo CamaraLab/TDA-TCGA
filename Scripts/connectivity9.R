@@ -1,7 +1,7 @@
 
 ############################LOADING LIBRARIES############################
 
-#setwd("c:/users/udi/Downloads/test/")
+setwd("C:/Users/Udi/Documents/TCGA-DATA/COAD_NEW/Networks/COAD_Networks_Fine_25_55_5_5_8_0.5/")
 #Preping environment, loading necessary libraries
 suppressWarnings({
   suppressMessages ({
@@ -23,7 +23,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"COAD.h5","all",5,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,TRUE,0,5,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,5,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
@@ -47,7 +47,7 @@ spec = matrix(c(
   "scan","y",2,"integer"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -102,6 +102,23 @@ rownames(mat_non_syn)<-all_samples
 colnames(mat_non_syn)<-all_genes
 rownames(mat_syn)<-all_samples
 colnames(mat_syn)<-all_genes
+
+
+mat_tpm<-h5read(h5file,"TPM")
+all_samples<-h5read(h5file,"Mutations_Samples")
+all_genes<-h5read(h5file,"Mutations_Genes")
+tpm_genes<-h5read(h5file,"TPM_Genes")
+
+
+rownames(mat_non_syn_bin)<-all_samples
+colnames(mat_non_syn_bin)<-all_genes
+rownames(mat_non_syn)<-all_samples
+colnames(mat_non_syn)<-all_genes
+rownames(mat_syn)<-all_samples
+colnames(mat_syn)<-all_genes
+rownames(mat_tpm)<-all_samples
+colnames(mat_tpm)<-tpm_genes
+
 
 
 
@@ -183,7 +200,7 @@ if (arg$rescale!=0) {
   invisible(dev.off())  
 } else {
   svg(paste0("hist_mutLoad_NoRescaling_",guid,".svg"))
-  hist(log10(mutload_dist),breaks = 100,main="before subsampling")
+  hist(log10(mutload_dist),breaks = 100,main="before subsampling",col="green",alpha=0.7)
   invisible(dev.off())
 }
 
@@ -193,6 +210,20 @@ if (arg$rescale!=0) {
 #################################################################################
 ####################### Functions Section #######################################
 #################################################################################
+
+log2i<-function(p)  {
+  # Special function that returns 0  if log2 argument is 0
+  w<-log2(p)
+  ifelse(w=="-Inf",0,w)
+}
+
+
+jsd_calc<-function(P,Q) {
+  #Calculates JSD distance between distribution P and Q
+  P1<-replace(P,P==0,1) #All Values of 1 will get log2 ==0
+  Q1<-replace(Q,Q==0,1)
+  return(sqrt(sum(0.5*P1*log2(P1)+0.5*Q1*log2(Q1)-0.5*(P+Q)*log2i(0.5*(P+Q))))) 
+}
 
 
 column_range<-function(col_range)
@@ -478,7 +509,7 @@ if (arg$scan!=0) { #Removing network files for test mode
 ############################################################################################################
 
 count<-0
-
+js_list<-NULL
 for (file in scan$networks) {
   count<-count+1  
   print("*********************************************")
@@ -535,6 +566,18 @@ for (file in scan$networks) {
   nodes<-lapply(nodes,function (x) sapply(x, function (old_sample) old_sample<-samples_relabling_table[as.character(old_sample),"new"])) #Updating samples according to relabling table
   samples<-unique(unlist(nodes))
   matrix1<-mat_non_syn_bin[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
+  
+  
+  
+  
+  #Jensen Shannon
+  print("calculating jensen shannon")
+  
+  mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
+  exp_matrix<-mat_tpm[rownames(matrix1),]
+  js_list[[file]]<-jsd(mut_matrix,exp_matrix)
+  
+  
   
   #Extracting columns from arguments
   columns<-column_range(arg$columns)
@@ -899,6 +942,15 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
   
 }
 
+
+
+####################Jensen Shannon summary################
+js_list1<-lapply(js_list,function (x) y<-x$p_rank)
+js_rank_by_gene<-as.data.frame(js_list1)
+rownames(js_rank_by_gene)<-rownames(js_list[[1]])
+
+x<-melt(js_rank_by_gene)
+p<-ggplot(js_rank_by_gene,aes(rownames(js_rank_by_gene),))
 
 
 
