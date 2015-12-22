@@ -203,7 +203,7 @@ if (arg$rescale!=0) {
 #################################################################################
 
 
-jsd<-function(mut_matrix,exp_matrix) {
+jsd<-function(mut_matrix,exp_matrix,nodes) {
   #This function gets non-binary mutation and tpm matrix, 
   #returns for every gene (for non-zero columns) jsd distance between mutation and expression
   
@@ -218,60 +218,65 @@ jsd<-function(mut_matrix,exp_matrix) {
   mut_matrix<-mut_matrix[,jsd_genes]
   exp_matrix<-exp_matrix[,jsd_genes]
   
-  g<-sapply(1:ncol(mut_matrix), function (gene) {
-    
-    #nodes_mean_mut<-sapply(nodes,function (node) {
-    #  x<-sapply(node, function(sample) mut_matrix[sample,gene])
-    #  x<-mean(x)
-    #})
-    
-    nodes_mean_mut<-sapply(nodes,function (node) {
-      x<-mean(mut_matrix[node,gene])
-      })
-    
-    
-    #nodes_mean_exp<-sapply(nodes,function (node) {
-    #  x<-sapply(node, function(sample) exp_matrix[sample,gene])
-    #  x<-mean(x)
-    #})
-    
-    nodes_mean_exp<-sapply(nodes,function (node) {
-      x<-mean(exp_matrix[node,gene])
+  
+  ##########################################
+  
+  nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples))
+  nodes_mean_mut<-sapply(nodes,function(samples) colSums(mut_matrix[samples,])/length(samples))
+  
+  norm_nodes_mean_exp<-t(apply(nodes_mean_exp,1,function(x) x/sum(x)))
+  norm_nodes_mean_mut<-t(apply(nodes_mean_mut,1,function(x) x/sum(x)))
+  
+  ###########################################
+  
+  split.jsd_genes<-split(seq_along(jsd_genes),ceiling(seq_along(jsd_genes)/100))
+ 
+  cl <- makeCluster(as.numeric(arg$cores))
+  varlist=c("jsd_calc","log2i","nodes")
+  clusterExport(cl=cl, varlist=varlist,envir=environment()) 
+  
+  #g<-sapply(split.jsd_genes,function(genes_chunk) {
+  g<-parSapply(cl,split.jsd_genes,function(genes_chunk) {
+    f<-sapply(genes_chunk, function (gene) {
+      
+      js<-jsd_calc(norm_nodes_mean_mut[gene,],norm_nodes_mean_exp[gene,])
+      
     })
-    
-    norm_nodes_mean_exp<-nodes_mean_exp/sum(nodes_mean_exp)
-    norm_nodes_mean_mut<-nodes_mean_mut/sum(nodes_mean_mut)
-    
-    js<-jsd_calc(norm_nodes_mean_mut,norm_nodes_mean_exp)
-    
   })
+  
+  g<-unlist(g)
   names(g)<-jsd_genes
   
-  
-  #js<-NULL
-  #for (i in 1:ncol(norm_nodes_mean_mut)) {
-  #  js[i]<-jsd_calc(norm_nodes_mean_mut[,i],norm_exp_matrix[,i])
-  #}
-  
-  #js<-NULL
-  ##for (i in 1:ncol(norm_mut_matrix)) {
-  #  js[i]<-jsd_calc(norm_mut_matrix[,i],norm_exp_matrix[,i])
-  #}
-  #names(js)<-colnames(norm_mut_matrix)
-  
-  
-  #rank<-NULL
-  #for (i in 1:length(js)) {
-  #  rank[i]<-sum(js>=js[i])
-  #}
-  
-  #p_rank<-rank/length(rank)
-  
-  #jsd_df<-data.frame(js,rank,p_rank)
-  #jsd_df<-jsd_df[order(jsd_df$rank,decreasing = T),]
-  
-  
   return(g)
+  
+  
+  
+  #####################################
+  
+  
+  ##g<-sapply(split.jsd_genes,function(genes_chunk) {
+   #g<-parSapply(cl,split.jsd_genes,function(genes_chunk) {
+  #   f<-sapply(genes_chunk, function (gene) {
+    
+  #  nodes_mean_mut<-sapply(nodes,function (node) {
+   #   x<-mean(mut_matrix[node,gene])
+    #  })
+    
+  #  nodes_mean_exp<-sapply(nodes,function (node) {
+   #   x<-mean(exp_matrix[node,gene])
+  #  })
+    
+  #  norm_nodes_mean_exp<-nodes_mean_exp/sum(nodes_mean_exp)
+  #  norm_nodes_mean_mut<-nodes_mean_mut/sum(nodes_mean_mut)
+    
+  #  js<-jsd_calc(norm_nodes_mean_mut,norm_nodes_mean_exp)
+    
+  #  })
+  #})
+  #g<-unlist(g)
+  #names(g)<-jsd_genes
+  
+  #return(g)
   
 }
 
@@ -617,7 +622,7 @@ for (file in scan$networks) {
   
   mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
   exp_matrix<-mat_tpm[rownames(matrix1),]
-  js_list[[file]]<-jsd(mut_matrix[,1:1000],exp_matrix[,1:1000])
+  js_list[[file]]<-jsd(mut_matrix,exp_matrix,nodes)
   
   
   
