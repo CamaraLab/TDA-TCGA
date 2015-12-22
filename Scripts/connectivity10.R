@@ -1,4 +1,4 @@
-
+setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR//Networks//COAD_Networks_Fine")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -23,7 +23,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,5,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,4,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
@@ -47,7 +47,7 @@ spec = matrix(c(
   "scan","y",2,"integer"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -218,30 +218,60 @@ jsd<-function(mut_matrix,exp_matrix) {
   mut_matrix<-mut_matrix[,jsd_genes]
   exp_matrix<-exp_matrix[,jsd_genes]
   
+  g<-sapply(1:ncol(mut_matrix), function (gene) {
+    
+    #nodes_mean_mut<-sapply(nodes,function (node) {
+    #  x<-sapply(node, function(sample) mut_matrix[sample,gene])
+    #  x<-mean(x)
+    #})
+    
+    nodes_mean_mut<-sapply(nodes,function (node) {
+      x<-mean(mut_matrix[node,gene])
+      })
+    
+    
+    #nodes_mean_exp<-sapply(nodes,function (node) {
+    #  x<-sapply(node, function(sample) exp_matrix[sample,gene])
+    #  x<-mean(x)
+    #})
+    
+    nodes_mean_exp<-sapply(nodes,function (node) {
+      x<-mean(exp_matrix[node,gene])
+    })
+    
+    norm_nodes_mean_exp<-nodes_mean_exp/sum(nodes_mean_exp)
+    norm_nodes_mean_mut<-nodes_mean_mut/sum(nodes_mean_mut)
+    
+    js<-jsd_calc(norm_nodes_mean_mut,norm_nodes_mean_exp)
+    
+  })
+  names(g)<-jsd_genes
   
   
-  norm_mut_matrix<-apply(mut_matrix,2,function(x) x/sum(x))   
-  norm_exp_matrix<-apply(exp_matrix,2,function (x) x/sum(x))
+  #js<-NULL
+  #for (i in 1:ncol(norm_nodes_mean_mut)) {
+  #  js[i]<-jsd_calc(norm_nodes_mean_mut[,i],norm_exp_matrix[,i])
+  #}
   
-  js<-NULL
-  for (i in 1:ncol(norm_mut_matrix)) {
-    js[i]<-jsd_calc(norm_mut_matrix[,i],norm_exp_matrix[,i])
-  }
-  names(js)<-colnames(norm_mut_matrix)
-  
-  
-  rank<-NULL
-  for (i in 1:length(js)) {
-    rank[i]<-sum(js>=js[i])
-  }
-  
-  p_rank<-rank/length(rank)
-  
-  jsd_df<-data.frame(js,rank,p_rank)
-  jsd_df<-jsd_df[order(jsd_df$rank,decreasing = T),]
+  #js<-NULL
+  ##for (i in 1:ncol(norm_mut_matrix)) {
+  #  js[i]<-jsd_calc(norm_mut_matrix[,i],norm_exp_matrix[,i])
+  #}
+  #names(js)<-colnames(norm_mut_matrix)
   
   
-  return(jsd_df)
+  #rank<-NULL
+  #for (i in 1:length(js)) {
+  #  rank[i]<-sum(js>=js[i])
+  #}
+  
+  #p_rank<-rank/length(rank)
+  
+  #jsd_df<-data.frame(js,rank,p_rank)
+  #jsd_df<-jsd_df[order(jsd_df$rank,decreasing = T),]
+  
+  
+  return(g)
   
 }
 
@@ -500,19 +530,6 @@ if (is.null(arg$network)) {
 } else { networks<-arg$network	}
 
 
-#This commented out part can be used to exclude analysis of file results that exist in folder
-#genes_results_files<-list.files(pattern=paste0(".*_genes_results"))
-#mutload_results_files<-list.files(pattern=paste0(".*_mutload_results"))
-
-# Inferring network files that have not been processed yet
-#networks_to_process_genes<-sapply(networks,function (x) { sum(grepl(pattern = x,genes_results_files))} )
-#networks_to_process_genes<-names(networks_to_process_genes[networks_to_process_genes==0])
-#networks_to_process_mutload<-sapply(networks,function (x) { sum(grepl(pattern = x,mutload_results_files))} )
-#networks_to_process_mutload<-names(networks_to_process_mutload[networks_to_process_mutload==0])
-#scan$genes_connectivity<-scan$networks %in% networks_to_process_genes
-#scan$mutload_connectivity<-scan$networks %in% networks_to_process_mutload
-#scan<-read.csv("dict.csv",as.is=T)
-
 scan<-data.frame(networks=networks,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
 
 scan$resolution<-as.numeric(sapply(scan$networks, function (x) {
@@ -526,13 +543,6 @@ scan$gain<-as.numeric(sapply(scan$networks, function (x) {
 if (arg$scan!=0) { #Removing network files for test mode
   scan<-scan[1:arg$scan,]
 }
-
-#write.table(scan,paste0(scan_summary.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
-
-
-
-
-
 
 
 
@@ -607,7 +617,7 @@ for (file in scan$networks) {
   
   mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
   exp_matrix<-mat_tpm[rownames(matrix1),]
-  js_list[[file]]<-jsd(mut_matrix,exp_matrix)
+  js_list[[file]]<-jsd(mut_matrix[,1:1000],exp_matrix[,1:1000])
   
   
   
@@ -968,21 +978,19 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
     coord_equal() + ggsave(mutload_svg_file)
   
   
-  #ggplot(scan, aes(x=factor(resolution), y=gain)) + 
-   # geom_point(size=5,aes(color=scan$mutload<=0.05)) + geom_text(label=round(as.numeric(scan$mutload,2)),vjust=1.6)+theme_bw() + ggtitle("Mutational Load Connectivity") + 
-  #  guides(color = guide_legend(title = paste("mutload <= 0.05"),
-   #                             title.theme = element_text(size=10,angle=0,color="blue"))) +  ggsave(filename = "mutload_grid.png")
-  
 }
 
 
 
 ####################Jensen Shannon summary################
-js_list1<-lapply(js_list,function (x) y<-x$p_rank)
-js_rank_by_gene<-as.data.frame(js_list1)
-rownames(js_rank_by_gene)<-rownames(js_list[[1]])
+jsd_matrix<-as.data.frame(js_list)
+jsd_rank<-apply(jsd_matrix,2,order)
+jsd_p_rank<-apply(jsd_rank,2,function(rank) rank/length(rank))
+rownames(jsd_rank)<-rownames(jsd_p_rank)<-rownames(jsd_matrix)
 
-write.csv(js_rank_by_gene,paste0("jsd_by_gene_",guid,".csv"))
+write.csv(jsd_rank,paste0("jsd_rank_",guid,".csv"))
+write.csv(jsd_p_rank,paste0("jsd_p_rank_",guid,".csv"))
+write.csv(jsd_matrix,paste0("jsd_matrix_",guid,".csv"))
 
 
 
