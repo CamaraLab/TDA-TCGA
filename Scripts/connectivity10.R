@@ -23,7 +23,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,4,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,NULL,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
 names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
@@ -210,16 +210,28 @@ jsd<-function(mut_matrix,exp_matrix,nodes) {
   
   colnames(mut_matrix)<-substr(colnames(mut_matrix),5,nchar(colnames(mut_matrix)))
   colnames(exp_matrix)<-substr(colnames(exp_matrix),5,nchar(colnames(exp_matrix)))
+  all_genes<-colnames(mut_matrix)
   exp_matrix<-exp_matrix[,colSums(exp_matrix)!=0]
   mut_matrix<-mut_matrix[,colSums(mut_matrix)!=0]
   
   jsd_genes<-intersect(colnames(mut_matrix),colnames(exp_matrix))
-  
+  diff_genes<-setdiff(all_genes,jsd_genes)
   mut_matrix<-mut_matrix[,jsd_genes]
   exp_matrix<-exp_matrix[,jsd_genes]
   
   
   ##########################################
+  
+  #split.nodes<-split(seq_along(nodes),ceiling(seq_along(nodes)/100))
+  
+  
+ 
+    
+  #y<-sapply(split.nodes, function (nodes_list) {
+  #  nodes_mean_exp<-sapply(nodes[nodes_list],function(samples) colSums(exp_matrix[samples,])/length(samples))
+  #})
+   
+  #nodes_mean_exp<-as.data.frame(y)
   
   nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples))
   nodes_mean_mut<-sapply(nodes,function(samples) colSums(mut_matrix[samples,])/length(samples))
@@ -229,11 +241,12 @@ jsd<-function(mut_matrix,exp_matrix,nodes) {
   
   ###########################################
   
-  split.jsd_genes<-split(seq_along(jsd_genes),ceiling(seq_along(jsd_genes)/100))
- 
   cl <- makeCluster(as.numeric(arg$cores))
   varlist=c("jsd_calc","log2i","nodes")
   clusterExport(cl=cl, varlist=varlist,envir=environment()) 
+  
+  split.jsd_genes<-split(seq_along(jsd_genes),ceiling(seq_along(jsd_genes)/100))
+ 
   
   #g<-sapply(split.jsd_genes,function(genes_chunk) {
   g<-parSapply(cl,split.jsd_genes,function(genes_chunk) {
@@ -246,7 +259,10 @@ jsd<-function(mut_matrix,exp_matrix,nodes) {
   
   g<-unlist(g)
   names(g)<-jsd_genes
-  
+  add_genes<-rep(NA,length(diff_genes))
+  names(add_genes)<-diff_genes
+  g<-c(g,add_genes)
+  g<-g[sort(names(g))]
   return(g)
   
   
@@ -704,17 +720,6 @@ for (file in scan$networks) {
   scan[scan$networks==file,]$uid<-unique_id
   
   
-  # info_cols was here
-  
-  #Printing thresholded genes
-  
-  #thresholded_genes1<-genes_below_samples_threshold
-  #thresholded_genes2<-setdiff(genes_above_samples_threshold,names(columns_of_interest))
-  
-  #write.csv(thresholded_genes1,paste0(file_prefix,"_thresholded_genes_samples.csv"))
-  #write.csv(thresholded_genes2,paste0(file_prefix,"_thresholded_genes_score.csv"))
-  
-  
   
   
   #Writing log file
@@ -989,12 +994,19 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 ####################Jensen Shannon summary################
 jsd_matrix<-as.data.frame(js_list)
-jsd_rank<-apply(jsd_matrix,2,order)
-jsd_p_rank<-apply(jsd_rank,2,function(rank) rank/length(rank))
-rownames(jsd_rank)<-rownames(jsd_p_rank)<-rownames(jsd_matrix)
+#jsd_na<-apply(jsd_matrix,2,function (x) sum(is.na(x)))
+#jsd_rank<-apply(jsd_matrix,2,order)
+#jsd_p_rank<-jsd_rank
+#for (network in colnames(jsd_matrix)) {
+#  jsd_p_rank[,network]<-jsd_p_rank[,network]/(nrow(jsd_matrix)-jsd_na[network])
+#}
 
-write.csv(jsd_rank,paste0("jsd_rank_",guid,".csv"))
-write.csv(jsd_p_rank,paste0("jsd_p_rank_",guid,".csv"))
+#jsd_rank<-apply(jsd_matrix,2,order)
+#jsd_p_rank<-apply(jsd_rank,2,function(rank) rank/length(rank))
+#rownames(jsd_rank)<-rownames(jsd_p_rank)<-rownames(jsd_matrix)
+
+#write.csv(jsd_rank,paste0("jsd_rank_",guid,".csv"))
+#write.csv(jsd_p_rank,paste0("jsd_p_rank_",guid,".csv"))
 write.csv(jsd_matrix,paste0("jsd_matrix_",guid,".csv"))
 
 
