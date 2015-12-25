@@ -211,8 +211,11 @@ jsd<-function(mut_matrix,exp_matrix,nodes) {
   colnames(mut_matrix)<-substr(colnames(mut_matrix),5,nchar(colnames(mut_matrix)))
   colnames(exp_matrix)<-substr(colnames(exp_matrix),5,nchar(colnames(exp_matrix)))
   all_genes<-colnames(mut_matrix)
-  exp_matrix<-exp_matrix[,colSums(exp_matrix)!=0]
-  mut_matrix<-mut_matrix[,colSums(mut_matrix)!=0]
+  samples_threshold1<-ceiling(arg$samples_threshold*nrow(matrix1))
+  #exp_matrix<-exp_matrix[,colSums(exp_matrix)!=0]
+  #mut_matrix<-mut_matrix[,colSums(mut_matrix)!=0]
+  exp_matrix<-exp_matrix[,colSums(exp_matrix)>= samples_threshold1]
+  mut_matrix<-mut_matrix[,colSums(mut_matrix)>=samples_threshold1]
   
   jsd_genes<-intersect(colnames(mut_matrix),colnames(exp_matrix))
   diff_genes<-setdiff(all_genes,jsd_genes)
