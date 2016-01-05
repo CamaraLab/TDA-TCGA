@@ -1,4 +1,4 @@
-#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR//Networks//COAD_Networks_Fine")
+setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR//Networks//COAD_Networks_Fine")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -23,7 +23,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,NULL,"PROCESSED_COAD_hgsc.bcm.edu__Illumina_Genome_Analyzer_DNA_Sequencing_level2_OCT_16_2015.maf")
+arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,3,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
 names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
@@ -47,7 +47,7 @@ spec = matrix(c(
   "scan","y",2,"integer"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -185,13 +185,15 @@ guid<-round(runif(1, min = 300000, max = 399999),0)
 
 mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 mutload_dist<-rowSums(mutload_matrix)
+color_hist<-rgb(0.37,0.83,0.37,alpha=0.7)
+
 if (arg$rescale!=0) {
   svg(paste0("hist_mutLoad_Rescaled_",guid,".svg"))
-  hist(log10(mutload_dist),breaks = 100,main="after subsampling")
+  hist(log10(mutload_dist),breaks = 100,main=paste0("after subsampling ",arg$rescale),col=color_hist)
   invisible(dev.off())  
 } else {
   svg(paste0("hist_mutLoad_NoRescaling_",guid,".svg"))
-  hist(log10(mutload_dist),breaks = 100,main="before subsampling")
+  hist(log10(mutload_dist),breaks = 100,main="before subsampling",col=color_hist)
   invisible(dev.off())
 }
 
@@ -202,8 +204,81 @@ if (arg$rescale!=0) {
 ####################### Functions Section #######################################
 #################################################################################
 
+jsd_analysis<-function(mut_matrix,exp_matrix,genes,nodes,permutations) {
+  #Gets genes and total mutation matrix and returns for every gene its jsd value and p_value
+  
+  
+  colnames(mut_matrix)<-substr(colnames(mut_matrix),5,nchar(colnames(mut_matrix)))
+  colnames(exp_matrix)<-substr(colnames(exp_matrix),5,nchar(colnames(exp_matrix)))
+  
+  
+  mut_matrix<-mut_matrix[,genes]
+  exp_matrix<-exp_matrix[,genes]
+  
+  nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples))  
+  norm_nodes_mean_exp<-t(apply(nodes_mean_exp,1,function(x) x/sum(x)))
+  
+  
+  
+  
+  #print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
+  #cl <- makeCluster(as.numeric(arg$cores))
+  #x<-c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
+  #varlist=c(x,"perm_dict","pii_matrix","e_matrix","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","columns","perm_dict","jsd_calc","log2i")
+  #clusterExport(cl=cl, varlist=varlist,envir=environment())
+  
+  
+  
+  columns<-seq_along(genes) #Subsetting columns
+  split.column<-split(columns,ceiling(seq_along(columns)/100))
+  #count<-0
+  #ans<-parLapply(cl,split.column,function (columns_range)  {
+  ans<-lapply(split.column,function (columns_range)  {
+  #ans<-lapply(seq_along(genes),function (columns_range)  {
+  #ans<-lapply(seq_along(genes),function (columns_range)  {
+    #calculating c-scores and p-values for each chunk of columns
+    matrix2<-mut_matrix[,columns_range,drop=FALSE]
+    dict<-matrix(NA,length(samples),permutations+1) #rows= unique_sample_id cols= permutation ID, flash=permuted sample ID
+    perm_dict_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+    perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
+    
+    perm_dict_list<-lapply(perm_dict_list,function(x) { #Each element in perm_dict list will get permutation matrix 
+      x<-apply(dict,2,function(x) x<-sample(samples))
+      x[,1]<-1:length(samples)
+      return(x)
+    }) 
+    
+    for (column in seq_along(columns_range)) {
+      perm_values_list[[column]]<-perm_values(perm_dict_list[[column]],column,matrix2)
+    }
+    
+    
+    e_list<-lapply(perm_values_list,function(x) e_matrix(nodes,as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
+    pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
+    names(pi_list)<-genes[columns_range]
+    
+    
+    
+    jsd_vec_list<-lapply(names(pi_list),function (gene) {
+      pi_matrix<-pi_list[[gene]]
+      js<-apply(pi_matrix,2,function (mut_vector) jsd_calc(mut_vector,norm_nodes_mean_exp[gene,]))
+    })
+    
+    jsd_value<-sapply(jsd_vec_list,function (jsd_vec) jsd_vec[1])
+    
+    jsd_p_value<-sapply(jsd_vec_list,function(jsd_vec) {
+      p_value<-sum(jsd_vec>jsd_vec[1])/permutations})
+    
+    
+    jsd_df<-cbind(jsd_value,jsd_p_value)
+    rownames(jsd_df)<-names(pi_list)
+    
+    return(jsd_df)
+    
+  })
+}
 
-jsd<-function(mut_matrix,exp_matrix,nodes) {
+old_jsd<-function(mut_matrix,exp_matrix,nodes) {
   #This function gets non-binary mutation and tpm matrix, 
   #returns for every gene (for non-zero columns) jsd distance between mutation and expression
   
@@ -222,20 +297,7 @@ jsd<-function(mut_matrix,exp_matrix,nodes) {
   mut_matrix<-mut_matrix[,jsd_genes]
   exp_matrix<-exp_matrix[,jsd_genes]
   
-  
-  ##########################################
-  
-  #split.nodes<-split(seq_along(nodes),ceiling(seq_along(nodes)/100))
-  
-  
- 
-    
-  #y<-sapply(split.nodes, function (nodes_list) {
-  #  nodes_mean_exp<-sapply(nodes[nodes_list],function(samples) colSums(exp_matrix[samples,])/length(samples))
-  #})
-   
-  #nodes_mean_exp<-as.data.frame(y)
-  
+
   nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples))
   nodes_mean_mut<-sapply(nodes,function(samples) colSums(mut_matrix[samples,])/length(samples))
   
@@ -268,34 +330,6 @@ jsd<-function(mut_matrix,exp_matrix,nodes) {
   g<-g[sort(names(g))]
   return(g)
   
-  
-  
-  #####################################
-  
-  
-  ##g<-sapply(split.jsd_genes,function(genes_chunk) {
-   #g<-parSapply(cl,split.jsd_genes,function(genes_chunk) {
-  #   f<-sapply(genes_chunk, function (gene) {
-    
-  #  nodes_mean_mut<-sapply(nodes,function (node) {
-   #   x<-mean(mut_matrix[node,gene])
-    #  })
-    
-  #  nodes_mean_exp<-sapply(nodes,function (node) {
-   #   x<-mean(exp_matrix[node,gene])
-  #  })
-    
-  #  norm_nodes_mean_exp<-nodes_mean_exp/sum(nodes_mean_exp)
-  #  norm_nodes_mean_mut<-nodes_mean_mut/sum(nodes_mean_mut)
-    
-  #  js<-jsd_calc(norm_nodes_mean_mut,norm_nodes_mean_exp)
-    
-  #  })
-  #})
-  #g<-unlist(g)
-  #names(g)<-jsd_genes
-  
-  #return(g)
   
 }
 
@@ -445,8 +479,8 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
   split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
   
   
-  ans<-parLapply(cl,split.column,function (columns_range)  {
-    #ans<-lapply(split.column,function (columns_range)  {
+  #ans<-parLapply(cl,split.column,function (columns_range)  {
+    ans<-lapply(split.column,function (columns_range)  {
     #calculating c-scores and p-values for each chunk of columns
     
     matrix2<-matrix[,columns_range,drop=FALSE]
@@ -576,7 +610,7 @@ if (arg$scan!=0) { #Removing network files for test mode
 ############################################################################################################
 
 count<-0
-js_list<-NULL
+jsd_list<-NULL
 for (file in scan$networks) {
   count<-count+1  
   print("*********************************************")
@@ -635,13 +669,6 @@ for (file in scan$networks) {
   matrix1<-mat_non_syn_bin[samples_relabling_table[,1],] #Subseting matrix to contain only samples in first connected graph 
   
   
-  
-  #Jensen Shannon
-  print("calculating jensen shannon")
-  
-  mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
-  exp_matrix<-mat_tpm[rownames(matrix1),]
-  js_list[[file]]<-jsd(mut_matrix,exp_matrix,nodes)
   
   
   
@@ -749,6 +776,26 @@ for (file in scan$networks) {
   
   
   
+  
+########################Jensen Shannon############################
+  print("calculating jensen shannon")
+  
+  mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
+  exp_matrix<-mat_tpm[rownames(matrix1),]
+  #jsd_list[[file]]<-jsd(mut_matrix,exp_matrix,nodes)
+  jsd_genes<-c("SOX9|6662","APC|324","PIK3CA|5290","ARHGAP5|394","ARFGEF1|10565","TP53|7157","KRAS|3845","VPS13B|157680","SMAD4|4089","TCF7L2|6934","ESRRA|2101","RNF43|54894","KMT2C|58508","FLT3|2322","NEFH|4744","CCDC141|285025","PIK3R1|5295","MYH3|4621","STK11|6794","NCOR1|9611")
+
+
+
+jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,50)
+  
+
+  
+  
+  
+  
+  
+  
   ######################### CONNECTIVITY ANALYSIS ##############################################3
   
   if (edges_num!=0) {
@@ -763,6 +810,8 @@ for (file in scan$networks) {
           
           
         } else {   # Genes analysys
+         
+          
           print (paste("Genes Connectivity for Graph"))
           ans<-connectivity_analysis(columns_of_interest,matrix1)
           final_results<-results_file(ans)
@@ -996,21 +1045,12 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 
 ####################Jensen Shannon summary################
-jsd_matrix<-as.data.frame(js_list)
-#jsd_na<-apply(jsd_matrix,2,function (x) sum(is.na(x)))
-#jsd_rank<-apply(jsd_matrix,2,order)
-#jsd_p_rank<-jsd_rank
-#for (network in colnames(jsd_matrix)) {
-#  jsd_p_rank[,network]<-jsd_p_rank[,network]/(nrow(jsd_matrix)-jsd_na[network])
-#}
 
-#jsd_rank<-apply(jsd_matrix,2,order)
-#jsd_p_rank<-apply(jsd_rank,2,function(rank) rank/length(rank))
-#rownames(jsd_rank)<-rownames(jsd_p_rank)<-rownames(jsd_matrix)
-
-#write.csv(jsd_rank,paste0("jsd_rank_",guid,".csv"))
-#write.csv(jsd_p_rank,paste0("jsd_p_rank_",guid,".csv"))
-write.csv(jsd_matrix,paste0("jsd_matrix_",guid,".csv"))
+jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
+jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
+#rownames(jsd_value_matrix)<-rownames(jsd_p_value_matrix)<-jsd_genes
+write.csv(jsd_value_matrix,paste0("jsd_value_matrix_",guid,".csv"))
+write.csv(jsd_p_value_matrix,paste0("jsd_p_value_matrix_",guid,".csv"))
 
 
 
