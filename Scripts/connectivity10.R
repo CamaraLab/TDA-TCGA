@@ -1,4 +1,4 @@
-setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR//Networks//COAD_Networks_Fine")
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR//Networks//COAD_Networks_Fine")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -47,7 +47,7 @@ spec = matrix(c(
   "scan","y",2,"integer"
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -787,7 +787,7 @@ for (file in scan$networks) {
 
 
 
-jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,50)
+jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
   
 
   
