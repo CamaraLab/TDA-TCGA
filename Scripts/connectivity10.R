@@ -1,4 +1,4 @@
-#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR//Networks//COAD_Networks_Fine")
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/LGG_CUR//Networks//Fine_Networks_LGG")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -6,6 +6,7 @@
 suppressWarnings({
   suppressMessages ({
     require(igraph,quietly = T,warn.conflicts = FALSE)
+    require(reshape,quietly = T,warn.conflicts = FALSE)
     library(rgexf,quietly = T,warn.conflicts = FALSE)
     library(jsonlite,quietly = T,warn.conflicts = FALSE)
     library(parallel,quietly = T,warn.conflicts = FALSE)
@@ -23,8 +24,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,3,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
-names(arg)<-c("network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
+arg<-list(TRUE,NULL,"../../LGG.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
+names(arg)<-c("jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -44,7 +45,8 @@ spec = matrix(c(
   "syn_control","z",2,"logical",
   "rescale","r",2,"numeric",
   "maf","x",2,"character",
-  "scan","y",2,"integer"
+  "scan","y",2,"integer",
+  "jsd","J",2,"logical"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -65,7 +67,7 @@ if (arg$mutload==TRUE) {
   arg$syn_control<-FALSE
 }
 
-if ( is.null(arg$syn_control ) ) {arg$syn_control= TRUE}
+if ( is.null(arg$syn_control ) ) {arg$syn_control= FALSE}
 if ( is.null(arg$score_type ) ) {arg$score_type= "syn"}
 if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
   if (is.null(arg$maf)) stop("PROCESSED MAF file must be provided for resscaling")
@@ -210,8 +212,8 @@ jsd_analysis<-function(mut_matrix,exp_matrix,genes,nodes,permutations) {
   
   colnames(mut_matrix)<-substr(colnames(mut_matrix),5,nchar(colnames(mut_matrix)))
   colnames(exp_matrix)<-substr(colnames(exp_matrix),5,nchar(colnames(exp_matrix)))
-  
-  
+  colnames(mut_matrix)<-sapply(strsplit(colnames(mut_matrix),"|",fixed = TRUE),"[[",1)
+  colnames(exp_matrix)<-sapply(strsplit(colnames(exp_matrix),"|",fixed = TRUE),"[[",1)
   mut_matrix<-mut_matrix[,genes]
   exp_matrix<-exp_matrix[,genes]
   
@@ -269,10 +271,9 @@ jsd_analysis<-function(mut_matrix,exp_matrix,genes,nodes,permutations) {
     jsd_p_value<-sapply(jsd_vec_list,function(jsd_vec) {
       p_value<-sum(jsd_vec>jsd_vec[1])/permutations})
     
-    
-    jsd_df<-cbind(jsd_value,jsd_p_value)
+    jsd_q_value<-p.adjust(jsd_p_value,method="fdr")
+    jsd_df<-cbind(jsd_value,jsd_p_value,jsd_q_value)
     rownames(jsd_df)<-names(pi_list)
-    
     return(jsd_df)
     
   })
@@ -778,16 +779,34 @@ for (file in scan$networks) {
   
   
 ########################Jensen Shannon############################
+if (arg$jsd==TRUE) {
   print("calculating jensen shannon")
   
   mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
   exp_matrix<-mat_tpm[rownames(matrix1),]
   #jsd_list[[file]]<-jsd(mut_matrix,exp_matrix,nodes)
-  jsd_genes<-c("SOX9|6662","APC|324","PIK3CA|5290","ARHGAP5|394","ARFGEF1|10565","TP53|7157","KRAS|3845","VPS13B|157680","SMAD4|4089","TCF7L2|6934","ESRRA|2101","RNF43|54894","KMT2C|58508","FLT3|2322","NEFH|4744","CCDC141|285025","PIK3R1|5295","MYH3|4621","STK11|6794","NCOR1|9611")
-
-
-
-jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
+  #jsd_genes<-c("SOX9|6662","APC|324","PIK3CA|5290","ARHGAP5|394","ARFGEF1|10565","TP53|7157","KRAS|3845","VPS13B|157680","SMAD4|4089","TCF7L2|6934","ESRRA|2101","RNF43|54894","KMT2C|58508","FLT3|2322","NEFH|4744","CCDC141|285025","PIK3R1|5295","MYH3|4621","STK11|6794","NCOR1|9611")
+  #jsd_genes<-c("SOX9","APC","PIK3CA","ARHGAP5","ARFGEF1","TP53","KRAS","VPS13B","SMAD4","TCF7L2","ESRRA","RNF43","KMT2C","FLT3","NEFH","CCDC141","PIK3R1","MYH3","STK11","NCOR1")
+  #jsd_genes<-c("IDH1","ATRX","EGFR","SLCO6A1","CALN1","NF1","COL6A3")
+  jsd_genes<-c("IDH1","NOTCH1","PTEN","TP53","CIC","FUBP1",
+               "ATRX",
+               "EGFR",
+               "NF1",
+               "BAGE2",
+               "ARID1A",
+               "MUC4",
+               "NBPF10",
+               #"TUBB8P7"),
+               "SMARCA4",
+               #"SNHG14",
+               "MUC16",
+               "NBPF1")
+  
+  
+  #jsd_genes<-c("PIK3CA|5290","UNC13C|440279","CDH1|999","PLXNA4|91584","AFF2|2334","ARID1A|8289","TP53|7157","AKAP13|11214","PEG3|5178")
+  jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
+  
+}
   
 
   
@@ -1048,9 +1067,28 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
 jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
+jsd_q_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_q_value"])
 #rownames(jsd_value_matrix)<-rownames(jsd_p_value_matrix)<-jsd_genes
 write.csv(jsd_value_matrix,paste0("jsd_value_matrix_",guid,".csv"))
 write.csv(jsd_p_value_matrix,paste0("jsd_p_value_matrix_",guid,".csv"))
+write.csv(jsd_q_value_matrix,paste0("jsd_q_value_matrix_",guid,".csv"))
+
+
+#Jensen shannon plot
+delete_background <- theme(axis.line = element_line(colour = "black"),
+                           panel.grid.major = element_blank(),
+                           panel.grid.minor = element_blank(),
+                           panel.background = element_blank(),
+                           legend.position="none")
+
+rownames(jsd_q_value_matrix)<-sapply(strsplit(rownames(jsd_q_value_matrix),"|",fixed = TRUE),"[[",1)
+jsd_q<-melt(t(jsd_q_value_matrix))
+colnames(jsd_q)<-c("network","gene","jsd_q_value")
+
+jsd_q$gene<-factor(jsd_q$gene,levels=jsd_q$gene)
+py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red")
+py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_background + ylim(0,1) + 
+  ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
 
 
 
