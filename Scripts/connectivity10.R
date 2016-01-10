@@ -788,19 +788,21 @@ if (arg$jsd==TRUE) {
   #jsd_genes<-c("SOX9|6662","APC|324","PIK3CA|5290","ARHGAP5|394","ARFGEF1|10565","TP53|7157","KRAS|3845","VPS13B|157680","SMAD4|4089","TCF7L2|6934","ESRRA|2101","RNF43|54894","KMT2C|58508","FLT3|2322","NEFH|4744","CCDC141|285025","PIK3R1|5295","MYH3|4621","STK11|6794","NCOR1|9611")
   #jsd_genes<-c("SOX9","APC","PIK3CA","ARHGAP5","ARFGEF1","TP53","KRAS","VPS13B","SMAD4","TCF7L2","ESRRA","RNF43","KMT2C","FLT3","NEFH","CCDC141","PIK3R1","MYH3","STK11","NCOR1")
   #jsd_genes<-c("IDH1","ATRX","EGFR","SLCO6A1","CALN1","NF1","COL6A3")
-  jsd_genes<-c("IDH1","NOTCH1","PTEN","TP53","CIC","FUBP1",
-               "ATRX",
-               "EGFR",
-               "NF1",
-               "BAGE2",
-               "ARID1A",
-               "MUC4",
-               "NBPF10",
-               #"TUBB8P7"),
-               "SMARCA4",
-               #"SNHG14",
-               "MUC16",
-               "NBPF1")
+  #jsd_genes<-c("IDH1","NOTCH1","PTEN","TP53","CIC","FUBP1",
+   #            "ATRX",
+    #           "EGFR",
+     #          "NF1",
+      #         "BAGE2",
+       #        "ARID1A",
+        #       "MUC4",
+         #      "NBPF10",
+          #     #"TUBB8P7"),
+           #    "SMARCA4",
+            #   #"SNHG14",
+             #  "MUC16",
+              # "NBPF1")
+  #jsd_genes<-c("FGFR3","RB1","PTPRD","ELF3","MUC17","MED13","FMN2","TP53","HSPG2","HERC2P2")
+  jsd_genes<-c("SPOP","KRT6C","PCDH18","FAT3","STAB2","ZNF420","PCDHGA9","L3HYPDH")
   
   
   #jsd_genes<-c("PIK3CA|5290","UNC13C|440279","CDH1|999","PLXNA4|91584","AFF2|2334","ARID1A|8289","TP53|7157","AKAP13|11214","PEG3|5178")
@@ -1086,7 +1088,7 @@ jsd_q<-melt(t(jsd_q_value_matrix))
 colnames(jsd_q)<-c("network","gene","jsd_q_value")
 
 jsd_q$gene<-factor(jsd_q$gene,levels=jsd_q$gene)
-py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red")
+py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red") + geom_hline(yintercept=0.85,color="red")
 py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_background + ylim(0,1) + 
   ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
 
