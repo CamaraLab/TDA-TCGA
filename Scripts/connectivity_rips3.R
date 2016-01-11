@@ -1,5 +1,5 @@
 setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips")
-arg<-list(10,NULL,NULL,NULL,NULL,"LUAD.h5","all",20,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",200,detectCores(),FALSE,TRUE,NULL,0.06,16,"syn","Annotations.csv",TRUE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
 names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
 
 
@@ -513,6 +513,7 @@ for (epsilon in scan$networks) {
     matrix1<-as.matrix(mutload_dist[samples_of_interest],drop=FALSE)
     colnames(matrix1)<-"mutLoad"
     columns_of_interest<-"mutLoad"
+    names(columns_of_interest)<-"mutLoad"
   }
   
   #Initializing results file name and unique id
@@ -551,26 +552,27 @@ for (epsilon in scan$networks) {
   
   #if (edges_num!=0) 
     
-    
-    print ("Starting connectivity analysis:")
-    if (arg$mutload==TRUE) {
-      print (paste("Mutload Connectivity for Graph"))
-      ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
+  ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
+  final_results<-results_file(ans)
+    #print ("Starting connectivity analysis:")
+    #if (arg$mutload==TRUE) {
+    #  print (paste("Mutload Connectivity for Graph"))
+    #  ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
      
       
-      final_results<-results_file(ans)
-      scan[scan$networks==epsilon,]$mutload<-final_results[,"p_value"]
+    #  final_results<-results_file(ans)
+      #scan[scan$networks==epsilon,]$mutload<-final_results[,"p_value"]
       
       
-    } else {   # Genes analysys
-      print (paste("Genes Connectivity for Graph"))
-      ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
-      final_results<-results_file(ans)
+    #} else {   # Genes analysys
+    #  print (paste("Genes Connectivity for Graph"))
+    #  ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
+    #  final_results<-results_file(ans)
       #scan[scan$networks==epsilon,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
       #scan[scan$networks==epsilon,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
       #scan[scan$networks==epsilon,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
       #scan[scan$networks==epsilon,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
-    }
+    #}
     
     
     c_matrix<-NULL #rows:genes, cols: permutations, value: connectivity value.
@@ -683,26 +685,17 @@ tar(results_tar,results_dir,compression="gzip")
 
 
 
-x<-list()
+gene_connectivity_list<-list() #A list, every entry correspond to a gene and is a matrix rows:permutations, cols: network
+
+
 for (i in seq_along(columns_of_interest)) {
   gene<-names(columns_of_interest[i])
-  x[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
+  gene_connectivity_list[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
 }
 
 
 
-
-for (i in 2:nrow(x[[36]])) {
-  plot(epsilon_set,x[[36]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
-  par(new=TRUE)
-}
-plot(epsilon_set,x[[36]][1,],col="red",type="l",lwd=10,xlab="Epsilon",ylab=("Connectivity"))
-
-
-##qplot(epsilon_set,x[[2]][1,],geom="line",color="white",size=7)
-#qplot(epsilon_set,x[[1]][1,]) + geom_line(color="blue",size=5)
-
-dist_mean<-function(c_dist) {
+dist_mean<-function(c_dist) { #Takes connectivity values vector, and returns average slope
   average_slope<-c_dist[1]*epsilon_set[1]
   for (i in (2:length(c_dist))) {
     dslope<-(c_dist[i]-c_dist[i-1])*epsilon_set[i]
@@ -711,7 +704,7 @@ dist_mean<-function(c_dist) {
   return(average_slope)
 }
 
-dist_mean2<-function(c_dist) {
+dist_mean2<-function(c_dist) { #Same as dist_mean, only equalizing.
   average_slope<-c_dist[1]*1
   for (i in (2:length(c_dist))) {
     dslope<-(c_dist[i]-c_dist[i-1])*i
@@ -720,17 +713,8 @@ dist_mean2<-function(c_dist) {
   return(average_slope)
 }
 
-#dist_area<-function(c_dist) {
-#  a<-0
-#  for (i in (2:length(c_dist))) {
-#    rect_area<-(epsilon_set[i]-epsilon_set[i-1])*(c_dist[i-1]+c_dist[i])/2
-#    a<-a+rect_area
-#  }
-#  return(a)
-#}
 
-
-dist_mean_list<-lapply(x,function (z) apply(z,1,dist_mean))
+dist_mean_list<-lapply(gene_connectivity_list,function (genen_connectivity_matrix) apply(genen_connectivity_matrix,1,dist_mean))
 #dist_mean_list<-lapply(x,function (z) apply(z,1,dist_area))
 
 
@@ -742,8 +726,21 @@ genes<-sort(names(columns_of_interest))
 
 
 results<-data.frame(p_value[genes],q_value[genes])
-results<-results[order(results$q_value.genes.),]
-head(results,20)
+colnames(results)<-c("p_value","q_value")
+results<-results[order(results$q_value),]
 
-write.csv(results,paste0(file_prefix,"_new_results.csv"))
+
+
+
+for (i in 2:nrow(gene_connectivity_list[[1]])) {
+  plot(epsilon_set,gene_connectivity_list[[1]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
+  par(new=TRUE)
+}
+plot(epsilon_set,gene_connectivity_list[[1]][1,],col="red",type="l",lwd=2,xlab="Epsilon",ylab=("Connectivity"))
+
+
+
+#head(results,20)
+
+write.csv(results,paste0("results_",guid,".csv"))
 
