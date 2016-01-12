@@ -46,11 +46,10 @@ spec = matrix(c(
   "rescale","r",2,"numeric",
   "maf","x",2,"character",
   "scan","y",2,"integer",
-  "jsd","J",2,"logical"
+  "jsd","J",2,"character"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
-
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
@@ -168,7 +167,7 @@ if (arg$rescale!=0) {
 }
 
 
-if (arg$log2==TRUE) {mat_non_syn_bin<-(2^mat_non_syn_bin)-1} #Preparing for calculation if matrix is log scale
+#if (arg$log2==TRUE) {mat_non_syn_bin<-(2^mat_non_syn_bin)-1} #Preparing for calculation if matrix is log scale
 
 #Info_cols is used to set information columns in results output file as well as names for the variables that constitutes those columns
 info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
@@ -217,18 +216,14 @@ jsd_analysis<-function(mut_matrix,exp_matrix,genes,nodes,permutations) {
   mut_matrix<-mut_matrix[,genes]
   exp_matrix<-exp_matrix[,genes]
   
+  
+  #nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples)) 
+  
+  #Extracting nodes mean while considering log2.
+  exp_matrix<-(2^exp_matrix-1)
   nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples))  
+  nodes_mean_exp<-log2(nodes_mean_exp+1)
   norm_nodes_mean_exp<-t(apply(nodes_mean_exp,1,function(x) x/sum(x)))
-  
-  
-  
-  
-  #print (paste("Preparing parallel environment. Acquiring",arg$cores,"Cores"))
-  #cl <- makeCluster(as.numeric(arg$cores))
-  #x<-c("file_prefix","c_calc_fast","c_calc_fast","pii_matrix","e_matrix","edges1","edges2","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","largest_cluster_nodes","info_cols","columns","samples_relabling_table")
-  #varlist=c(x,"perm_dict","pii_matrix","e_matrix","samples","permutations","num_nodes","perm_values","arg","nodes","matrix","columns","perm_dict","jsd_calc","log2i")
-  #clusterExport(cl=cl, varlist=varlist,envir=environment())
-  
   
   
   columns<-seq_along(genes) #Subsetting columns
@@ -277,61 +272,6 @@ jsd_analysis<-function(mut_matrix,exp_matrix,genes,nodes,permutations) {
     return(jsd_df)
     
   })
-}
-
-old_jsd<-function(mut_matrix,exp_matrix,nodes) {
-  #This function gets non-binary mutation and tpm matrix, 
-  #returns for every gene (for non-zero columns) jsd distance between mutation and expression
-  
-  
-  colnames(mut_matrix)<-substr(colnames(mut_matrix),5,nchar(colnames(mut_matrix)))
-  colnames(exp_matrix)<-substr(colnames(exp_matrix),5,nchar(colnames(exp_matrix)))
-  all_genes<-colnames(mut_matrix)
-  samples_threshold1<-ceiling(arg$samples_threshold*nrow(matrix1))
-  #exp_matrix<-exp_matrix[,colSums(exp_matrix)!=0]
-  #mut_matrix<-mut_matrix[,colSums(mut_matrix)!=0]
-  exp_matrix<-exp_matrix[,colSums(exp_matrix)>= samples_threshold1]
-  mut_matrix<-mut_matrix[,colSums(mut_matrix)>=samples_threshold1]
-  
-  jsd_genes<-intersect(colnames(mut_matrix),colnames(exp_matrix))
-  diff_genes<-setdiff(all_genes,jsd_genes)
-  mut_matrix<-mut_matrix[,jsd_genes]
-  exp_matrix<-exp_matrix[,jsd_genes]
-  
-
-  nodes_mean_exp<-sapply(nodes,function(samples) colSums(exp_matrix[samples,])/length(samples))
-  nodes_mean_mut<-sapply(nodes,function(samples) colSums(mut_matrix[samples,])/length(samples))
-  
-  norm_nodes_mean_exp<-t(apply(nodes_mean_exp,1,function(x) x/sum(x)))
-  norm_nodes_mean_mut<-t(apply(nodes_mean_mut,1,function(x) x/sum(x)))
-  
-  ###########################################
-  
-  cl <- makeCluster(as.numeric(arg$cores))
-  varlist=c("jsd_calc","log2i","nodes")
-  clusterExport(cl=cl, varlist=varlist,envir=environment()) 
-  
-  split.jsd_genes<-split(seq_along(jsd_genes),ceiling(seq_along(jsd_genes)/100))
- 
-  
-  #g<-sapply(split.jsd_genes,function(genes_chunk) {
-  g<-parSapply(cl,split.jsd_genes,function(genes_chunk) {
-    f<-sapply(genes_chunk, function (gene) {
-      
-      js<-jsd_calc(norm_nodes_mean_mut[gene,],norm_nodes_mean_exp[gene,])
-      
-    })
-  })
-  
-  g<-unlist(g)
-  names(g)<-jsd_genes
-  add_genes<-rep(NA,length(diff_genes))
-  names(add_genes)<-diff_genes
-  g<-c(g,add_genes)
-  g<-g[sort(names(g))]
-  return(g)
-  
-  
 }
 
 
@@ -779,7 +719,7 @@ for (file in scan$networks) {
   
   
 ########################Jensen Shannon############################
-if (arg$jsd==TRUE) {
+if (!is.null(arg$jsd)) {
   print("calculating jensen shannon")
   
   mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
@@ -802,8 +742,9 @@ if (arg$jsd==TRUE) {
              #  "MUC16",
               # "NBPF1")
   #jsd_genes<-c("FGFR3","RB1","PTPRD","ELF3","MUC17","MED13","FMN2","TP53","HSPG2","HERC2P2")
-  jsd_genes<-c("SPOP","KRT6C","PCDH18","FAT3","STAB2","ZNF420","PCDHGA9","L3HYPDH")
-  
+  #jsd_genes<-c("SPOP","KRT6C","PCDH18","FAT3","STAB2","ZNF420","PCDHGA9","L3HYPDH")
+  jsd_genes<-read.csv(arg$jsd,as.is=T)[,1]
+  #jsd_genes<-c("TP53","NF1","BAGE2")
   
   #jsd_genes<-c("PIK3CA|5290","UNC13C|440279","CDH1|999","PLXNA4|91584","AFF2|2334","ARID1A|8289","TP53|7157","AKAP13|11214","PEG3|5178")
   jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
