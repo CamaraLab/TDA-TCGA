@@ -1,6 +1,6 @@
-setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips")
-arg<-list(TRUE,20,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",500,detectCores(),NULL,0.06,16,"syn",FALSE,2.6,"../STADTRIMMED//Mutations//PROCESSED_MAF_STADTRIM_2015-12-09.maf")
-names(arg)<-c("mutload","epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","chunk","samples_threshold","g_score_threshold","score_type","syn_control","rescale","maf")
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips")
+#arg<-list(FALSE,5,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",5,detectCores(),NULL,0.04,350,"syn",FALSE,2.6,"../STADTRIMMED//Mutations/PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+#names(arg)<-c("mutload","epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","chunk","samples_threshold","g_score_threshold","score_type","syn_control","rescale","maf")
 
 
 #########g_scores#############
@@ -211,7 +211,7 @@ spec = matrix(c(
   "cut","c",2,"numeric"
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 20}
@@ -334,7 +334,14 @@ if (arg$rescale!=0) {
 
 
 som<-function(x) {sd(x)/mean(x)}
+
+#Correcting for logarithmic scale
+mat_tpm<-(2^mat_tpm-1)
+
 exp_mean<-colMeans(mat_tpm)
+exp_mean<-log2(exp_mean+1)
+
+
 qplot(exp_mean,binwidth=0.1) + ggtitle("bin=0.1") + ggsave(paste0("exp_hist_",guid,".png"))
 
 exp_som<-apply(mat_tpm[,exp_mean>arg$cut],2,som) #To avoid distortion, Calculate Coefficient of variationonly for genes with mean expression larger then arg$cut
@@ -599,19 +606,17 @@ dist_mean<-function(c_dist) { #Takes connectivity values vector, and returns ave
   return(average_slope)
 }
 
-dist_mean2<-function(c_dist) { #Same as dist_mean, only equalizing.
-  average_slope<-c_dist[1]*1
-  for (i in (2:length(c_dist))) {
-    dslope<-(c_dist[i]-c_dist[i-1])*i
-    average_slope<-average_slope+dslope
-  }
-  return(average_slope)
-}
+#dist_mean2<-function(c_dist) { #Same as dist_mean, only equalizing.
+#  average_slope<-c_dist[1]*1
+##  for (i in (2:length(c_dist))) {
+#    dslope<-(c_dist[i]-c_dist[i-1])*i
+#    average_slope<-average_slope+dslope
+#  }
+#  return(average_slope)
+#}
 
 
 dist_mean_list<-lapply(gene_connectivity_list,function (genen_connectivity_matrix) apply(genen_connectivity_matrix,1,dist_mean))
-#dist_mean_list<-lapply(x,function (z) apply(z,1,dist_area))
-
 
 p_value<-sapply(dist_mean_list,function(q) {
   p_value<-sum(q<q[1])/permutations})
@@ -627,15 +632,12 @@ results<-results[order(results$q_value),]
 
 
 
-for (i in 2:nrow(gene_connectivity_list[[1]])) {
-  plot(epsilon_set,gene_connectivity_list[[1]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
-  par(new=TRUE)
-}
-plot(epsilon_set,gene_connectivity_list[[1]][1,],col="red",type="l",lwd=2,xlab="Epsilon",ylab=("Connectivity"))
+#for (i in 2:nrow(gene_connectivity_list[[1]])) {
+#  plot(epsilon_set,gene_connectivity_list[[1]][i,],type="l",xlab="Epsilon",ylab=("Connectivity"))
+##  par(new=TRUE)
+#}
+#plot(epsilon_set,gene_connectivity_list[[1]][1,],col="red",type="l",lwd=2,xlab="Epsilon",ylab=("Connectivity"))
 
-
-
-#head(results,20)
 
 write.csv(results,paste0("results_",guid,".csv"))
 
