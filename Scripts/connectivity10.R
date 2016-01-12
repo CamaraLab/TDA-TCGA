@@ -7,6 +7,7 @@ suppressWarnings({
   suppressMessages ({
     require(igraph,quietly = T,warn.conflicts = FALSE)
     require(reshape,quietly = T,warn.conflicts = FALSE)
+    require(dplyr,quietly = T,warn.conflicts = FALSE)
     library(rgexf,quietly = T,warn.conflicts = FALSE)
     library(jsonlite,quietly = T,warn.conflicts = FALSE)
     library(parallel,quietly = T,warn.conflicts = FALSE)
@@ -743,8 +744,12 @@ if (!is.null(arg$jsd)) {
               # "NBPF1")
   #jsd_genes<-c("FGFR3","RB1","PTPRD","ELF3","MUC17","MED13","FMN2","TP53","HSPG2","HERC2P2")
   #jsd_genes<-c("SPOP","KRT6C","PCDH18","FAT3","STAB2","ZNF420","PCDHGA9","L3HYPDH")
-  jsd_genes<-read.csv(arg$jsd,as.is=T)[,1]
-  #jsd_genes<-c("TP53","NF1","BAGE2")
+  
+  j<-read.csv(arg$jsd,as.is=T)  
+  colnames(j)[1]<-"gene"
+  jsub<-arrange(j,desc(q_value_0.15))
+  jsub<-filter(jsub,q_value_0.15>0)
+  jsd_genes<-jsub$gene
   
   #jsd_genes<-c("PIK3CA|5290","UNC13C|440279","CDH1|999","PLXNA4|91584","AFF2|2334","ARID1A|8289","TP53|7157","AKAP13|11214","PEG3|5178")
   jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
