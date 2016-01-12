@@ -1,6 +1,6 @@
 setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips")
-arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",200,detectCores(),FALSE,TRUE,NULL,0.06,16,"syn","Annotations.csv",TRUE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
-names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
+arg<-list(TRUE,20,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",500,detectCores(),NULL,0.06,16,"syn",FALSE,2.6,"../STADTRIMMED//Mutations//PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+names(arg)<-c("mutload","epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","chunk","samples_threshold","g_score_threshold","score_type","syn_control","rescale","maf")
 
 
 #########g_scores#############
@@ -9,10 +9,9 @@ g_score_calc<-function(score_type,samples,genes,bin_matrix) {
   mat_syn<-mat_syn[samples,genes,drop=FALSE]
   mat_non_syn_bin<-bin_matrix[samples,genes,drop=FALSE]
   
-    #G_scores type 1 - Based on  non-syn/(syn+non-syn) ratio
-    syn_ratio<-colSums(mat_non_syn)/(colSums(mat_syn)+colSums(mat_non_syn)) #G_Score
-    syn_ratio[syn_ratio=="NaN"]<-0 #Fixing 0 mutations columns 3
-    g_score<-syn_ratio   
+  syn_ratio<-colSums(mat_non_syn)/(colSums(mat_syn)+colSums(mat_non_syn)) #G_Score
+  syn_ratio[syn_ratio=="NaN"]<-0 #Fixing 0 mutations columns 3
+  g_score<-syn_ratio   
 
   
   return(g_score)
@@ -30,7 +29,7 @@ perm_values<-function(dict_matrix,column,matrix) {
 
 c_calc_fast2<-function(e_matrix)
   #Calculate connectivity value of a prticular column, 
-  #c=sigma(i<>j) [ei*Aij*ej/ei*ej]
+  #c=sigma(i<>j) [ei*Aij*ej/(ei*ej)]
 {
   c_base_outer_product<-e_matrix[,1] %o% e_matrix[,1] 
   c_base<-sum(c_base_outer_product[lower.tri(c_base_outer_product)]) # Calculating sum[e(i)*e(j)] for i!=j
@@ -54,10 +53,11 @@ connectivity_analysis<-function(columns_of_interest,bin_matrix,perm_dict) {
   split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
   
   #count<-0
-  #ans<-parLapply(cl,split.column,function (columns_range)  {
-  ans<-lapply(split.column,function (columns_range)  {
+  ans<-parLapply(cl,split.column,function (columns_range)  {
+  #ans<-lapply(split.column,function (columns_range)  {
     #calculating c-scores and p-values for each chunk of columns
     matrix2<-bin_matrix[,columns_range,drop=FALSE]
+    Genes<-colnames(matrix2) 
     
     perm_values_list<-as.list(rep(NA,length(columns_range))) #Creating list of "column" elements
     
@@ -67,25 +67,16 @@ connectivity_analysis<-function(columns_of_interest,bin_matrix,perm_dict) {
       
     
     e_list<-perm_values_list
-    #pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
-    #c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
+    
     c_vec_list<-lapply(e_list,function (e_matrix) c_calc_fast2(as.matrix(e_matrix)))
-    
-    #e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
-    #e_sd<-sapply(e_list,function (x) sd(x[,1]))
-    #pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
-    #pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
-    n_samples<-apply(matrix2,2,function (x) sum(x!=0))
     c_value<-sapply(c_vec_list,function (c_vec) c_vec[1]) #the first position is the connectivity value, the later are c_value for each permutation
-   # p_value<-sapply(c_vec_list,function(c_vec) {
-    #  p_value<-sum(c_vec>c_vec[1])/permutations})
-    
-    Genes<-colnames(matrix2)  
-    results<-cbind(Genes,c_value,n_samples) #The variable names should match info_cols
     c_vec_df<-t(as.data.frame(c_vec_list))
     rownames(c_vec_df)<-Genes
-    #write.csv(c_vec_df,paste0("output_",columns_range[1],".csv"))
     
+    n_samples<-apply(matrix2,2,function (x) sum(x!=0))
+    
+    results<-cbind(Genes,c_value,n_samples) #The variable names should match info_cols
+        
     #Ans is columns_range length list. Each element contain to variables.
     #First variabl is "output" which is results matrix. the second element is pii_values matrix, its columns are genes and rows are nodes 
     
@@ -110,16 +101,9 @@ results_file<-function(ans) {
     final_results<-rbind(final_results,ans[[i]][[1]]) #Extracting output from ans
   
   final_results<-as.matrix(final_results,rownames.force = T,drop=FALSE)
-  #pi_zero_genes<-final_results[,"pi_frac"]==0 #Probably not needed since all genes like that are out with g_score filtering
-  #final_results<-final_results[!pi_zero_genes,,drop=FALSE]
-  #final_results[pi_zero_genes,"p_value"]<-NA
-  #q_value<-p.adjust(final_results[,"p_value"],"fdr")
   g_value<-columns_of_interest[rownames(final_results)]
   final_results<-cbind(final_results,g_value)
-  #colnames(final_results)[grep("g_value",colnames(final_results))]<-paste0("g_score_",arg$score_type)
-  #final_results<-final_results[order(final_results[,"q_value"]),,drop=FALSE]
   
-  #if (arg$rescale==0) {final_results[,"Genes"]<-substring(final_results[,"Genes"],5)}
   if (arg$mutload==FALSE) {
     Gene_Symbol<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",1)
     EntrezID<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",2)
@@ -181,13 +165,6 @@ rescale<-function (cut,maf,mat_syn,mat_non_syn) {
 }
 
 
-
-
-#rm(list=ls())
-
-#del<-list.files(pattern = "*.csv")
-#unlink(del)
-#source('connectivity_functions2.R')
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Google Drive/Columbia/LAB/Rabadan/TCGA-TDA/DATA/Agilent")
@@ -212,11 +189,6 @@ suppressWarnings({
 
 ############################COMMAND LINE PARSING############################
 
-
-#Setting defaults for debug mode
-#arg<-list(20,NULL,NULL,NULL,NULL,"LUAD.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.06,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_MAF_STADTRIM_2015-12-09.maf")
-#names(arg)<-c("epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","maf")
-
 #Argument section handling
 spec = matrix(c(
   "network", "n", 1, "character",
@@ -226,11 +198,8 @@ spec = matrix(c(
   "permutations","p",2,"integer",
   "cores","q",1,"integer",
   "samples_threshold","t",1,"numeric", # Percentage of samples_of_interest
-  "log2","l",2,"logical",
-  "fdr","f",2,"logical",
   "chunk","k",2,"integer",  
   "score_type","s",1,"character",
-  "anno","a",2,"character",
   "mutload","h",2,"logical",
   "syn_control","z",2,"logical",
   "rescale","r",2,"numeric",
@@ -246,13 +215,11 @@ spec = matrix(c(
 
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 20}
-if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
-if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}
 if ( is.null(arg$cores ) ) {arg$cores= 4}
 if ( is.null(arg$chunk ) ) {arg$chunk= 25}
 if ( is.null(arg$columns ) ) {arg$columns= "all"}
 if ( is.null(arg$samples_threshold ) ) {arg$samples_threshold= 0.05}
-if ( is.null(arg$anno ) ) {arg$anno= "Annotations.csv"}
+
 if ( is.null(arg$mutload ) ) {arg$mutload= FALSE}
 if ( is.null(arg$g_score_threshold ) ) {arg$g_score_threshold= 100}
 if (arg$mutload==TRUE) {
@@ -286,9 +253,7 @@ print (paste("Chunk size:",arg$chunk))
 ####################################### MUTATIONS MATRIX HANDLING #############################
 
 
-#Loading matrix file to memory and log transforming if log2=TRUE
-
-#Loading matrix file to memory and log transforming if log2=TRUE
+#Loading matrix file to memory
 h5file<-arg$matrix
 print (paste0("Loading ",h5file, " file to memory"))
 mat_non_syn_bin<-h5read(h5file,"Mutations_Binary")
@@ -326,10 +291,6 @@ if (arg$rescale!=0) {
   mat_syn<-subsampled_matrices$mat_syn
 }
 
-if (arg$log2==TRUE) {mat_tpm<-(2^mat_tpm)-1} #Preparing for calculation if matrix is log scale
-
-#Info_cols is used to set information columns in results output file as well as names for the variables that constitutes those columns
-#info_cols<-t(c("Genes","c_value","p_value","pi_frac","n_samples","e_mean","e_sd")) 
 
 
 
@@ -342,18 +303,19 @@ if (arg$log2==TRUE) {mat_tpm<-(2^mat_tpm)-1} #Preparing for calculation if matri
 
 
 
+
 mutload_matrix<-mat_non_syn+mat_syn #Total number of point mutations
 mutload_dist<-rowSums(mutload_matrix)
+color_hist<-rgb(0.37,0.83,0.37,alpha=0.7)
+
 if (arg$rescale!=0) {
-  #png("hist_mutLoad_Rescaled.png")
-  #hist(log10(mutload_dist),breaks = 100,main="After rescaling")
-  #invisible(dev.off())  
-  qplot(log10(mutload_dist),main = paste ("After rescale",PROJECT_NAME),) + ggsave(paste0("hist_mutLoad_Rescaled_",as.character(arg$rescale),"_",guid,".png"))
+  svg(paste0("hist_mutLoad_Rescaled_",guid,".svg"))
+  hist(log10(mutload_dist),breaks = 100,main=paste0("after subsampling ",arg$rescale),col=color_hist)
+  invisible(dev.off())  
 } else {
-  #png("hist_mutLoad_NoRescaling.png")
-  #hist(log10(mutload_dist),breaks = 100,main="Before rescaling")
-  #invisible(dev.off())
-  qplot(log10(mutload_dist),main = paste ("Before rescaling",PROJECT_NAME)) + ggsave(paste0("hist_mutLoad_NORescaling_",guid,".png"))
+  svg(paste0("hist_mutLoad_NoRescaling_",guid,".svg"))
+  hist(log10(mutload_dist),breaks = 100,main="before subsampling",col=color_hist)
+  invisible(dev.off())
 }
 
 
@@ -375,8 +337,8 @@ som<-function(x) {sd(x)/mean(x)}
 exp_mean<-colMeans(mat_tpm)
 qplot(exp_mean,binwidth=0.1) + ggtitle("bin=0.1") + ggsave(paste0("exp_hist_",guid,".png"))
 
-exp_var<-apply(mat_tpm[,exp_mean>arg$cut],2,som) #To avoid distortion, Calculate Coefficient of variationonly for genes with mean expression larger then arg$cut
-topgenes<-names(head(sort(round(exp_var,3),decreasing = T),arg$topgenes))
+exp_som<-apply(mat_tpm[,exp_mean>arg$cut],2,som) #To avoid distortion, Calculate Coefficient of variationonly for genes with mean expression larger then arg$cut
+topgenes<-names(head(sort(round(exp_som,3),decreasing = T),arg$topgenes))
 
 exp_topgenes<-mat_tpm[,topgenes]
 exp_topgenes<-t(exp_topgenes)
@@ -393,12 +355,6 @@ if (arg$dist==3) {
 	cor_exp_topgenes<-as.matrix(dist(t(exp_topgenes),upper = T))
 }
 
-#require("hopach")
-#cor_exp_topgenes<-1-as.matrix(mutualInfo(t(exp_topgenes)))
-  #as.matrix(distancematrix(t(exp_topgenes),"eucli"))
-#g<-1-cor(exp_topgenes)
-#sum(is.na(cor_exp_topgenes))
-
 
 
 distance_set<-cor_exp_topgenes[lower.tri(cor_exp_topgenes,diag=FALSE)] #Recording lowe triangle values only.
@@ -408,12 +364,6 @@ epsilon_set<-sort(unique(distance_set)) #Extracting all possible distances
 epsilon_sub_index<-floor(seq(1,length(epsilon_set),length.out = arg$epsilon))
 epsilon_set<-epsilon_set[epsilon_sub_index]
 #epsilon_set<-round(epsilon_set,3)
-
-
-#epsilon_min<-min(cor_exp_topgenes)
-#epsilon_max<-max(cor_exp_topgenes)
-#epsilon_set<-round(seq(epsilon_min,epsilon_max,length.out=arg$epsilon),2)
-
 
 scan<-data.frame(networks=epsilon_set,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
   
@@ -550,29 +500,9 @@ for (epsilon in scan$networks) {
   
   ######################### CONNECTIVITY ANALYSIS ##############################################3
   
-  #if (edges_num!=0) 
     
   ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
   final_results<-results_file(ans)
-    #print ("Starting connectivity analysis:")
-    #if (arg$mutload==TRUE) {
-    #  print (paste("Mutload Connectivity for Graph"))
-    #  ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
-     
-      
-    #  final_results<-results_file(ans)
-      #scan[scan$networks==epsilon,]$mutload<-final_results[,"p_value"]
-      
-      
-    #} else {   # Genes analysys
-    #  print (paste("Genes Connectivity for Graph"))
-    #  ans<-connectivity_analysis(columns_of_interest,matrix1,perm_dict)
-    #  final_results<-results_file(ans)
-      #scan[scan$networks==epsilon,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
-      #scan[scan$networks==epsilon,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
-      #scan[scan$networks==epsilon,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
-      #scan[scan$networks==epsilon,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
-    #}
     
     
     c_matrix<-NULL #rows:genes, cols: permutations, value: connectivity value.
@@ -643,15 +573,6 @@ for (epsilon in scan$networks) {
     print(paste("Runtime in seconds:",run_t[3]))
     print(paste("Speed index (calc time for 500 permutations):",speed_index)) 
     
-  #}
-   # else {
-    #print ("NO EDGES IN THE GRAPH ONLY SCAN FILE IS PRODUCED")
-    #scan[scan$networks==epsilon,][,7:ncol(scan)]<-0  # NO EDGES IN THE GRAPH
-    
-  #}
-  
-  
-  
 }
 
 
@@ -661,33 +582,7 @@ write.csv(scan,paste0("scan_summary_",guid,".csv"))
 
 
 
-###############MOVING FILES TO Results DIR####################
-
-
-
-if (arg$mutload==TRUE) {
-  results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_mutload")
-} else { results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_genes")}
-
-if (arg$rescale!=0) {results_dir<-paste0(results_dir,"_rescaled_",arg$rescale)}
-
-results_tar<-paste0(results_dir,".tar.gz")  
-
-
-print (paste("Moving files to Results Directory:",results_dir))
-
-dir.create(results_dir)
-#if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
-
-files_to_move_to_results<-list.files(pattern = as.character(guid))
-x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
-tar(results_tar,results_dir,compression="gzip")
-
-
-
 gene_connectivity_list<-list() #A list, every entry correspond to a gene and is a matrix rows:permutations, cols: network
-
-
 for (i in seq_along(columns_of_interest)) {
   gene<-names(columns_of_interest[i])
   gene_connectivity_list[[gene]]<-sapply(c_matrix_list,function(epsilon) epsilon[gene,])
@@ -743,4 +638,37 @@ plot(epsilon_set,gene_connectivity_list[[1]][1,],col="red",type="l",lwd=2,xlab="
 #head(results,20)
 
 write.csv(results,paste0("results_",guid,".csv"))
+
+
+
+
+
+
+###############MOVING FILES TO Results DIR####################
+
+if (arg$mutload==TRUE) {
+  results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_mutload")
+} else { results_dir<-paste0("results_",PROJECT_NAME,"_",guid,"_genes")}
+
+if (arg$rescale!=0) {results_dir<-paste0(results_dir,"_rescaled_",arg$rescale)}
+
+results_tar<-paste0(results_dir,".tar.gz")  
+
+
+print (paste("Moving files to Results Directory:",results_dir))
+
+dir.create(results_dir)
+#if (file.exists("Rplots.pdf")) {file.remove("Rplots.pdf")}
+
+files_to_move_to_results<-list.files(pattern = as.character(guid))
+x<-file.rename(files_to_move_to_results,paste0(results_dir,"/",files_to_move_to_results))
+tar(results_tar,results_dir,compression="gzip")
+
+
+
+
+
+
+
+
 
