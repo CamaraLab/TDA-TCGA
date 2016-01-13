@@ -639,7 +639,7 @@ results<-results[order(results$q_value),]
 #plot(epsilon_set,gene_connectivity_list[[1]][1,],col="red",type="l",lwd=2,xlab="Epsilon",ylab=("Connectivity"))
 
 
-write.csv(results,paste0("results_",guid,".csv"))
+write.csv(results,paste0("results_",arg$topgenes,"_",arg$cut,"_",arg$epsilon,"_",guid,".csv"))
 
 
 
