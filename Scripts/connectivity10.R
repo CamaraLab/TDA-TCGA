@@ -1,4 +1,4 @@
-#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/LGG_CUR//Networks//Fine_Networks_LGG")
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR/Networks/COAD_Networks_Fine/")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -25,8 +25,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(TRUE,NULL,"../../LGG.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
-names(arg)<-c("jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
+arg<-list(NULL,NULL,NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
+names(arg)<-c("batch","jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -47,7 +47,8 @@ spec = matrix(c(
   "rescale","r",2,"numeric",
   "maf","x",2,"character",
   "scan","y",2,"integer",
-  "jsd","J",2,"character"
+  "jsd","J",2,"character",
+  "batch","b",2,"character"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -497,6 +498,11 @@ results_file<-function(ans) {
     EntrezID<-sapply(strsplit(final_results[,1],"|",fixed = TRUE),"[[",2)
     final_results<-final_results[,-1,drop=FALSE] #Removing old genes column
     final_results<-cbind(Gene_Symbol,EntrezID,final_results)
+    
+    
+    
+    
+    
   }
   return(final_results)
 }
@@ -683,7 +689,21 @@ for (file in scan$networks) {
     matrix1<-as.matrix(mutload_dist[samples_of_interest],drop=FALSE)
     colnames(matrix1)<-"mutLoad"
     columns_of_interest<-"mutLoad"
+    
+    
   }
+  
+  if (!is.null(arg$batch)) {
+    
+    batch<-read.csv(arg$batch,as.is=T,row.names=1)
+    row.names(batch)<-batch$s3
+    batch<-batch[,-1]
+    batch[batch==FALSE]<-0
+    matrix1<-batch[rownames(matrix1),]
+    colnames(matrix1)<-paste0("mut_",colnames(matrix1),"|001")
+    columns_of_interest<-colnames(batch)
+  }
+  
   
   #Initializing results file name and unique id
   unique_id<-round(runif(1, min = 111111, max = 222222),0)
@@ -1012,6 +1032,8 @@ if (arg$mutload==FALSE) {  #Connectivity plots and number_of_Events
 
 
 ####################Jensen Shannon summary################
+if (!is.null(arg$jsd)) {
+
 
 jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
 jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
@@ -1039,7 +1061,7 @@ py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_backgrou
   ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
 
 
-
+}
 ###############MOVING FILES TO Results DIR####################
 
 
