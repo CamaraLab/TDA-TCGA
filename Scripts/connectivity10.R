@@ -715,7 +715,7 @@ for (file in scan$networks) {
   
   
   #Writing log file
-  suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(cbind(names(arg),as.character(arg)) ,paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
