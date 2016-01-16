@@ -208,7 +208,8 @@ spec = matrix(c(
   "epsilon","e",2,"integer",
   "distance","d",2,"character",
   "topgenes","T",2,"integer",
-  "cut","c",2,"numeric"
+  "cut","c",2,"numeric",
+  "equalize","E",2,"logical"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -240,6 +241,8 @@ if ( is.null(arg$epsilon ) ) {arg$epsilon= 20}
 if ( is.null(arg$topgenes ) ) {arg$topgenes= 2000}
 if ( is.null(arg$cut) ) {arg$cut= 0.5}
 if ( is.null(arg$dist) ) {arg$dist= 1}
+if ( is.null(arg$equalize ) ) {arg$equalize= FALSE}
+
 
 PROJECT_NAME<-as.character(str_match(string = arg$matrix,pattern="\\w+.h5"))
 PROJECT_NAME<-substring(text = PROJECT_NAME,first = 1,nchar(PROJECT_NAME)-3)
@@ -483,7 +486,7 @@ for (epsilon in scan$networks) {
   
     
   #Writing log file
-  suppressWarnings(write.table(as.character(arg) ,paste0(file_prefix,"_log.csv"),append=TRUE))
+  suppressWarnings(write.table(cbind(names(arg),as.character(arg)) ,paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("Number of permutations: ",arg$permutations),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("Samples threshold: ",arg$samples_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
   suppressWarnings(write.table(paste("g_score threshold: ",arg$g_score_threshold),paste0(file_prefix,"_log.csv"),append=TRUE))
@@ -597,6 +600,8 @@ for (i in seq_along(columns_of_interest)) {
 
 
 
+
+
 dist_mean<-function(c_dist) { #Takes connectivity values vector, and returns average slope
   average_slope<-c_dist[1]*epsilon_set[1]
   for (i in (2:length(c_dist))) {
@@ -606,17 +611,23 @@ dist_mean<-function(c_dist) { #Takes connectivity values vector, and returns ave
   return(average_slope)
 }
 
-#dist_mean2<-function(c_dist) { #Same as dist_mean, only equalizing.
-#  average_slope<-c_dist[1]*1
-##  for (i in (2:length(c_dist))) {
-#    dslope<-(c_dist[i]-c_dist[i-1])*i
-#    average_slope<-average_slope+dslope
-#  }
-#  return(average_slope)
-#}
+dist_mean2<-function(c_dist) { #Same as dist_mean, only equalizing.
+  average_slope<-c_dist[1]*1
+  for (i in (2:length(c_dist))) {
+    dslope<-(c_dist[i]-c_dist[i-1])*i
+    average_slope<-average_slope+dslope
+  }
+  return(average_slope)
+}
 
 
-dist_mean_list<-lapply(gene_connectivity_list,function (genen_connectivity_matrix) apply(genen_connectivity_matrix,1,dist_mean))
+if (arg$equalize) { #dist mean1 or dist mean 2
+  dist_mean_list<-lapply(gene_connectivity_list,function (genen_connectivity_matrix) apply(genen_connectivity_matrix,1,dist_mean2))
+} else {
+  dist_mean_list<-lapply(gene_connectivity_list,function (genen_connectivity_matrix) apply(genen_connectivity_matrix,1,dist_mean))
+}
+
+
 
 p_value<-sapply(dist_mean_list,function(q) {
   p_value<-sum(q<q[1])/permutations})
