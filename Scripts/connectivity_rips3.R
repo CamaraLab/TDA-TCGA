@@ -1,6 +1,6 @@
 #setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips")
-#arg<-list(FALSE,5,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",5,detectCores(),NULL,0.04,350,"syn",FALSE,2.6,"../STADTRIMMED//Mutations/PROCESSED_MAF_STADTRIM_2015-12-09.maf")
-#names(arg)<-c("mutload","epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","chunk","samples_threshold","g_score_threshold","score_type","syn_control","rescale","maf")
+#arg<-list(2,2,FALSE,10,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",5,detectCores(),NULL,0.04,350,"syn",FALSE,2.6,"../STADTRIMMED//Mutations/PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+#names(arg)<-c("epsilon_left","epsilon_right","mutload","epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","chunk","samples_threshold","g_score_threshold","score_type","syn_control","rescale","maf")
 
 
 #########g_scores#############
@@ -70,12 +70,15 @@ connectivity_analysis<-function(columns_of_interest,bin_matrix,perm_dict) {
     
     c_vec_list<-lapply(e_list,function (e_matrix) c_calc_fast2(as.matrix(e_matrix)))
     c_value<-sapply(c_vec_list,function (c_vec) c_vec[1]) #the first position is the connectivity value, the later are c_value for each permutation
+    p_value<-sapply(c_vec_list,function(c_vec) {#This calculates old p_Value method not relevant for rips
+      p_value<-sum(c_vec>c_vec[1])/permutations})
+    
     c_vec_df<-t(as.data.frame(c_vec_list))
     rownames(c_vec_df)<-Genes
     
     n_samples<-apply(matrix2,2,function (x) sum(x!=0))
     
-    results<-cbind(Genes,c_value,n_samples) #The variable names should match info_cols
+    results<-cbind(Genes,c_value,n_samples,p_value) #The variable names should match info_cols
         
     #Ans is columns_range length list. Each element contain to variables.
     #First variabl is "output" which is results matrix. the second element is pii_values matrix, its columns are genes and rows are nodes 
@@ -209,7 +212,9 @@ spec = matrix(c(
   "distance","d",2,"character",
   "topgenes","T",2,"integer",
   "cut","c",2,"numeric",
-  "equalize","E",2,"logical"
+  "equalize","E",2,"logical",
+  "epsilon_left","L",2,"integer",
+  "epsilon_right","R",2,"integer"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -373,6 +378,16 @@ epsilon_set<-sort(unique(distance_set)) #Extracting all possible distances
 #epsilon_set<-seq(min(epsilon_set),max(epsilon_set),length.out = arg$epsilon)
 epsilon_sub_index<-floor(seq(1,length(epsilon_set),length.out = arg$epsilon))
 epsilon_set<-epsilon_set[epsilon_sub_index]
+
+if ( is.null(arg$epsilon_left ) ) {arg$epsilon_left= 1}
+if ( is.null(arg$epsilon_right ) ) {arg$epsilon_right= 1}
+
+epsilon_set<-epsilon_set[arg$epsilon_left:(arg$epsilon+1-arg$epsilon_right)]
+
+
+
+
+
 #epsilon_set<-round(epsilon_set,3)
 
 scan<-data.frame(networks=epsilon_set,resolution=NA,gain=NA,original_samples=NA,first_connected_samples=NA,edges_num=NA,samples_threshold=NA,above_samples_threshold=NA,above_gscore_threshold=NA,p_0.05=NA,q_0.1=NA,q_0.15=NA,q_0.2=NA,mutload=NA,parsing_time=NA,connectivity_time=NA,uid=NA,stringsAsFactors = F)
