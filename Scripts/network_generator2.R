@@ -22,9 +22,13 @@ draw_network<-function (adj_mat) {
   edges<-get.edgelist(net)
   vertices_to_remove<-which(!(names(as.list(V(net))) %in% as.character(edges)))
   net<-delete_vertices(net,vertices_to_remove)
-  node.color<-node.color[-vertices_to_remove]
-  mut_edge<-mut_edge[-vertices_to_remove]
- 
+  
+  if (length(vertices_to_remove)>1)  {
+    node.color<-node.color[-vertices_to_remove]
+    mut_edge<-mut_edge[-vertices_to_remove]
+    
+  }
+  
   
   edges<-gsub("\\.",replacement = "-",edges)
   
@@ -32,7 +36,7 @@ draw_network<-function (adj_mat) {
   edge_color<-rep(rgb(0.9,0.9,0.9),nrow(edges))
   edge_color[edge_index]<-"blue"
  # plot(net,displayisolates=FALSE)
-  ggnet2(net, mode="fruchtermanreingold",edge.size=.2,edge.color=edge_color,node.size =0, label.nodes=T, node.color = node.color)+ ggsave(paste0(adj_mat,".svg"))
+  ggnet2(net, mode="fruchtermanreingold",edge.size=.2,edge.color=edge_color,node.size =1, label.nodes=T, node.color = node.color)+ ggsave(paste0(adj_mat,".svg"))
   
 }
 
