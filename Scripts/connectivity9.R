@@ -211,6 +211,52 @@ if (arg$rescale!=0) {
 ####################### Functions Section #######################################
 #################################################################################
 
+
+
+jsd<-function(mut_matrix,exp_matrix) {
+  #This function gets non-binary mutation and tpm matrix, 
+  #returns for every gene (for non-zero columns) jsd distance between mutation and expression
+  
+  
+  colnames(mut_matrix)<-substr(colnames(mut_matrix),5,nchar(colnames(mut_matrix)))
+  colnames(exp_matrix)<-substr(colnames(exp_matrix),5,nchar(colnames(exp_matrix)))
+  exp_matrix<-exp_matrix[,colSums(exp_matrix)!=0]
+  mut_matrix<-mut_matrix[,colSums(mut_matrix)!=0]
+  
+  jsd_genes<-intersect(colnames(mut_matrix),colnames(exp_matrix))
+  
+  mut_matrix<-mut_matrix[,jsd_genes]
+  exp_matrix<-exp_matrix[,jsd_genes]
+  
+  
+  
+  norm_mut_matrix<-apply(mut_matrix,2,function(x) x/sum(x))   
+  norm_exp_matrix<-apply(exp_matrix,2,function (x) x/sum(x))
+  
+  js<-NULL
+  for (i in 1:ncol(norm_mut_matrix)) {
+    js[i]<-jsd_calc(norm_mut_matrix[,i],norm_exp_matrix[,i])
+  }
+  names(js)<-colnames(norm_mut_matrix)
+  
+  
+  rank<-NULL
+  for (i in 1:length(js)) {
+    rank[i]<-sum(js>=js[i])
+  }
+  
+  p_rank<-rank/length(rank)
+  
+  jsd_df<-data.frame(js,rank,p_rank)
+  jsd_df<-jsd_df[order(jsd_df$rank,decreasing = T),]
+  
+  
+  return(jsd_df)
+  
+}
+
+
+
 log2i<-function(p)  {
   # Special function that returns 0  if log2 argument is 0
   w<-log2(p)
@@ -949,8 +995,21 @@ js_list1<-lapply(js_list,function (x) y<-x$p_rank)
 js_rank_by_gene<-as.data.frame(js_list1)
 rownames(js_rank_by_gene)<-rownames(js_list[[1]])
 
+js_rank_by_gene<-as.data.frame(t(js_rank_by_gene))
 x<-melt(js_rank_by_gene)
-p<-ggplot(js_rank_by_gene,aes(rownames(js_rank_by_gene),))
+
+y<-rbind(x[1:20,],x[1:20,],x[1:20,],x[1:20,],x[1:20,])
+y$value<-runif(100,0,1)
+
+p<-ggplot(y,aes(factor(variable),value))
+p + geom_violin(draw_quartiles = c(0.25,0.5))
+
+
+p + geom_violin(draw_quantiles = c(10,20))
+
+
+#x<-melt(js_rank_by_gene)
+#p<-ggplot(js_rank_by_gene,aes(rownames(js_rank_by_gene),))
 
 
 

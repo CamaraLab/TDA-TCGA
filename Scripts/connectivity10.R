@@ -1,4 +1,4 @@
-#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR/Networks/COAD_Networks_Fine/")
+setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR/Networks/COAD_Networks_Fine/")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -25,7 +25,7 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,NULL,NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
+arg<-list(NULL,"../../Figures/number_of_events_corrected_COAD-cropped.csv",NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
 names(arg)<-c("batch","jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
@@ -51,7 +51,9 @@ spec = matrix(c(
   "batch","b",2,"character"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
+
+
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
 if ( is.null(arg$fdr ) ) {arg$fdr= TRUE}

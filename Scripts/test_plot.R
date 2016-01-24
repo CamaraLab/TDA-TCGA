@@ -1,35 +1,34 @@
-data_summary <- function(x) {
-  mu <- mean(x)
-  sigma1 <- mu-sd(x)
-  sigma2 <- mu+sd(x)
-  return(c(y=mu,ymin=sigma1,ymax=sigma2))
-}
+delete_background <- theme(axis.line = element_line(colour = "black"),
+                           panel.grid.major = element_blank(),
+                           panel.grid.minor = element_blank(),
+                           panel.background = element_blank(),
+                           legend.position="none")
+
+j<-read.csv("../../..//LGG_CUR//Results/Results_LGG_352339_genes_fine/number_of_events_352339.csv",as.is=T)
+
+colnames(j)[1]<-"gene"
+jsub<-arrange(j,desc(q_value_0.15))
+jsub<-filter(jsub,q_value_0.15>0)
+genes<-jsub$gene
+
+networks_num<-length(scan$networks)
+
+jsub$q15_precentage<-round(jsub$q_value_0.15/networks_num*100)
+jsub
+
+jsub$gene<-factor(jsub$gene,levels=jsub$gene)
+
+jsub$gene<-as.character(jsub$gene)
+p<-ggplot(jsub,aes(gene,q15_precentage,group=1)) + geom_step(col=rgb(1,0.65,0),size=1) + delete_background + 
+  theme(panel.background = element_rect(fill = rgb(0.96,0.89,0.84), size = 2)) + 
+  theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1,colour=x$status)) + ylim (0,100) + 
+  scale_x_discrete(limits=genes)
+p
 
 
-genes<-c("exp_EGFR|1956","exp_KEAP1|9817","exp_KRAS|3845")
-t<-as.data.frame(mat_tpm[,genes])
-
-ggplot(melt(t),aes(variable,value)) + geom_violin(aes(fill=variable)) + stat_summary(fun.data=data_summary,)
 
 
-
-x<-read.csv("../COAD_CUR/Results/Results_COAD_342285_genes_fine/number_of_events_corrected_COAD.csv")
-x<-x[1:10,]
-x$percentage<-round(x$q_value_0.15/49*100)
-x$status<-c(1,1,1,2,3)
-colnames(x)[1]<-"gene"
-x$gene<-factor(x$gene,levels=x$gene)
-
-
-ggplot(x,aes(gene,percentage,group=1)) + geom_step() + 
-  theme(panel.background = element_rect(fill = 'cyan', size = 2)) + 
-  theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1,colour=x$status)) +
-  ggplot2.custo 
-  geom_rect(data=NULL,aes(xmin=Inf,xmax=-Inf,ymin=-Inf,ymax=Inf),fill="cyan") +
-  geom_rect(data=NULL,aes(xmin=-Inf,xmax="TP53",ymin=-Inf,ymax=Inf),fill="lightgreen",alpha=0.05)
-  
-
-
+rgb(244,227,215)
 
 class(x)
 head(x)

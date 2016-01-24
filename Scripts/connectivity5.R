@@ -15,7 +15,7 @@ suppressWarnings({
 })
 
 #Setting defaults for debug mode
-arg<-list("LUAD_Cor_PCA_15_1.5","LUAD.h5","all",200,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,TRUE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
+arg<-list("LUAD_Cor_Neigh_40_5.5","LUAD.h5","all",200,detectCores(),FALSE,TRUE,NULL,1,100,"syn","Annotations.csv",FALSE,FALSE,0,"PROCESSED_hgsc.bcm.edu_COAD.IlluminaGA_DNASeq.1.somatic.v.2.1.5.0.maf")
 names(arg)<-c("name","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","hyper","syn_control","rescale","maf")
 
 #Argument section handling
@@ -38,7 +38,7 @@ spec = matrix(c(
   "maf","x",2,"character"
 ), byrow=TRUE, ncol=4)
 
-arg<-getopt(spec) #Conmment this line for debug mode
+#arg<-getopt(spec) #Conmment this line for debug mode
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
 if ( is.null(arg$log2 ) ) {arg$log2= FALSE}
@@ -418,8 +418,8 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
   split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
   
   
-  ans<-parLapply(cl,split.column,function (columns_range)  {
-    #ans<-lapply(split.column,function (columns_range)  {
+  #ans<-parLapply(cl,split.column,function (columns_range)  {
+  ans<-lapply(split.column,function (columns_range)  {
     #calculating c-scores and p-values for each chunk of columns
     
     matrix2<-matrix[,columns_range,drop=FALSE]

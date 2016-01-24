@@ -1,6 +1,22 @@
 #setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/Rips")
-#arg<-list(2,2,FALSE,10,NULL,NULL,NULL,NULL,"STADTRIM.h5","all",5,detectCores(),NULL,0.04,350,"syn",FALSE,2.6,"../STADTRIMMED//Mutations/PROCESSED_MAF_STADTRIM_2015-12-09.maf")
+#arg<-list(1,1,FALSE,20,NULL,NULL,NULL,NULL,"COAD.h5","all",100,detectCores(),NULL,0.06,1000,"syn",FALSE,3,"../COAD_CUR/Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
 #names(arg)<-c("epsilon_left","epsilon_right","mutload","epsilon","cut","topgenes","network","scan","matrix","columns","permutations","cores","chunk","samples_threshold","g_score_threshold","score_type","syn_control","rescale","maf")
+
+
+
+log2i<-function(p)  {
+  # Special function that returns 0  if log2 argument is 0
+  w<-log2(p)
+  ifelse(w=="-Inf",0,w)
+}
+
+
+jsd_calc<-function(P,Q) {
+  #Calculates JSD distance between distribution P and Q
+  P1<-replace(P,P==0,1) #All Values of 1 will get log2 ==0
+  Q1<-replace(Q,Q==0,1)
+  return(sqrt(sum(0.5*P1*log2(P1)+0.5*Q1*log2(Q1)-0.5*(P+Q)*log2i(0.5*(P+Q))))) 
+}
 
 
 #########g_scores#############
@@ -209,7 +225,7 @@ spec = matrix(c(
   "maf","x",2,"character",
   "scan","y",2,"integer",
   "epsilon","e",2,"integer",
-  "distance","d",2,"character",
+  "dist","d",2,"character",
   "topgenes","T",2,"integer",
   "cut","c",2,"numeric",
   "equalize","E",2,"logical",
@@ -344,21 +360,26 @@ if (arg$rescale!=0) {
 som<-function(x) {sd(x)/mean(x)}
 
 #Correcting for logarithmic scale
+r<-mat_tpm
 mat_tpm<-(2^mat_tpm-1)
 
 exp_mean<-colMeans(mat_tpm)
 exp_mean<-log2(exp_mean+1)
 
 
-qplot(exp_mean,binwidth=0.1) + ggtitle("bin=0.1") + ggsave(paste0("exp_hist_",guid,".png"))
+qplot(exp_mean,binwidth=0.1) + ggtitle("bin=0.1") + ggsave(paste0("exp_hist_",guid,".svg"))
 
 exp_som<-apply(mat_tpm[,exp_mean>arg$cut],2,som) #To avoid distortion, Calculate Coefficient of variationonly for genes with mean expression larger then arg$cut
 topgenes<-names(head(sort(round(exp_som,3),decreasing = T),arg$topgenes))
 
 exp_topgenes<-mat_tpm[,topgenes]
+
+
+exp_topgenes<-r[,topgenes]
 exp_topgenes<-t(exp_topgenes)
-#cor_exp_topgenes<-1-cor(exp_topgenes)
+
 if (arg$dist==1) {
+  print("A")
 	cor_exp_topgenes<-1-cor(exp_topgenes,method="pearson")
 } 
 
@@ -369,6 +390,32 @@ if (arg$dist==2) {
 if (arg$dist==3) {
 	cor_exp_topgenes<-as.matrix(dist(t(exp_topgenes),upper = T))
 }
+
+
+
+if (arg$dist==4) { #Experimental jsd distance matrix
+  print("B")
+  a<-exp_topgenes
+  b<-matrix(0,208,208)
+  anorm<-apply(a,1,function(x) x/sum(x))
+  
+  
+  c<-0
+  for (i in 1:208) {
+    for (j in 1:208) {
+      c<-c+1
+      print(c)
+      b[i,j]<-jsd_calc(anorm[,i],anorm[,j])
+      
+    }
+  }
+  #b[lower.tri(b)]<-t(b)[upper.tri(b)]
+  cor_exp_topgenes<-b
+  
+}
+
+
+
 
 
 
@@ -424,6 +471,10 @@ for (epsilon in scan$networks) {
   
   adj_mat<-ifelse(cor_exp_topgenes<=epsilon,1,0) 
   adj_mat[lower.tri(adj_mat,diag = TRUE)]<-0
+  
+  write.csv(adj_mat,paste0("adj_mat_",epsilon,"_",guid,".csv"))
+  
+  
   rownames(adj_mat)<-1:nrow(adj_mat)
   colnames(adj_mat)<-1:ncol(adj_mat)
   graph_igraph<-graph.adjacency(adj_mat,diag = F) #Converting the adjacency matrix into igraph format

@@ -168,11 +168,12 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     Genes<-colnames(matrix2)  
     
     output<-cbind(Genes,c_value,p_value,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
+    #write.csv("output1.csv",outertput1)
     #write.table(output,paste0(file_prefix,"_results_rolling.csv"),append=TRUE,sep=",",col.names=FALSE,row.names=FALSE)
     
     #Ans is columns_range length list. Each element contain to variables.
     #First variabl is "output" which is results matrix. the second element is pii_values matrix, its columns are genes and rows are nodes 
-    ans<-list(output,rbind(Genes,pi_values))
+    ans<-list(output,rbind(Genes,pi_values),output1)
     
     return(ans) 
     
@@ -245,6 +246,26 @@ epsilon_p_value<-function(results_files) {
   ans<-p_list
   
 }
+
+
+epsilon_q_value<-function(results_files) {
+  #Takes in a list of results files and returns average p_values of all the genes
+  Gene_Symbol<-sapply(strsplit(names(columns_of_interest),"|",fixed = TRUE),"[[",1)
+  Gene_Symbol<-substring(Gene_Symbol,5)
+  p_list<-lapply(Gene_Symbol,function(x) NULL)
+  names(p_list)<-Gene_Symbol
+  
+  for (i in results_files) {
+    results<-read.csv(i)
+    for (gene in names(p_list)) {
+      p_list[[gene]]<-c(p_list[[gene]],results$q_value[results$Gene_Symbol==gene])
+    } 
+  }
+  
+  ans<-p_list
+  
+}
+
 
 
 rescale<-function (cut,maf,mat_syn,mat_non_syn) {

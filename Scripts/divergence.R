@@ -15,6 +15,18 @@ JSD2<-function(P,Q) {
   return(sqrt(sum(0.5*P1*log2(P1)+0.5*Q1*log2(Q1)-0.5*(P+Q)*log2i(0.5*(P+Q))))) 
 }
 
+
+jsd_genes<-strsplit(all_genes,"_")[[1]][2]
+
+colnames(mat_tpm)<-substr(colnames(mat_tpm),5,nchar(colnames(mat_tpm)))
+
+mat_total<-mat_non_syn+mat_syn
+colnames(mat_total)<-substr(colnames(mat_total),5,nchar(colnames(mat_total)))
+
+
+substr("exp_sss",5,nchar("exp_sss"))
+
+
 columns_cutoff<-function (final_results,q_value_cutoff=.05,min_frac=0,max_frac=1,equal=FALSE){
  #Recives final_results matrix,q_value,min_frac, and max_frac. And retreives columns of interest
   parameters<<-paste("q_value_cut_off=",q_value_cutoff," ",min_frac, " <frac< ",max_frac, "equal=",equal)
