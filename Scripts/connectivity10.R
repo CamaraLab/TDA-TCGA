@@ -394,7 +394,7 @@ e_matrix<-function(nodes,translated_values) {
 pii_matrix<-function(e_matrix){ #Gets e_matrix retuens pii
   pii_matrix<-apply(e_matrix,2,function (e_column)
     if (sum(e_column,na.rm = TRUE)==0) {pii_column<-e_column} else
-      pii_column<-e_column/sum(e_column)
+      pii_column<-e_column/sum(e_column,na.rm = TRUE)
   )
 }
 
@@ -405,7 +405,7 @@ c_calc_fast<-function(pi_matrix)
   #c=pi*pj*Aij()
 {
   c_vector<-apply(pi_matrix,2,function(pi_column) 
-    c<-2*sum(pi_column[edges1]*pi_column[edges2]))
+    c<-2*sum(pi_column[edges1]*pi_column[edges2],na.rm = TRUE))
   
   c_vector<-c_vector*(num_nodes/(num_nodes-1))
 } 
@@ -451,11 +451,11 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     e_mean<-sapply(e_list,function (x) mean(x[,1],na.rm = TRUE)) #Taking mean of the first column (not permutations)
     e_sd<-sapply(e_list,function (x) sd(x[,1]))
     pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
-    pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
-    n_samples<-apply(matrix2,2,function (x) sum(x!=0))
+    pi_frac<-apply(pi_values,2,function (x) sum(x!=0,na.rm = TRUE)/length(x))
+    n_samples<-apply(matrix2,2,function (x) sum(x!=0,na.rm = TRUE))
     c_value<-sapply(c_vec_list,function (c_vec) c_vec[1])
     p_value<-sapply(c_vec_list,function(c_vec) {
-      p_value<-sum(c_vec>c_vec[1])/permutations})
+      p_value<-sum(c_vec>c_vec[1],na.rm = TRUE)/permutations})
     Genes<-colnames(matrix2)  
     
     output<-cbind(Genes,c_value,p_value,pi_frac,n_samples,e_mean,e_sd) #The variable names should match info_cols
@@ -663,7 +663,7 @@ for (file in scan$networks) {
   print (paste("Samples threshold is set to:",samples_threshold))
   print (paste("Top genes score threshold is set to:",arg$g_score_threshold))
   
-  genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0)) #Counting non_zero samples for each column
+  genes_number_of_samples<-apply(matrix1,2,function (x) sum(x!=0,na.rm = TRUE)) #Counting non_zero samples for each column
   genes_below_samples_threshold<-names(which(genes_number_of_samples<samples_threshold))
   genes_above_samples_threshold<-names(which(genes_number_of_samples>=samples_threshold)) #For filtering by number  of mutations exist in a sample
   
@@ -709,7 +709,7 @@ for (file in scan$networks) {
   if (!is.null(arg$extra)) {
     
     extra<-read.csv(arg$extra,as.is=T,row.names=1)
-    extra[is.na(extra)]<-0
+    #extra[is.na(extra)]<-0
     #row.names(batch)<-batch$s3
     #batch<-batch[,-1]
     #batch[batch==FALSE]<-0
@@ -816,10 +816,10 @@ if (!is.null(arg$jsd)) {
           print (paste("Genes Connectivity for Graph"))
           ans<-connectivity_analysis(columns_of_interest,matrix1)
           final_results<-results_file(ans)
-          scan[scan$networks==file,]$p_0.05<-sum(final_results[,"p_value"]<=0.05)
-          scan[scan$networks==file,]$q_0.1<-sum(final_results[,"q_value"]<=0.1)
-          scan[scan$networks==file,]$q_0.15<-sum(final_results[,"q_value"]<=0.15)
-          scan[scan$networks==file,]$q_0.2<-sum(final_results[,"q_value"]<=0.2)
+          scan[scan$networks==file,]$p_0.05<-sum(final_results[,"p_value"]<=0.05,na.rm = TRUE)
+          scan[scan$networks==file,]$q_0.1<-sum(final_results[,"q_value"]<=0.1,na.rm = TRUE)
+          scan[scan$networks==file,]$q_0.15<-sum(final_results[,"q_value"]<=0.15,na.rm = TRUE)
+          scan[scan$networks==file,]$q_0.2<-sum(final_results[,"q_value"]<=0.2,na.rm = TRUE)
         }
         
         
