@@ -1,4 +1,4 @@
-setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/COAD_CUR/Networks/COAD_Networks_Fine/")
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/STADTRIMMED/Networks/STADTRIM_Fine_NETWORKS/")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -25,8 +25,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list(NULL,"../../Figures/number_of_events_corrected_COAD-cropped.csv",NULL,"../../COAD.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
-names(arg)<-c("batch","jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
+arg<-list("../../../STAD_COL/clin_factorized2.csv",NULL,NULL,"../../STADTRIM.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
+names(arg)<-c("extra","jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -48,10 +48,10 @@ spec = matrix(c(
   "maf","x",2,"character",
   "scan","y",2,"integer",
   "jsd","J",2,"character",
-  "batch","b",2,"character"
+  "extra","b",2,"character"
 ), byrow=TRUE, ncol=4)
 
-#arg<-getopt(spec) #Conmment this line for debug mode
+arg<-getopt(spec) #Conmment this line for debug mode
 
 
 if ( is.null(arg$permutations ) ) {arg$permutations= 500}
@@ -393,7 +393,7 @@ e_matrix<-function(nodes,translated_values) {
 
 pii_matrix<-function(e_matrix){ #Gets e_matrix retuens pii
   pii_matrix<-apply(e_matrix,2,function (e_column)
-    if (sum(e_column)==0) {pii_column<-e_column} else
+    if (sum(e_column,na.rm = TRUE)==0) {pii_column<-e_column} else
       pii_column<-e_column/sum(e_column)
   )
 }
@@ -424,8 +424,8 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
   split.column<-split(columns,ceiling(seq_along(columns)/arg$chunk))
   
   
-  #ans<-parLapply(cl,split.column,function (columns_range)  {
-    ans<-lapply(split.column,function (columns_range)  {
+  ans<-parLapply(cl,split.column,function (columns_range)  {
+    #ans<-lapply(split.column,function (columns_range)  {
     #calculating c-scores and p-values for each chunk of columns
     
     matrix2<-matrix[,columns_range,drop=FALSE]
@@ -448,7 +448,7 @@ connectivity_analysis<-function(columns_of_interest,matrix) {
     pi_list<-lapply(e_list,function(x) pii_matrix(as.matrix(x))) #columns_range elements in the list. Each element is a matrix representing pi_values of a gene. rows are nodes, columns are permutations. first column is non permuted.
     c_vec_list<-lapply(pi_list,function (pi_matrix) c_calc_fast(as.matrix(pi_matrix)))
     
-    e_mean<-sapply(e_list,function (x) mean(x[,1])) #Taking mean of the first column (not permutations)
+    e_mean<-sapply(e_list,function (x) mean(x[,1],na.rm = TRUE)) #Taking mean of the first column (not permutations)
     e_sd<-sapply(e_list,function (x) sd(x[,1]))
     pi_values<-sapply(pi_list,function (x) x[,1]) #Is a matrix,each row is a node, each column in the matrix is pi values of a gene across nodes.
     pi_frac<-apply(pi_values,2,function (x) sum(x!=0)/length(x))
@@ -695,15 +695,27 @@ for (file in scan$networks) {
     
   }
   
-  if (!is.null(arg$batch)) {
+  #if (!is.null(arg$batch)) {
     
-    batch<-read.csv(arg$batch,as.is=T,row.names=1)
-    row.names(batch)<-batch$s3
-    batch<-batch[,-1]
-    batch[batch==FALSE]<-0
-    matrix1<-batch[rownames(matrix1),]
+  #  batch<-read.csv(arg$batch,as.is=T,row.names=1)
+  #  row.names(batch)<-batch$s3
+  #  batch<-batch[,-1]
+  ##  batch[batch==FALSE]<-0
+  #  matrix1<-batch[rownames(matrix1),]
+  #  colnames(matrix1)<-paste0("mut_",colnames(matrix1),"|001")
+  #  columns_of_interest<-colnames(batch)
+  #}
+  
+  if (!is.null(arg$extra)) {
+    
+    extra<-read.csv(arg$extra,as.is=T,row.names=1)
+    extra[is.na(extra)]<-0
+    #row.names(batch)<-batch$s3
+    #batch<-batch[,-1]
+    #batch[batch==FALSE]<-0
+    matrix1<-extra[rownames(matrix1),]
     colnames(matrix1)<-paste0("mut_",colnames(matrix1),"|001")
-    columns_of_interest<-colnames(batch)
+    columns_of_interest<-colnames(extra)
   }
   
   
