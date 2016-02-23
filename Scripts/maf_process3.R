@@ -139,6 +139,14 @@ mat_non_syn<-mat_non_syn[sort(rownames(mat_non_syn)),sort(colnames(mat_non_syn))
 #Binary matrix for connectivity score
 mat_non_syn_bin<-ifelse(mat_non_syn>0,1,0) #Non synonymous binary matrix - will be used as input for c_score
 
+mutload<-rowSums(mat_syn+mat_non_syn)
+svg("hist_mutLoad.svg")
+hist(log10(mutload),breaks = 100,main=paste0("hist_mutLoad"))
+invisible(dev.off()) 
+
+
+
+
 print ("Writing mutation matrix files")
 write.csv(mat_non_syn_bin,paste0(PROJECT_NAME,"_Full_Mutations_binary.csv"))
 write.csv(mat_non_syn,paste0(PROJECT_NAME,"_Full_Mutations_non_synonymous.csv"))
