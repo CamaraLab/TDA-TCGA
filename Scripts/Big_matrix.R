@@ -18,11 +18,12 @@ spec = matrix(c(
 
 arg<-getopt(spec) #Conmment this line for debug mode
 
-#arg$expression<-"Expression/SKCM_Full_TPM_matrix.csv"
-#arg$binary<-"Mutations/SKCM_Full_Mutations_binary.csv"
-#arg$syn<-"Mutations/SKCM_Full_Mutations_synonymous.csv"
-#arg$non_syn<-"Mutations/SKCM_Full_Mutations_non_synonymous.csv"
-#arg$project<-"SKCM1"
+setwd("../../../../Udi/SkyDrive/TCGA_CURATED/LAML/")
+arg$expression<-"Expression/LAML_Full_TPM_matrix.csv"
+arg$binary<-"Mutations/LAML_Full_Mutations_binary.csv"
+arg$syn<-"Mutations/LAML_Full_Mutations_synonymous.csv"
+arg$non_syn<-"Mutations/LAML_Full_Mutations_non_synonymous.csv"
+arg$project<-"LAML"
 
 PROJECT_NAME<-arg$project
 #wd<-paste0("~/TCGA-DATA/",PROJECT_NAME)
@@ -48,7 +49,7 @@ rownames(mat_syn)<-mat_syn[,1]; mat_syn<-mat_syn[,-1]
 
 clean_samples<-function(matrix) {
   samples<-substring(rownames(matrix),1,15)
-  samples_to_keep_1<-which(sapply(samples, function (x) substring(x,14) %in% c("01","10","11","06","07")))
+  samples_to_keep_1<-which(sapply(samples, function (x) substring(x,14) %in% c("01","10","11","06","07","03")))
   #Removing duplicated records
   duplicated<-samples[duplicated(samples)]
   samples_to_keep_2<-which(!samples %in% duplicated)
