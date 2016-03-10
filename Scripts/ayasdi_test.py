@@ -74,7 +74,8 @@ df=pd.read_csv(file1,index_col=0)
 exp=df.filter(like="exp_")
 b=exp.var(axis=0)
 #b=b.sort_values(ascending=0)
-b=b.sort(ascending=False)
+b.sort(ascending=False)
+
 top4500=list(b[:4500].index)
 print "Done"
 print b[:4500]
