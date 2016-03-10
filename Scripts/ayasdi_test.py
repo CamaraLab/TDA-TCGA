@@ -57,14 +57,18 @@ def ParseAyasdiGraph(source, lab, user, password, name):
 
 # In[216]:
 
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("cancer_name")
-parser.add_argument("file1")
-args = parser.parse_args()
+#import argparse
+#parser = argparse.ArgumentParser()
+#parser.add_argument("cancer_name")
+#parser.add_argument("file1")
+#args = parser.parse_args()
+
+import sys
+cancer_name = sys.argv[1]
+file1 = sys.argv[2]
 
 #file1='C:\Users\Udi\SkyDrive\TCGA_CURATED\OTHER_CUR\KIRC_CUR\KIRC_CUR_BIG_matrix4.csv'
-file1=args.file1
+#file1=args.file1
 print "Importing matrix file :" + file1
 df=pd.read_csv(file1,index_col=0)
 
@@ -131,7 +135,8 @@ a={u'column_set_id': col_set['id'],
 #res_range=list(numpy.arange(float(args.res_start),float(args.res_stop)+float(args.res_interval),float(args.res_interval)))
 #res_range = [ int(elem) for elem in res_range ]
 
-cancer_name=args.cancer_name # arg.cancer
+#cancer_name=args.cancer_name # arg.cancer
+cancer_name=cancer_name
 res_range=[10,20,30,40,50,60,70,80] # if range
 gain_range=[1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5] # if gain 
 counter=0
