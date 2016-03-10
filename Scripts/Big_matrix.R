@@ -18,12 +18,12 @@ spec = matrix(c(
 
 arg<-getopt(spec) #Conmment this line for debug mode
 
-setwd("../../../../Udi/SkyDrive/TCGA_CURATED/LAML/")
-arg$expression<-"Expression/LAML_Full_TPM_matrix.csv"
-arg$binary<-"Mutations/LAML_Full_Mutations_binary.csv"
-arg$syn<-"Mutations/LAML_Full_Mutations_synonymous.csv"
-arg$non_syn<-"Mutations/LAML_Full_Mutations_non_synonymous.csv"
-arg$project<-"LAML"
+#setwd("../../../../Udi/SkyDrive/TCGA_CURATED/LAML/")
+#arg$expression<-"Expression/LAML_Full_TPM_matrix.csv"
+#arg$binary<-"Mutations/LAML_Full_Mutations_binary.csv"
+#arg$syn<-"Mutations/LAML_Full_Mutations_synonymous.csv"
+#arg$non_syn<-"Mutations/LAML_Full_Mutations_non_synonymous.csv"
+#arg$project<-"LAML"
 
 PROJECT_NAME<-arg$project
 #wd<-paste0("~/TCGA-DATA/",PROJECT_NAME)
