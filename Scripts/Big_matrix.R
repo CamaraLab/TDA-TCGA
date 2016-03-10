@@ -97,6 +97,7 @@ if (!("BIG" %in% names(arg))) { #If big matrix is not supplied
   
   
   BIG.matrix<-cbind(TPM.matrix[samples_of_interest,],mat_non_syn_bin[samples_of_interest,])
+  filename<-paste0(PROJECT_NAME,"_BIG_matrix.csv")
   
 } else { # BIG matrix supplied
   BIG.matrix<-udiread(arg$BIG)
@@ -121,6 +122,7 @@ if ("cnv" %in% names(arg)) {
   colnames(amp)<-paste0("amp_",colnames(amp))
   amp<-as.data.frame(amp)
   BIG.matrix<-cbind(BIG.matrix,amp[rownames(BIG.matrix),],del[rownames(BIG.matrix),])
+  filename<-paste0(PROJECT_NAME,"_BIG_matrix_CNV.csv")
 }
 
 
@@ -129,7 +131,8 @@ print ("Writing Big_matrix file")
 
 #dim(BIG.matrix)
 #write.csv(BIG.matrix,paste0(PROJECT_NAME,"_BIG_matrix.csv"))
-write.csv(as.matrix(BIG.matrix),paste0(PROJECT_NAME,"_BIG_matrix.csv"))
+
+write.csv(as.matrix(BIG.matrix),filename)
 
 
 
