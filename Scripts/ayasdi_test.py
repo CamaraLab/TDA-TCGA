@@ -94,7 +94,7 @@ connection = Api(username="uer2102@columbia.edu", password="ColumbiaAyasdi2015!"
 # In[170]:
 
 print "Uploading matrix file"
-source=connection.upload_source('udibbb',file1)
+source=connection.upload_source(file1)
 
 
 # In[177]:
