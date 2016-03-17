@@ -37,6 +37,9 @@ print (arg)
 #arg$non_syn<-"Mutations/LAML_Full_Mutations_non_synonymous.csv"
 #arg$project<-"LAML"
 
+#arg$BIG<-"c:/Users/Udi/SkyDrive/TCGA_CURATED/LUAD_CUR/LUAD_CUR_BIG_matrix.csv"
+#arg$cnv<-"c:/Users/Udi/SkyDrive/TCGA_CURATED/LUAD_CUR/CNV/TCGA_LUAD_gistic2thd-2015-02-24/genomicMatrix"
+#arg$project<-"LUAD_TEST"
 PROJECT_NAME<-arg$project
 #wd<-paste0("~/TCGA-DATA/",PROJECT_NAME)
 #setwd(wd)
