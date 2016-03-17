@@ -292,8 +292,16 @@ q_boxplot<-function(genes,results_dir) {
   a<-melt(a)[,-1]
   colnames(a)<-c("gene","q_value")
   a$gene<-factor(a$gene,levels=a$gene)
-  ggplot(a,aes(gene,q_value)) + geom_boxplot(aes(fill=gene)) + 
-    ggtitle("q<0.15 dist") +  ggsave(paste0("q_value_0.15_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
+  
+  delete_background <- theme(axis.line = element_line(colour = "black"),
+                             panel.grid.major = element_blank(),
+                             panel.grid.minor = element_blank(),
+                             panel.background = element_blank(),
+                             legend.position="none")
+    
+  
+  ggplot(a,aes(gene,q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + 
+    delete_background + ylim(0,1) + ggtitle("q<0.15 dist") +  ggsave(paste0("q_value_0.15_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
   
 }
 
@@ -788,7 +796,7 @@ if (!is.null(arg$jsd)) {
   jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,arg$jsd_perm) #jsd_perm=number of permutations
   
   
-  if (count==nrow(scan)) { #Q_box plot only in the last round
+  if (count==1) { #Q_box plot only in the last round
     if (!is.null(arg$qbox)) {
       q_boxplot(jsd_genes,results_dir = arg$qbox)
     }
@@ -1086,74 +1094,6 @@ py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_backgrou
 
 
 }
-
-
-################################################################################
-if (!is.null(arg$jsd)) {
-  
-  
-  jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
-  jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
-  jsd_q_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_q_value"])
-  #rownames(jsd_value_matrix)<-rownames(jsd_p_value_matrix)<-jsd_genes
-  write.csv(jsd_value_matrix,paste0("jsd_value_matrix_",guid,".csv"))
-  write.csv(jsd_p_value_matrix,paste0("jsd_p_value_matrix_",guid,".csv"))
-  write.csv(jsd_q_value_matrix,paste0("jsd_q_value_matrix_",guid,".csv"))
-  
-  
-  #Jensen shannon plot
-  delete_background <- theme(axis.line = element_line(colour = "black"),
-                             panel.grid.major = element_blank(),
-                             panel.grid.minor = element_blank(),
-                             panel.background = element_blank(),
-                             legend.position="none")
-  
-  rownames(jsd_q_value_matrix)<-sapply(strsplit(rownames(jsd_q_value_matrix),"|",fixed = TRUE),"[[",1)
-  jsd_q<-melt(t(jsd_q_value_matrix))
-  colnames(jsd_q)<-c("network","gene","jsd_q_value")
-  
-  jsd_q$gene<-factor(jsd_q$gene,levels=jsd_q$gene)
-  py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red") + geom_hline(yintercept=0.85,color="red")
-  py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_background + ylim(0,1) + 
-    ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
-  
-  
-}
-
-
-if (!is.null(arg$jsd)) {
-  
-  
-  jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
-  jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
-  jsd_q_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_q_value"])
-  #rownames(jsd_value_matrix)<-rownames(jsd_p_value_matrix)<-jsd_genes
-  write.csv(jsd_value_matrix,paste0("jsd_value_matrix_",guid,".csv"))
-  write.csv(jsd_p_value_matrix,paste0("jsd_p_value_matrix_",guid,".csv"))
-  write.csv(jsd_q_value_matrix,paste0("jsd_q_value_matrix_",guid,".csv"))
-  
-  
-  #Jensen shannon plot
-  delete_background <- theme(axis.line = element_line(colour = "black"),
-                             panel.grid.major = element_blank(),
-                             panel.grid.minor = element_blank(),
-                             panel.background = element_blank(),
-                             legend.position="none")
-  
-  rownames(jsd_q_value_matrix)<-sapply(strsplit(rownames(jsd_q_value_matrix),"|",fixed = TRUE),"[[",1)
-  jsd_q<-melt(t(jsd_q_value_matrix))
-  colnames(jsd_q)<-c("network","gene","jsd_q_value")
-  
-  jsd_q$gene<-factor(jsd_q$gene,levels=jsd_q$gene)
-  py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red") + geom_hline(yintercept=0.85,color="red")
-  py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_background + ylim(0,1) + 
-    ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
-  
-  
-}
-
-
-
 
 
 
