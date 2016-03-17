@@ -49,7 +49,8 @@ spec = matrix(c(
   "scan","y",2,"integer",
   "jsd","J",2,"character",
   "extra","b",2,"character",
-  "qbox","Q",2,"character"
+  "qbox","Q",2,"character",
+  "jsd_perm","P",2,"numeric"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -79,7 +80,7 @@ if ( is.null(arg$rescale ) ) {arg$rescale= 0} else {
 
 if ( is.null(arg$scan ) ) {arg$scan= 0}
 if ( !is.null(arg$network ) ) {arg$scan= 0}
-
+if (!is.null(arg$jsd_perm)) {jsd_perm<-2000}
 PROJECT_NAME<-as.character(str_match(string = arg$matrix,pattern="\\w+.h5"))
 PROJECT_NAME<-substring(text = PROJECT_NAME,first = 1,nchar(PROJECT_NAME)-3)
 #Printing run parameters
@@ -783,7 +784,8 @@ if (!is.null(arg$jsd)) {
   jsd_genes<-jsub$gene
   
   #jsd_genes<-c("PIK3CA|5290","UNC13C|440279","CDH1|999","PLXNA4|91584","AFF2|2334","ARID1A|8289","TP53|7157","AKAP13|11214","PEG3|5178")
-  jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
+
+  jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,arg$jsd_perm) #jsd_perm=number of permutations
   
   
   if (count==nrow(scan)) { #Q_box plot only in the last round
