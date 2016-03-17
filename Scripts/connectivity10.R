@@ -1,4 +1,4 @@
-#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/STADTRIMMED/Networks/STADTRIM_Fine_NETWORKS/")
+#setwd("c:/Users/Udi/SkyDrive/TCGA_CURATED/TGCT/Networks/TGCT_Fine_Networks/")
 ############################LOADING LIBRARIES############################
 
 #setwd("c:/users/udi/Downloads/test/")
@@ -25,8 +25,8 @@ suppressWarnings({
 
 
 #Setting defaults for debug mode
-arg<-list("../../../STAD_COL/clin_factorized2.csv",NULL,NULL,"../../STADTRIM.h5","all",100,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
-names(arg)<-c("extra","jsd","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
+arg<-list(NULL,"../../Results/results_TGCT_366082_genes_fine/number_of_events_366082.csv","../../Results/results_TGCT_366082_genes_fine/",NULL,"../../TGCT.h5","all",1,detectCores(),FALSE,TRUE,NULL,0.05,100,"syn","Annotations.csv",FALSE,FALSE,0,3,"../../Mutations/PROCESSED_MAF_COAD_2015-10-27.maf")
+names(arg)<-c("extra","jsd","qbox","network","matrix","columns","permutations","cores","log2","fdr","chunk","samples_threshold","g_score_threshold","score_type","anno","mutload","syn_control","rescale","scan","maf")
 
 #Argument section handling
 spec = matrix(c(
@@ -48,7 +48,8 @@ spec = matrix(c(
   "maf","x",2,"character",
   "scan","y",2,"integer",
   "jsd","J",2,"character",
-  "extra","b",2,"character"
+  "extra","b",2,"character",
+  "qbox","Q",2,"character"
 ), byrow=TRUE, ncol=4)
 
 arg<-getopt(spec) #Conmment this line for debug mode
@@ -279,6 +280,21 @@ jsd_analysis<-function(mut_matrix,exp_matrix,genes,nodes,permutations) {
 }
 
 
+q_boxplot<-function(genes,results_dir) {
+#This function retrieves the above and returns boxplots of the q_value<0.15 distribution
+  genes_results_files<-list.files(results_dir,pattern=".*_genes_results.csv",full.names = T)
+  results_file_list<-lapply(genes_results_files,function (x) read.csv(x))
+  a<-sapply(genes,function (gene) {
+    as.numeric(sapply(results_file_list,function (m) filter(m,Gene_Symbol==gene)$q_value))
+  })
+  
+  a<-melt(a)[,-1]
+  colnames(a)<-c("gene","q_value")
+  a$gene<-factor(a$gene,levels=a$gene)
+  ggplot(a,aes(gene,q_value)) + geom_boxplot(aes(fill=gene)) + 
+    ggtitle("q<0.15 dist") +  ggsave(paste0("q_value_0.15_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
+  
+}
 
 log2i<-function(p)  {
   # Special function that returns 0  if log2 argument is 0
@@ -759,25 +775,6 @@ if (!is.null(arg$jsd)) {
   
   mut_matrix<-(mat_non_syn+mat_syn)[rownames(matrix1),]
   exp_matrix<-mat_tpm[rownames(matrix1),]
-  #jsd_list[[file]]<-jsd(mut_matrix,exp_matrix,nodes)
-  #jsd_genes<-c("SOX9|6662","APC|324","PIK3CA|5290","ARHGAP5|394","ARFGEF1|10565","TP53|7157","KRAS|3845","VPS13B|157680","SMAD4|4089","TCF7L2|6934","ESRRA|2101","RNF43|54894","KMT2C|58508","FLT3|2322","NEFH|4744","CCDC141|285025","PIK3R1|5295","MYH3|4621","STK11|6794","NCOR1|9611")
-  #jsd_genes<-c("SOX9","APC","PIK3CA","ARHGAP5","ARFGEF1","TP53","KRAS","VPS13B","SMAD4","TCF7L2","ESRRA","RNF43","KMT2C","FLT3","NEFH","CCDC141","PIK3R1","MYH3","STK11","NCOR1")
-  #jsd_genes<-c("IDH1","ATRX","EGFR","SLCO6A1","CALN1","NF1","COL6A3")
-  #jsd_genes<-c("IDH1","NOTCH1","PTEN","TP53","CIC","FUBP1",
-   #            "ATRX",
-    #           "EGFR",
-     #          "NF1",
-      #         "BAGE2",
-       #        "ARID1A",
-        #       "MUC4",
-         #      "NBPF10",
-          #     #"TUBB8P7"),
-           #    "SMARCA4",
-            #   #"SNHG14",
-             #  "MUC16",
-              # "NBPF1")
-  #jsd_genes<-c("FGFR3","RB1","PTPRD","ELF3","MUC17","MED13","FMN2","TP53","HSPG2","HERC2P2")
-  #jsd_genes<-c("SPOP","KRT6C","PCDH18","FAT3","STAB2","ZNF420","PCDHGA9","L3HYPDH")
   
   j<-read.csv(arg$jsd,as.is=T)  
   colnames(j)[1]<-"gene"
@@ -787,6 +784,17 @@ if (!is.null(arg$jsd)) {
   
   #jsd_genes<-c("PIK3CA|5290","UNC13C|440279","CDH1|999","PLXNA4|91584","AFF2|2334","ARID1A|8289","TP53|7157","AKAP13|11214","PEG3|5178")
   jsd_list[[file]]<-jsd_analysis(mut_matrix,exp_matrix,jsd_genes,nodes,2000)
+  
+  
+  if (count==nrow(scan)) { #Q_box plot only in the last round
+    if (!is.null(arg$qbox)) {
+      q_boxplot(jsd_genes,results_dir = arg$qbox)
+    }
+    
+  }
+  
+  
+  
   
 }
   
@@ -1076,6 +1084,80 @@ py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_backgrou
 
 
 }
+
+
+################################################################################
+if (!is.null(arg$jsd)) {
+  
+  
+  jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
+  jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
+  jsd_q_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_q_value"])
+  #rownames(jsd_value_matrix)<-rownames(jsd_p_value_matrix)<-jsd_genes
+  write.csv(jsd_value_matrix,paste0("jsd_value_matrix_",guid,".csv"))
+  write.csv(jsd_p_value_matrix,paste0("jsd_p_value_matrix_",guid,".csv"))
+  write.csv(jsd_q_value_matrix,paste0("jsd_q_value_matrix_",guid,".csv"))
+  
+  
+  #Jensen shannon plot
+  delete_background <- theme(axis.line = element_line(colour = "black"),
+                             panel.grid.major = element_blank(),
+                             panel.grid.minor = element_blank(),
+                             panel.background = element_blank(),
+                             legend.position="none")
+  
+  rownames(jsd_q_value_matrix)<-sapply(strsplit(rownames(jsd_q_value_matrix),"|",fixed = TRUE),"[[",1)
+  jsd_q<-melt(t(jsd_q_value_matrix))
+  colnames(jsd_q)<-c("network","gene","jsd_q_value")
+  
+  jsd_q$gene<-factor(jsd_q$gene,levels=jsd_q$gene)
+  py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red") + geom_hline(yintercept=0.85,color="red")
+  py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_background + ylim(0,1) + 
+    ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
+  
+  
+}
+
+
+if (!is.null(arg$jsd)) {
+  
+  
+  jsd_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_value"])
+  jsd_p_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_p_value"])
+  jsd_q_value_matrix<-sapply(jsd_list,function(network) network[[1]][,"jsd_q_value"])
+  #rownames(jsd_value_matrix)<-rownames(jsd_p_value_matrix)<-jsd_genes
+  write.csv(jsd_value_matrix,paste0("jsd_value_matrix_",guid,".csv"))
+  write.csv(jsd_p_value_matrix,paste0("jsd_p_value_matrix_",guid,".csv"))
+  write.csv(jsd_q_value_matrix,paste0("jsd_q_value_matrix_",guid,".csv"))
+  
+  
+  #Jensen shannon plot
+  delete_background <- theme(axis.line = element_line(colour = "black"),
+                             panel.grid.major = element_blank(),
+                             panel.grid.minor = element_blank(),
+                             panel.background = element_blank(),
+                             legend.position="none")
+  
+  rownames(jsd_q_value_matrix)<-sapply(strsplit(rownames(jsd_q_value_matrix),"|",fixed = TRUE),"[[",1)
+  jsd_q<-melt(t(jsd_q_value_matrix))
+  colnames(jsd_q)<-c("network","gene","jsd_q_value")
+  
+  jsd_q$gene<-factor(jsd_q$gene,levels=jsd_q$gene)
+  py<-ggplot(jsd_q,aes(gene,jsd_q_value)) + geom_boxplot(aes(fill=gene),alpha=0.7) + theme(axis.text.x = element_text(angle =45,vjust = 0.8,hjust=1)) + ggtitle("js q_value") + geom_hline(yintercept=0.15,color="red") + geom_hline(yintercept=0.85,color="red")
+  py + theme(axis.text.y = element_text(family="Arial",size=15)) + delete_background + ylim(0,1) + 
+    ggsave(paste0("jsd_q_value_boxplot_",guid,".svg"),width=18,height = 8,units="cm")
+  
+  
+}
+
+
+
+
+
+
+
+
+
 ###############MOVING FILES TO Results DIR####################
 
 
