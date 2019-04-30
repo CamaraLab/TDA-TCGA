@@ -88,7 +88,7 @@ print b[:4500]
 
 print "Establishing connection to aysdi"
 from ayasdi.core.api import Api
-connection = Api(username="uer2102@columbia.edu", password="ColumbiaAyasdi2015!")
+connection = Api(username="LOGIN", password="PASS")
 
 
 # In[170]:
@@ -159,4 +159,4 @@ for g in gain_range:
 			net = source.create_network(name, a)
             #print net['id']
             #if args.download
-			ParseAyasdiGraph(source.id,net.id,'uer2102@columbia.edu','ColumbiaAyasdi2015!',name)
+			ParseAyasdiGraph(source.id,net.id,'LOGIN','PASS',name)
