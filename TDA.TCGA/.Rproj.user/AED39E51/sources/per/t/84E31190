@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1580503573377.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2172467964",
+    "id" : "84E31190",
+    "lastKnownWriteTime" : 1580503049,
+    "last_content_update" : 1580503049,
+    "path" : "~/documents/TDA-TCGA/TDA.TCGA/R/create_mut_object.R",
+    "project_path" : "R/create_mut_object.R",
+    "properties" : {
+        "cursorPosition" : "1,0",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
