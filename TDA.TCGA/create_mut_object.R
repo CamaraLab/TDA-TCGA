@@ -56,45 +56,64 @@ create_mut_object <- function(exp_table, mut_table, filter_method = UMAP, k = 30
     }
   }
   
-  plot_exp_ggplot <- function(exp_table,emb,features) {
+  plot_exp_ggplot <- function(exp_table,nonsyn_mut_binary=NA,emb,features) { #for internal use
+    
     
     for(feature in features){
-      log_TPM <- exp_table[,feature]
-      mid <- mean(exp_table[,feature])
+      if(is.na(nonsyn_mut_binary)){
+        gg_color <- exp_table[,feature]
+        #mid <- mean(exp_table[,feature]) #if adjusting to average expression across all samples
+      }
+      else{
+        #gg_color <- (nonsyn_mut_binary[,feature])
+        #test[which(nonsyn_mut_binary[,feature] != 0),feature] <- 1
+        nonsyn_mut_binary<-ifelse(nonsyn_mut_binary>0,1,0)
+        gg_color <- test[,feature]
+        
+      }
       
       plot <- 
         ggplot(emb) +
-        geom_point(aes(x=V1, y=V2, color=log_TPM), size=0.9) +
-        #scale_color_gradient(low='black',high='purple') +
-        scale_color_gradient2(midpoint=mid, low='blue', mid='grey', high='red',space='Lab') +
+        geom_point(aes(x=V1, y=V2, color=gg_color), size=0.9) +
+        scale_color_gradient(low='blue',high='red') +
+        #scale_color_gradient2(midpoint=mid, low='blue', mid='grey', high='red',space='Lab') +
         ggtitle(feature)
       
-      print(plot)
+      
+      print(plot + theme(panel.background = element_blank()))
     }
+    
   }
   
   build.mapper = function(dist, umap_emb, num_intervals, percent_overlap) {
     sink()
     sink('NULL')
-    #sink()
+    sink()
     mapper2D(dist, umap_emb, num_intervals, percent_overlap)
   }
 
   # INPUT AND CLEAN ---------------------------------------------------------
 
   #exp_table <- (read.csv("C:/Users/Adam/Desktop/Camara Lab/TDA_TCGA_Project/Test Data/LGG_Full_TPM_matrix.csv", row.names=1, header=T, stringsAsFactors=F, na.strings=c("NA","NaN", " ", "?"))) #Laptop
-  #exp_table <- (read.csv("/home/rstudio/documents/Messy_test_data/LGG_Full_TPM_matrix.csv", row.names=1, header=T, stringsAsFactors=F, na.strings=c("NA","NaN", " ", "?"))) #Lab
+  exp_table <- (read.csv("/home/rstudio/documents/Messy_test_data/LGG_Full_TPM_matrix.csv", row.names=1, header=T, stringsAsFactors=F)) #Lab
   #exp_table <- (read.csv(exp_table, row.names=1, header=T, stringsAsFactors=F, na.strings=c("NA","NaN", " ", "?")))
   #mut_table <- (read.csv("blah", row.names=1, header=T, stringsAsFactors=F, na.strings=c("NA","NaN", " ", "?")))
 
-  exp_table <- exp_table[!duplicated(rownames(exp_table)),!duplicated(colnames(exp_table))] # No duplicated genes/samples
-
-    # Only if mutation data given
-  # mut_table <- mut_table[!duplicated(rownames(mut_table)),!duplicated(colnames(mut_table))]
-  #
-  # if(all(colnames(exp_table) %in% colnames(mut_table))) { #Gene names are same CHANGE
+  if(duplicated(rownames(exp_table))) {
+    warning('Cleaning duplicated samples detected in expression data')
+    exp_table <- exp_table[!duplicated(rownames(exp_table)),] 
+  }
+  
+  if(duplicated(colnames(exp_table))) {
+    warning('Cleaning duplicated genes detected in expression data')
+    exp_table <- exp_table[,!duplicated(colnames(exp_table))] 
+  }
+    
+  
+  
+  # if(all(colnames(exp_table) %in% colnames(mut_table))) { #Gene names can
   #   if(all(colnames(mut_table) %in% colnames(exp_table))) {
-  #     print("Matching genes between expression and mutation tables")
+  #     message("Matching gene names between expression and mutation tables")
   #   }
   # } else {
   #   print("Unmatched genes between expression and mutation tables")
