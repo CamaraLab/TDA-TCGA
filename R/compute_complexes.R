@@ -1,6 +1,7 @@
 #' Creates network representations of the expression space of a patient cohort across grid of Mapper parameters
 #' 
 #' @param TDAmut_object TDAmut class with expression data
+#' @param var_threshold number of most variable genes to use from input expression table. By default is 4500.
 #' @param filter_method filter function to create embedding used by TDAmapper. Includes UMAP, KNN, and PCA. By default is set to UMAP.
 #' @param k if KNN filter function is used, specifies number of nearest neighbors. By default is 30
 #' @param min_interval minimum number of intervals in codomain of filter function. By default is 10.
@@ -9,7 +10,8 @@
 #' @param min_percent_overlap minimum percentage overlap between intervals. By default is 20.
 #' @param max_percent_overlap maximum percentage overlap between intervals
 #' @param percent_step step size between percentages in grid of Mapper parameters. By default is 10.
-#' @param var_threshold number of most variable genes to use from input expression table. By default is 4500.
+#' @param recompute if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.
+#' @param num_bins an integer controlling clustering within the same level set. By default is 10.
 #' @param num_cores number of cores to be used in computation. By default is 1
 #' 
 #' @return Returns a TDAmut object populated with nerve complexes
@@ -17,64 +19,69 @@
 
 compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method = 'UMAP', k = 30,
                               min_interval = 10, max_interval = 80, interval_step = 10,
-                              min_percent_overlap = 20, max_percent_overlap = 90, percent_step = 10) {
+                              min_percent_overlap = 20, max_percent_overlap = 90, percent_step = 10,
+                              num_bins = 10, recompute = FALSE) {
   
-  ######## FUNCTIONS ########
+  ######## APPLYING FILTER FUNCTION ########
   
-  build.mapper = function(dist, umap_emb, intervals, percents) {
-    sink()
-    sink('NULL')
-    mapper2D(dist, umap_emb, intervals, percents)
+  if (is_empty(TDAmut_object@expression_table)){
+    stop('Run create_TDAmut_object first to populate object with expression and mutation data')
   }
   
-  ######## FILTER FUNCTION ########
+  exp_table <- TDAmut_object@expression_table
   
-  exp_table <- TDAmut_object@exp_table
+  if (recompute != FALSE){
+    min_samples <- TDAmut_object@min_mutated_samples
+    exp_table <- exp_table[!(rownames(exp_table) %in% min_samples), ]
+  }
   
-  exp_table_top <- exp_table[,order(-apply(exp_table,2,var))][,1:var_threshold]
+  exp_table_top <- exp_table[ , order(-apply(exp_table, 2, var))][ , 1:var_threshold]
   dist_matrix <- as.matrix(cor.dist(as.matrix(exp_table_top)))
 
-  if (filter_method == "UMAP") {
+  if(filter_method == "UMAP") {
     emb <- umap(dist_matrix)$layout %>% as.data.frame
   }
-  else if (filter_method == "PCA") {
+  else if(filter_method == "PCA") {
     emb <- autoplot(prcomp(dist_matrix))$data[,1:2]
-    #autoplot(prcomp(dist_matrix))
   }
-  else if (filter_method == "KNN") {
-    knn_graph <- nng(dist_matrix, k=k)
+  else if(filter_method == "KNN") {
+    knn_graph <- nng(dist_matrix, k = k)
     knn_dist <- shortest.paths(knn_graph)
-    emb <- cmdscale(knn_dist,2) %>% as.data.frame
+    emb <- cmdscale(knn_dist, 2) %>% as.data.frame
   }
   else {
-    warning("Not a valid filter method")
+    stop("Not a valid filter method. Select 'UMAP', 'PCA', or 'KNN'")
   }
   
   ######## CREATING NERVE COMPLEXES ########
   
   interval_range <- seq(min_interval, max_interval, by = interval_step)
   #percent_range <- seq(min_percent_overlap, max_percent_overlap, by = percent_step)
-  percent_range <- c(33,60,71.4,77.8,81.8,84.6,86.7,88.2)
+  #percent_range <- c(33,60,71.4,77.8,81.8,84.6,86.7,88.2)
+  percent_range <- c(33, 60, 71.4, 77.8, 81.8, 84.6)
   
   # Checks user input...fix
-  # if(!((max_interval - min_interval) %% interval_step)){
+  # if (!((max_interval - min_interval) %% interval_step)){
   #   interval_range <- c(interval_range, max_interval)
   # }
   #
-  # if(!((max_percent_overlap - min_percent_overlap) %% percent_step)){
+  # if (!((max_percent_overlap - min_percent_overlap) %% percent_step)){
   #   percent_range <- c(percent_range, max_percent_overlap)
   # }
+  # if (length(interval_range) != length(percent_range)){
+  #   warning('(Interval range) x (Percent range) is not symmetric')
+  }
   
   count = 0
-  num_complexes <- length(interval_range)*length(percent_range)
-  nerve_complexes <- vector('list',length = num_complexes)
+  num_complexes <- length(interval_range) * length(percent_range)
+  nerve_complexes <- vector('list', length = num_complexes)
   
-  for (i in interval_range){
-    for (p in percent_range){
+  for(i in interval_range){
+    for(p in percent_range){
       count = count + 1
-      message(paste0("Creating Mapper Complex ", count, " of ", num_complexes))
+      message(paste("Creating Nerve Complex", count, "of", num_complexes))
       
-      mapperObj <- build.mapper(dist_matrix, emb, c(i,i), p)
+      invisible(capture.output(mapperObj <- mapper2D(dist_matrix, emb, c(i,i), p, num_bins_when_clustering = num_bins)))
       gg <- nerve_complex(mapperObj$points_in_vertex)
       nerve_complexes[[count]] <- gg
     }

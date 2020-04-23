@@ -5,16 +5,18 @@
 #' @slot mapper_percents
 #' @slot expression_table
 #' @slot mutation_table
+#' @slot mutation_matrix
 #' @slot filter_embedding
 #' @slot nonsyn_mutations
 #' @slot syn_mutations
 #' @slot mutational_load
+#' @slot min_mutated_samples
 #' @slot mutational_load_localization
-#' @slot gene_localization
+#' @slot gene_scores
 #' @slot significant_genes
+#' @slot negative_correlations
 #' 
 #' @exportClass TDAmut
-#' 
 #' 
 
 TDAmut_object <- setClass(
@@ -25,12 +27,15 @@ TDAmut_object <- setClass(
     mapper_percents = 'numeric',
     expression_table = 'ANY', 
     mutation_table = 'data.frame',
+    mutation_matrix = 'data.frame',
     filter_embedding = 'data.frame',
     nonsyn_mutations = 'data.frame',
     syn_mutations = 'data.frame',
     mutational_load = 'numeric',
+    min_mutated_samples = 'character',
     mutational_load_localization = 'list',
-    gene_localization = 'list',
-    significant_genes = 'data.frame'
+    gene_scores = 'list',
+    significant_genes = 'list',
+    negative_correlations = 'list'
   )
 )

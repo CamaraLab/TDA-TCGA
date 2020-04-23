@@ -12,51 +12,86 @@
 #'
 #' @export
 
-plot_mapper = function(TDAmut_object, type = NULL, features = NULL, colobar_low = 'blue', colorbar_high = 'red', include_embedding = FALSE, seed = 123) { 
+plot_mapper = function(TDAmut_object, type = NULL, features = NULL, colorbar_low = 'blue', colorbar_high = 'red', include_embedding = FALSE, seed = 123) { 
 
-  mapper_obj <- TDAmut_object@nerve_complexes
+  if (is_empty(TDAmut_object@nerve_complexes)){
+    stop('Run compute_complexes first to populate object with nerve complexes')
+  }
   
-  # CHOOSE WHICH MAPPER OBJ TO MOVE FORWARD WITH #
+  if (type == 'mutational_load' && is.null(TDAmut_object@mutational_load)){
+    stop('Run compute_mut_load first to populate object with mutational load values')
+  }
   
-  adj_graph <- graph.adjacency(mapper_obj$adjacency, mode="undirected")
-  #adj_graph <- delete.vertices(adj_graph,degree(adj_graph) < 1)
-  points_in_vertex <- mapper_obj$points_in_vertex
-  V(adj_graph)$size <- log2(as.numeric(lapply(points_in_vertex, length))+1)
-  E(adj_graph)$size <- rep(0, gsize(adj_graph))
-  V(adj_graph)$label <- ""
-  V(adj_graph)$frame.color <- "black"
-
-  if(!(is.null(features))){
+  mapper_objects <- TDAmut_object@nerve_complexes
+  # mapper_intervals <- TDAmut_object@mapper_intervals
+  # mapper_percents <- TDAmut_object@mapper_percents
+  count = 0
+  
+  for (mapper_obj in mapper_objects){
+    adj_graph <- graph.adjacency(mapper_obj$adjacency, mode="undirected")
+    #adj_graph <- delete.vertices(adj_graph,degree(adj_graph) < 1)
+    points_in_vertex <- mapper_obj$points_in_vertex
+    V(adj_graph)$size <- log2(as.numeric(lapply(points_in_vertex, length))+1)
+    E(adj_graph)$size <- rep(0, gsize(adj_graph))
+    V(adj_graph)$label <- ""
+    V(adj_graph)$frame.color <- "black"
     
-    if(type == 'expression'){
-      feature_table <- TDAmut_object@expression_table
-      label = ' Mean log2(1+TPM)'
+    if(!(is.null(features))){
+      
+      if(type == 'expression'){
+        feature_table <- TDAmut_object@expression_table
+        label = 'Mean log2(1+TPM)'
+      }
+      else if(type == 'mutation'){
+        feature_table <- TDAmut_object@nonsyn_mutations
+        label = 'Mutational Frequency'
+      }
+      else{
+        stop('Type of data specified is invalid')
+      }
+      
+      M <- matrix(0, nrow=length(points_in_vertex), ncol=length(features), dimnames=list(NULL, features))
+      
+      for (feature in features){
+        for (i in 1:length(points_in_vertex)) {
+          points <- points_in_vertex[[i]]
+          if (length(points) == 1) {
+            #M[i, ] <- 0
+            M[i, ] <- feature_table[points,feature] # for testing
+          }
+          else {
+            if(type == 'expression'){
+              M[i, ] <- mean(feature_table[points,feature])
+            }
+            else if(type == 'mutation'){
+              M[i, ] <- length(which(feature_table[points,feature] != 0)) / length(points_in_vertex) # mutational frequency
+            }
+          }
+        }
+        
+        gradient <- colorRampPalette(c(colorbar_low, colorbar_high))
+        gradient <- gradient(length(points_in_vertex))
+        sample_order <- order(M[,1])
+        colors <- vector('double', length = length(points_in_vertex))
+        colors[sample_order] <- gradient
+        
+        V(adj_graph)$color <- colors
+        set.seed(seed)
+        plot(adj_graph, layout.auto(adj_graph))
+        title(main = (paste(feature, label)))
+        #title(sub = paste('2D Intervals:', mapper_intervals[[count]], '% Overlap:', mapper_percents))
+        image.plot(legend.only = T, zlim = range(M), col = gradient)
+      }
     }
-    else if(type='mutation'){
-      feature_table <- TDAmut_object@nonsyn_mutations
-      label = ' Mutational Frequency'
-    }
-    else{
-      stop('Type of data specified is invalid')
-    }
-
-    M <- matrix(0, nrow=length(points_in_vertex), ncol=length(features), dimnames=list(NULL, features))
-
-    for (feature in features){
+    
+    else if(type == 'mutational_load') {
+      mutload <- TDAmut_object@mutational_load
+      
+      M <- matrix(0, nrow = length(points_in_vertex), ncol = 1)
+      
       for (i in 1:length(points_in_vertex)) {
         points <- points_in_vertex[[i]]
-        if (length(points) == 1) {
-          #M[i, ] <- 0
-          M[i, ] <- feature_table[points,feature] # for testing
-        }
-        else {
-          if(type == 'expression'){
-            M[i, ] <- mean(feature_table[points,feature])
-          }
-          else if(type='mutation'){
-            M[i, ] <- length(which(feature_table[points,feature] != 0)) / length(points_in_vertex) # mutational frequency
-          }
-        }
+        M[i, ] <- sum(mutload[points])
       }
       
       gradient <- colorRampPalette(c(colorbar_low, colorbar_high))
@@ -64,41 +99,19 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, colobar_low 
       sample_order <- order(M[,1])
       colors <- vector('double', length = length(points_in_vertex))
       colors[sample_order] <- gradient
-
+      
       V(adj_graph)$color <- colors
       set.seed(seed)
       plot(adj_graph, layout.auto(adj_graph))
-      title(main = (paste0(feature, label)))
+      title(main = 'Mutational Load')
+      #title(sub = paste('2D Intervals:', mapper_intervals[[count]], '% Overlap:', mapper_percents))
       image.plot(legend.only = T, zlim = range(M), col = gradient)
+      
     }
-  }
-
-  else if(type == 'mutational_load') {
-    mutload <- TDAmut_object@mutational_load
     
-    M <- matrix(0, nrow = length(points_in_vertex), ncol = 1)
-
-    for (i in 1:length(points_in_vertex)) {
-      points <- points_in_vertex[[i]]
-      M[i, ] <- sum(mutload[points])
+    else {
+      plot(adj_graph, layout.auto(adj_graph))
     }
-
-    gradient <- colorRampPalette(c(colorbar_low, colorbar_high))
-    gradient <- gradient(length(points_in_vertex))
-    sample_order <- order(M[,1])
-    colors <- vector('double', length = length(points_in_vertex))
-    colors[sample_order] <- gradient
-
-    V(adj_graph)$color <- colors
-    set.seed(seed)
-    plot(adj_graph, layout.auto(adj_graph))
-    title(main = 'Mutational Load')
-    image.plot(legend.only = T, zlim = range(M), col = gradient)
-    
-  }
-
-  else {
-    plot(adj_graph, layout.auto(adj_graph))
   }
  
   if(include_embedding == TRUE){
@@ -130,6 +143,6 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, colobar_low 
         
         print(plot + theme(panel.background = element_blank()))
       }
+    }
   }
-  
 }
