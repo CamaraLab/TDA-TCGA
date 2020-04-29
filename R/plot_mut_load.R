@@ -21,11 +21,13 @@ plot_mut_load <- function(TDAmut_object, histogram_breaks = 100, pvalue_figs = 3
     stop('run compute_mut_load first to populate object with mutational load and its localization across nerve complexes')
   }
   
-  ######## HISTOGRAM ########
+  ######## PLOTTING HISTOGRAM ########
+  
   mutload <- TDAmut_object@mutational_load
   hist(log10(mutload), breaks = histogram_breaks, plot=TRUE, main="LGG Mutational Load")
   
-  ######## HEATMAP ########
+  ######## PLOTTING HEATMAP ########
+  
   intervals <- TDAmut_object@mapper_intervals
   percents <- TDAmut_object@mapper_percents
   pvals <- TDAmut_object@mutational_load_localization

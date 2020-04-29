@@ -7,6 +7,8 @@
 #' @param syn_muts optional input of synonymous mutations in samples. By default is NA.
 #' @param num_permutations number of permutations used to create null distribution. By default is 2000
 #' @param num_cores number of cores to be used in computation. By default is 1.
+#' @param seed integer specifying the seed used to initialize the generator of permutations. By default is 121
+
 #'
 #' @return Appends object of class TDAmut with list of pvalues indicating localization of mutational load and 
 #' data frames of nonsynonymous mutations, synonymous mutations, and mutational load of samples
@@ -16,13 +18,14 @@
 # library(RayleighSelection)
 # library(dplyr)
 
-compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload = FALSE, nonsyn_muts = NULL, syn_muts = NULL, num_permutations = 1000, num_cores = 1) {
+compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload = FALSE, nonsyn_muts = NULL, syn_muts = NULL, num_permutations = 1000, num_cores = 1, seed = 121) {
   
   if (is_empty(TDAmut_object@nerve_complexes) || is_empty(TDAmut_object@mutation_table)){
     stop('Run create_TDAmut_object and compute_complexes first to populate object with mutation data and nerve_complexes')
   }
   
-  ######## CONSOLIDATE MUTATION TABLE INTO DATA.FRAME ########
+  ######## CONSOLIDATE MUTATION TABLE INTO DATA FRAMES ########
+  
   split_mut_data <- function(TDAmut_object) {
     
     mut_table <- TDAmut_object@mutation_table
@@ -30,6 +33,7 @@ compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload
     samples <- sort(unique(mut_table$Sample))
     gene_names <- sort(unique(mut_table$Gene))
     
+    # Reformatting table into matrix
     mut_mat <- matrix(0,length(samples),length(gene_names)) %>% as.data.frame
     dimnames(mut_mat) <- list(samples,gene_names)
     t_mut <- with(mut_table,table(Sample,Gene))
@@ -46,7 +50,7 @@ compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload
       syn_muts <- mut_table[!(mut_table$Type %in% nonsyn_type),]
     }
     
-    # Grouping by gene and sample names
+    # Reformatting nonsynonymous and synonymous mutations into matrices
     nonsyn_mat <- matrix(0,length(samples),length(gene_names)) %>% as.data.frame
     dimnames(nonsyn_mat) <- list(samples,gene_names)
     syn_mat <- nonsyn_mat
@@ -68,11 +72,13 @@ compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload
   
   TDAmut_object <- split_mut_data(TDAmut_object)
 
-  # Subsampling mutations
+  ######## SUBSAMPLING MUTATIONS ########
+  
   if(hypermut_cutoff != FALSE){
     mutload <- TDAmut_object@mutational_load
     mut_table <- TDAmut_object@mutation_table
     
+    # Equalizing median mutational load between hypermutated samples and other samples
     rescale_boundary <- 10^hypermut_cutoff
     above_cutoff <- mutload[mutload>rescale_boundary]
     below_cutoff <- mutload[mutload<=rescale_boundary]
@@ -93,7 +99,8 @@ compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload
     TDAmut_object <- split_mut_data(TDAmut_object)
   }
   
-  # Computing localization of mutational load
+  ######## COMPUTING LOCALIZATION OF MUTATIONAL LOAD ########
+  
   nerve_complexes <- TDAmut_object@nerve_complexes
   mutload <- TDAmut_object@mutational_load
   
@@ -110,7 +117,7 @@ compute_mut_load <- function(TDAmut_object, hypermut_cutoff = FALSE, min_mutload
 
   for(i in seq(1, num_complexes, 1)){
     message(paste("Assessing localization in nerve complex", i, "of", num_complexes))
-    pvals[[i]] <- rayleigh_selection(nerve_complexes[[i]], mutload_mat, num_perm = num_permutations, num_cores = num_cores, one_forms = FALSE)
+    pvals[[i]] <- rayleigh_selection(nerve_complexes[[i]], mutload_mat, num_perm = num_permutations, num_cores = num_cores, one_forms = FALSE, seed = seed)
   }
   
   TDAmut_object@mutational_load_localization <- pvals

@@ -12,7 +12,6 @@
 #' @param percent_step step size between percentages in grid of Mapper parameters. By default is 10.
 #' @param recompute if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.
 #' @param num_bins an integer controlling clustering within the same level set. By default is 10.
-#' @param num_cores number of cores to be used in computation. By default is 1
 #' 
 #' @return Returns a TDAmut object populated with nerve complexes
 
@@ -42,7 +41,7 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
     emb <- umap(dist_matrix)$layout %>% as.data.frame
   }
   else if(filter_method == "PCA") {
-    emb <- autoplot(prcomp(dist_matrix))$data[,1:2]
+    emb <- autoplot(prcomp(dist_matrix))$data[ , 1:2]
   }
   else if(filter_method == "KNN") {
     knn_graph <- nng(dist_matrix, k = k)

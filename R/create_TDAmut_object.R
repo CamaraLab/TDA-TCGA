@@ -48,14 +48,15 @@ create_TDAmut_object <- function(exp_table, mut_table) {
   # exp_table <- (read.csv(exp_table, row.names=1, header=T, stringsAsFactors=F, na.strings=c("NA","NaN", " ", "?")))
   # mut_table <- read.csv(mut_table, row.names=1, header=T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?")
   
+  
   if(any(duplicated(rownames(exp_table)))) {
     exp_table <- exp_table[!duplicated(rownames(exp_table)), ]
-    message('Cleaned duplicated samples detected in expression data')
+    message('Removed duplicated samples detected in expression data')
   }
 
   if(any(duplicated(colnames(exp_table)))) {
     exp_table <- exp_table[ , !duplicated(colnames(exp_table))]
-    message('Cleaned duplicated genes detected in expression data')
+    message('Removed duplicated genes detected in expression data')
   }
 
   if(!(all(unique(mut_table$Sample) %in% rownames(exp_table)))) {
@@ -71,7 +72,16 @@ create_TDAmut_object <- function(exp_table, mut_table) {
   else {
     message("Samples match between expression and mutation data")
   }
+  
+  if (!all(unique(mut_table$Gene) %in% colnames(exp_table))){
+    missing_genes_exp <- unique(mut_table$Gene[unique(mut_table$Gene) %in% colnames(exp_table)])
+    warning('The following genes have mutation data but no expression data, 
+            which limits the optional filtering of negative correlations later in the TDAmut pipeline: ',
+            paste("'", missing_genes_exp, "'", collapse = ", ", sep = ""))
+  }
 
+  ######## CREATING AND POPULATING OBJECT ########
+  
   TDAmut_object <- new(
     Class = 'TDAmut',
     expression_table = exp_table,
