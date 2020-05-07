@@ -1,5 +1,5 @@
 # TCGA-TDA
-_*[A user friendly, standlalone R implementation is under development in the `devel` branch]*_
+*[A user friendly, standlalone R implementation is under development in the `devel` branch]*
 
 Pipeline for the identification of novel driver genes using TDA on TCGA data used in:
 
