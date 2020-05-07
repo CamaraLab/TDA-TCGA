@@ -18,6 +18,7 @@
 #' @import maftools
 #' @import fields
 #' @import reshape2
+#' @import philentropy
 #'
 #' @export
 
@@ -41,7 +42,7 @@ create_TDAmut_object <- function(exp_table, mut_table) {
 
   ######## INPUT AND CLEAN ########
 
-  exp_table <- read.csv("/home/rstudio/documents/TDA-TCGA/data/LGG_Full_TPM_matrix.csv", row.names = 1, header = T, stringsAsFactors = F)
+  exp_table <- read.csv("/home/rstudio/documents/TDA-TCGA/data/LGG_Full_TPM_MAYBE.csv", row.names = 1, header = T, stringsAsFactors = F)
   rownames(exp_table) <- substr(rownames(exp_table), 1, 16)
   #exp_table <- exp_table[!(rownames(exp_table) %in% no_mut_data),]
   mut_table <- read.csv('/home/rstudio/documents/TDA-TCGA/data/LGG_Muts.txt', row.names = 1, header = T, stringsAsFactors = F)
@@ -74,7 +75,7 @@ create_TDAmut_object <- function(exp_table, mut_table) {
   }
   
   if (!all(unique(mut_table$Gene) %in% colnames(exp_table))){
-    missing_genes_exp <- unique(mut_table$Gene[unique(mut_table$Gene) %in% colnames(exp_table)])
+    missing_genes_exp <- unique(mut_table$Gene[!(mut_table$Gene %in% colnames(exp_table))])
     warning('The following genes have mutation data but no expression data, 
             which limits the optional filtering of negative correlations later in the TDAmut pipeline: ',
             paste("'", missing_genes_exp, "'", collapse = ", ", sep = ""))

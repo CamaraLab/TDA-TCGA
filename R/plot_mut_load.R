@@ -18,7 +18,7 @@ plot_mut_load <- function(TDAmut_object, histogram_breaks = 100, pvalue_figs = 3
                           colorbar_low = 'red', colorbar_mid = 'purple', colorbar_high = 'blue') {
   
   if (is_empty(TDAmut_object@mutational_load) || is_empty(TDAmut_object@mutational_load_localization)){
-    stop('run compute_mut_load first to populate object with mutational load and its localization across nerve complexes')
+    stop('Run compute_mut_load first to populate object with mutational load and its localization across nerve complexes')
   }
   
   ######## PLOTTING HISTOGRAM ########

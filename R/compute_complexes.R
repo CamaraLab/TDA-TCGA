@@ -69,7 +69,7 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
   # }
   # if (length(interval_range) != length(percent_range)){
   #   warning('(Interval range) x (Percent range) is not symmetric')
-  }
+  # }
   
   count = 0
   num_complexes <- length(interval_range) * length(percent_range)
@@ -91,8 +91,8 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
   TDAmut_object@filter_embedding <- emb
   TDAmut_object@nerve_complexes <- nerve_complexes
   return(TDAmut_object)
-  
 }
+
 
 
 

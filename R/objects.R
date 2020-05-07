@@ -32,7 +32,7 @@ TDAmut_object <- setClass(
     nonsyn_mutations = 'data.frame',
     syn_mutations = 'data.frame',
     mutational_load = 'numeric',
-    min_mutated_samples = 'character',
+    min_mutated_samples = 'ANY',
     mutational_load_localization = 'list',
     gene_scores = 'list',
     significant_genes = 'list',
