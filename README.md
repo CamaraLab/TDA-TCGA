@@ -3,7 +3,7 @@ Pipeline for the identification of novel driver genes using TDA on TCGA data use
 
 Rabadan R, Mohamedi Y, Rubin U, Chu T, Elliott O, Ares L, Cal S, Obaya AJ, Levine AJ, and Camara PG, _"Identification of Relevant Genetic Alterations in Cancer using Topological Data Analysis"_. Submitted.
 
-_**[A user friendly, standlalone R implementation is under development in the `devel` branch]**_
+_**[A new standlalone, user-friendly implementation is under development in the `devel` branch]**_
 
 The pipeline currently consists on the sequential application of several scripts located in the folder ```Scripts```. The scripts `tpm_matrix.R`, `maf_process3.R`, and `Big_matrix.R` pre-process the expression and mutation data and summarizes them into tables that can be taken by `ayasdi_test.py` and `connectivity8.R`, which implement the actual algorithm. 
 
