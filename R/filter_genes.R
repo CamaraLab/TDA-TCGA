@@ -1,11 +1,10 @@
-#' Compute each gene's Laplacian score, p value, and q value via BH procedure for controlling false discovery rate across grid of nerve complexes
+#' Filter genes considered for compute_localization by mutation frequency, fraction of nonsynonymous mutations, and negative correlations between expression and mutation data
 #' 
 #' @param TDAmut_object object of class TDAmut with expression data, mutation data, nerve complexes
 #' @param freq_threshold threshold mutation frequency. Genes below this value are not considered in analysis. By default is 0.02
 #' @param top_nonsyn_fraction number of genes to keep with greatest nonsyn/nonsyn+syn fraction. By default is 350.
 #' @param negative_correlations if TRUE, assesses negative correlations between mutations rates and expression of a gene. By default is TRUE.
 #' @param num_permutations_negative_correlations if negative_correlations = TRUE, number of permutations used to create null distribution when identifying negative correlations between expression and mutation data. By default is 2000
-#' @param num_permutations_gene_localization number of permutations used to create null distribution when assessing localization of mutations in nerve complexes. By default is 10,000
 #' @param num_cores number of cores to be used in computation. By default is 1.
 #' @param seed integer specifying the seed used to initialize the generator of permutations. By default is 121
 #' 
@@ -16,7 +15,7 @@
 #' 
 #' @export
 
-filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fraction = 350, negative_correlations = TRUE, num_permutations_negative_correlation = 2000, num_permutations_gene_localization = 10000, num_cores = 5, seed = 121) {
+filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fraction = 350, negative_correlations = TRUE, num_permutations_negative_correlation = 2000, num_cores = 1, seed = 121) {
   
   if (is_empty(TDAmut_object@nerve_complexes) || is_empty(TDAmut_object@nonsyn_mutations)){
     stop('Run compute_complexes and compute_mut_load first to populate object with nerve complexes and formatted mutation data')
@@ -52,7 +51,6 @@ filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fracti
     perm_values_norm <- function(dict_matrix, column, matrix, graph) {
       mut_perms <- apply(dict_matrix, 2, function(perm_column) { 
         perm <- matrix[perm_column, column, drop = FALSE]
-        print(class(perm))
         sapply(graph, function(y) mean(perm[y,]))
       })
       mut_perms_norm <- sweep(mut_perms, 2, colSums(mut_perms), `/`)
@@ -65,6 +63,7 @@ filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fracti
       for (graph in vertices_in_graphs){
         
         count = count + 1
+        message('Graph', count)
         
         avg_exp_norm <- lapply(genes, function(x){
           avg_exp <- sapply(graph, function(y) mean(exp_table[y,x]))
@@ -85,6 +84,9 @@ filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fracti
         }) 
         
         for (gene in seq_along(genes)) {
+          
+          message('Assessing ', genes[gene])
+          
           
           mut_freq_list_norm[[gene]] <- perm_values_norm(perm_dict_list[[gene]], gene, mut_bin_ofinterest, graph) # Compute normalized mut freq and permutations for null distribution
           
@@ -161,53 +163,11 @@ filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fracti
       x <- cbind(x, q)
     })
   }
-  
-  
-  ######## COMPUTING GENE SCORES ########
-  
-  nonsyn_features <- t(nonsyn_mat[ , genes]) %>% as.data.frame
-  num_complexes <- length(nerve_complexes)
-  gene_scores <- vector('list', num_complexes)
-  
-  for(i in 1:num_complexes){
-    message(paste("Assessing genes in complex", i, "of", num_complexes))
-    gene_scores[[i]] <- rayleigh_selection(nerve_complexes[[i]], nonsyn_features, num_perm = num_permutations_gene_localization, num_cores = num_cores, one_forms = FALSE, seed = seed)
-    
-    
-    
-    if (i == 18){
-      print(gene_scores[[i]])
-    }
-    gene_scores[[i]][which(is.na(gene_scores[[i]]))] <- 1
-    
-    
-    
-    gene_scores[[i]] <- data.frame("Gene"= rownames(nonsyn_features), "R" = sapply(gene_scores[i], '[', 1), "p" = sapply(gene_scores[i], '[', 2), "q" = sapply(gene_scores[i], '[', 3))
-  }
-  
-  TDAmut_object@gene_scores <- gene_scores
+
+  TDAmut_object@filtered_genes <- genes
   TDAmut_object@negative_correlations <- neg_cor_list
   
   return(TDAmut_object)
   
 }
-
-
-# core_results <- vector("list", 10)
-# neg_cor_list <- replicate(36, data.frame('Gene' = genes, 'p' = 1:10), simplify = F) %>% set_names(1:36)
-# 
-# 
-# for(i in 1:10){
-#   core_results[[i]] <- neg_cor_list
-# }
-# 
-# hello <- flatten(core_results)
-# hello2 <- do.call("rbind", lapply(hello,function(x) x[["a"]]))
-# hello2 <- split(hello, names(hello))
-# hello3 <- lapply(hello2, function(x) {
-#   bind_rows(x)
-# })
-
-# no_q <- do.call(function(...) mapply(bind_rows, ..., SIMPLIFY = FALSE), args = (core_results))
-
 
