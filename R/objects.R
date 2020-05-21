@@ -15,6 +15,7 @@
 #' @slot gene_scores
 #' @slot significant_genes
 #' @slot negative_correlations
+#' @slot filtered_genes
 #' 
 #' @exportClass TDAmut
 #' 
@@ -36,6 +37,7 @@ TDAmut_object <- setClass(
     mutational_load_localization = 'list',
     gene_scores = 'list',
     significant_genes = 'list',
-    negative_correlations = 'list'
+    negative_correlations = 'list',
+    filtered_genes = 'character'
   )
 )

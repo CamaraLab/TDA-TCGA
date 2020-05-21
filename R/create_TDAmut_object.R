@@ -76,8 +76,7 @@ create_TDAmut_object <- function(exp_table, mut_table) {
   
   if (!all(unique(mut_table$Gene) %in% colnames(exp_table))){
     missing_genes_exp <- unique(mut_table$Gene[!(mut_table$Gene %in% colnames(exp_table))])
-    warning('The following genes have mutation data but no expression data, 
-            which limits the optional filtering of negative correlations later in the TDAmut pipeline: ',
+    warning('The following genes have mutation data but no expression data, which limits the optional filtering of negative correlations later in the TDAmut pipeline: ',
             paste("'", missing_genes_exp, "'", collapse = ", ", sep = ""))
   }
 
@@ -85,7 +84,7 @@ create_TDAmut_object <- function(exp_table, mut_table) {
   
   TDAmut_object <- new(
     Class = 'TDAmut',
-    expression_table = exp_table,
+    expression_table = log2(1+exp_table),
     mutation_table = mut_table
   )
   
