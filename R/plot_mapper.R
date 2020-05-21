@@ -1,7 +1,7 @@
 #' Plots features on nerve complexes and embeddings
 #'
 #' @param TDAmut_object object of class TDAmut with expression data, mutation data, nerve complexes, mutational load, and mutational load localization data.
-#' @param type type of data for given features. Can take values 'mutation', 'mutational_load', or 'expression'. By default is NULL
+#' @param type type of data for given features. Can take values 'mutation', 'mutational_load', 'expression', or 'none' to plot complexes with no label. By default is 'none'
 #' @param features genes of interest in character vector. Only applies if 'mutation' or 'expression' data is selected. By default is NULL
 #' @param which_complexes vector of interval and percent combinations specificying which nerve complexes to plot, such as c(int1, percent1, int2, percent2 ...). Can plot all complexes by setting to 'All'. By default is NULL which chooses 3 complexes in the middle of the parameter ranges.
 #' @param colorbar_low color of colorbar for lower-range values. By default is 'blue'
@@ -13,7 +13,7 @@
 #'
 #' @export
 
-plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_complexes = NULL, colorbar_low = 'blue', colorbar_high = 'red', include_embedding = FALSE, seed = 123) { 
+plot_mapper = function(TDAmut_object, type = 'none', features = NULL, which_complexes = NULL, colorbar_low = 'blue', colorbar_high = 'red', include_embedding = FALSE, seed = 121) { 
 
   if (is_empty(TDAmut_object@nerve_complexes)){
     stop('Run compute_complexes first to populate object with nerve complexes')
@@ -27,7 +27,7 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
   
   ######## SPECIFYING COMPLEXES TO PLOT ########
   
-  if (all(which_complexes) == 'All'){
+  if (any(which_complexes == 'All')){
     mapper_objects <- TDAmut_object@nerve_complexes
     param_pairs <- expand.grid(a = mapper_intervals, b = mapper_percents) %>% as.vector #??????????
     message('Plotting all nerve complexes')
@@ -46,9 +46,10 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
   }
   else if (is.numeric(which_complexes)) {
     
-    for (i in seq.int(to = length(which_complexes)/2 + 1, by = 2)){
+    count = 1
+    
+    for (param_pair in split(which_complexes, ceiling(seq_along(which_complexes)/2))){
       
-      param_pair <- which_complexes[i:(i+1)]
       interval <- param_pair[1]
       percent <- param_pair[2]
 
@@ -61,7 +62,8 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
       per_ind <- which(mapper_percents %in% percent)
       num <- length(mapper_intervals)
       
-      which_complexes[i:(i+1)] <- 1 + (int_ind-1)*(num) + (per_ind - 1)
+      which_complexes[count:(count+1)] <- 1 + (int_ind-1)*(num) + (per_ind - 1)
+      count = count + 2
       
       message(paste('Plotting nerve complex with 2D intervals =', interval ,'and percent overlap =', percent))
       
@@ -127,7 +129,7 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
         
         V(adj_graph)$color <- colors
         set.seed(seed)
-        plot(adj_graph, layout.auto(adj_graph))
+        plot(adj_graph, layout = layout.auto(adj_graph))
         title(main = (paste(feature, label)))
         #title(sub = paste('2D Intervals:', param_pair[count][1], '% Overlap:', param_pair[count][2]))
         image.plot(legend.only = T, zlim = range(M), col = gradient)
@@ -152,7 +154,7 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
       
       V(adj_graph)$color <- colors
       set.seed(seed)
-      plot(adj_graph, layout.auto(adj_graph))
+      plot(adj_graph, layout = layout.auto(adj_graph))
       title(main = 'Mutational Load')
       #title(sub = paste('2D Intervals:', param_pair[count][1], '% Overlap:', param_pair[count][2]))
       image.plot(legend.only = T, zlim = range(M), col = gradient)
@@ -160,7 +162,7 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
     }
     
     else {
-      plot(adj_graph, layout.auto(adj_graph))
+      plot(adj_graph, layout = layout.auto(adj_graph))
     }
   }
  
@@ -174,7 +176,7 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
       
       if(type == 'expression'){
         feature_table <- TDAmut_object@expression_table
-        label_emb <- 'log2(1+TPM)'
+        label_emb <- 'Expression'
       } else if(type == 'mutation'){
         feature_table <- TDAmut_object@nonsyn_mutations
         feature_table <- ifelse(feature_table > 0, 1, 0)
@@ -192,7 +194,7 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
           #scale_color_gradient2(midpoint=mean(t(mutload_mat)), low='blue', mid='grey', high='red',space='Lab') +
           ggtitle(feature)
         
-        print(plot + theme(panel.background = element_blank()))
+        print(plot + theme_void())
       }
     }
     else if(type == 'mutational_load'){
@@ -203,12 +205,12 @@ plot_mapper = function(TDAmut_object, type = NULL, features = NULL, which_comple
         plot <-
           ggplot(emb) +
           geom_point(aes(x = V1, y = V2, color = gg_color), size = 0.9) +
-          labs(color = label_emb) + 
+          labs(color = 'Number Mutations') + 
           scale_color_gradient(low = 'blue', high = 'red') +
           #scale_color_gradient2(midpoint=mean(t(mutload_mat)), low='blue', mid='grey', high='red',space='Lab') +
           ggtitle('Mutational Load')
         
-        print(plot + theme(panel.background = element_blank()))
+        print(plot + theme_void())
       }
     }
 }

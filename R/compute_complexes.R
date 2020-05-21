@@ -32,6 +32,7 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
   if (recompute != FALSE){
     min_samples <- TDAmut_object@min_mutated_samples
     exp_table <- exp_table[!(rownames(exp_table) %in% min_samples), ]
+    TDAmut_object@expression_table <- exp_table
   }
   
   exp_table_top <- exp_table[ , order(-apply(exp_table, 2, var))][ , 1:var_threshold]
@@ -55,9 +56,9 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
   ######## CREATING NERVE COMPLEXES ########
   
   interval_range <- seq(min_interval, max_interval, by = interval_step)
-  #percent_range <- seq(min_percent_overlap, max_percent_overlap, by = percent_step)
+  percent_range <- seq(min_percent_overlap, max_percent_overlap, by = percent_step)
   #percent_range <- c(33,60,71.4,77.8,81.8,84.6,86.7,88.2)
-  percent_range <- c(33, 60, 71.4, 77.8, 81.8, 84.6)
+  #percent_range <- c(33, 60, 71.4, 77.8, 81.8, 84.6)
   
   # Checks user input...fix
   # if (!((max_interval - min_interval) %% interval_step)){

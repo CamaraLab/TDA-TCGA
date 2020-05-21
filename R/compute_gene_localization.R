@@ -17,6 +17,8 @@ compute_gene_localization <- function(TDAmut_object, negative_correlations_thres
   nonsyn_mat <- TDAmut_object@nonsyn_mutations
   genes <- TDAmut_object@filtered_genes
   
+  #genes <- c(LGG_drivers, genes[1:20])
+  
   if (!is.null(negative_correlations_threshold)){
     
     if(is_empty(TDAmut_object@negative_correlations)){
@@ -28,12 +30,13 @@ compute_gene_localization <- function(TDAmut_object, negative_correlations_thres
     # Rearranging scores by gene instead of by nerve complex
     collapsed <- bind_rows(neg_cor_list)
     neg_cor_q_bygene <- matrix(collapsed$q, length(genes), length(nerve_complexes), dimnames = list(unique(collapsed$Gene), NULL), byrow = FALSE) %>% as.data.frame # genes x complexes
-    print(neg_cor_q_bygene)
     neg_cor_genes <- neg_cor_q_bygene[apply(neg_cor_q_bygene, 1, function(x) any(median(x) > negative_correlations_threshold)), ]
+    
+    print(rownames(neg_cor_genes))
       
     genes <- genes[!(genes %in% rownames(neg_cor_genes))] # Not considering genes with neg correlation q val above threshold
     
-    message('Not considering the following genes displaying negative correlations between mutation and expression data: ', paste("'", rownames(neg_cor_genes), "'", collapse = ", ", sep = ""))
+    message('Not considering the following ', nrow(neg_cor_genes), ' genes displaying negative correlations between mutation and expression data: ', paste("'", rownames(neg_cor_genes), "'", collapse = ", ", sep = ""))
     
   }
   
