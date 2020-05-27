@@ -5,35 +5,33 @@
 \title{Computes mutational load from input mutation table and assesses localization across grid of nerve complexes}
 \usage{
 compute_mut_load(
-  exp_table,
-  mut_table,
-  mut_objects,
-  hypermut_cutoff = FALSE,
-  nonsyn_muts = NA,
-  syn_muts = NA,
-  graph = FALSE,
-  num_cores = 1
+  TDAmut_object,
+  hypermut_cutoff = NULL,
+  min_mutload = NULL,
+  nonsyn_muts = NULL,
+  syn_muts = NULL,
+  num_permutations = 1000,
+  seed = 121
 )
 }
 \arguments{
-\item{exp_table}{for harmonizing names with mutation data}
-
-\item{mut_table}{mutation data used to compute total mutational load of samples}
-
-\item{mut_objects}{object output by create_mut_object}
+\item{TDAmut_object}{Object of class TDAmut with expression data, mutation data, and nerve complexes}
 
 \item{hypermut_cutoff}{threshold in log10 scale for downsampling mutations. By default is FALSE.}
+
+\item{min_mutload}{minimum threshold in log10 scale for mutational load of samples. Samples below threshold are saved and to be used to recompute nerve complexes in compute_complexes}
 
 \item{nonsyn_muts}{optional input of nonsynonymous mutations in samples. By default is NA.}
 
 \item{syn_muts}{optional input of synonymous mutations in samples. By default is NA.}
 
-\item{graph}{if TRUE, plots histogram of mutational load and heatmap of p values indicating localization across grid of nerve complexes. By default is FALSE.}
+\item{num_permutations}{number of permutations used to create null distribution. By default is 2000}
 
-\item{num_cores}{number of cores to be used in computation. By default is 1.}
+\item{seed}{integer specifying the seed used to initialize the generator of permutations. By default is 121}
 }
 \value{
-Returns Mutational_Load object containing nonsynonymous mutations, synonymous mutations, and mutational load of samples
+Appends object of class TDAmut with list of pvalues indicating localization of mutational load and 
+data frames of nonsynonymous mutations, synonymous mutations, and mutational load of samples
 }
 \description{
 Computes mutational load from input mutation table and assesses localization across grid of nerve complexes

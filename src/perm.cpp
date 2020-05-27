@@ -6,6 +6,8 @@ using namespace Rcpp;
 /* Given an open cover x and a function v, it computes the pushforward of v to
  * the open sets of x given by the average. It also performs perm random permutations
  * of the values of v and computes the corresponding pushforwards.
+ * 
+ * Adapted from Camara Lab's RayleighSelection R package
  */
 
 // [[Rcpp::export]]
