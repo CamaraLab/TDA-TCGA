@@ -5,6 +5,5 @@
 .Rbuildignore
 *_cache/
 /cache/
-*_files/
 *.utf8.md
 *.knit.md
