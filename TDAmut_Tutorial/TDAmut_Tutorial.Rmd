@@ -8,9 +8,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(TDAmut)
 ```
 
-```{css, echo = FALSE}
+```{css, include = FALSE}
 .lim-message {
-  max-height: 100px;
+  max-height: 150px;
 }
 ```
 

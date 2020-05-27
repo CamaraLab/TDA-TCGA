@@ -1,12 +1,6 @@
 Using TDAmut to analyze low grade glioma data
 ================
 
-<style type="text/css">
-.lim-message {
-  max-height: 100px;
-}
-</style>
-
 ## Getting Started
 
 We will use low grade glioma expression and mutation data to demonstrate
