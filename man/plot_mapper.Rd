@@ -2,27 +2,39 @@
 % Please edit documentation in R/plot_mapper.R
 \name{plot_mapper}
 \alias{plot_mapper}
-\title{Plots features on Mapper graph}
+\title{Plots features on nerve complexes and embeddings}
 \usage{
 plot_mapper(
-  mapper_obj,
-  features = NA,
-  feature_table = NA,
-  mutational_load = NA
+  TDAmut_object,
+  type = "none",
+  features = NULL,
+  which_complexes = NULL,
+  colorbar_low = "blue",
+  colorbar_high = "red",
+  include_embedding = FALSE,
+  seed = 121
 )
 }
 \arguments{
-\item{mapper_obj}{nerve complex on which to plot features}
+\item{TDAmut_object}{object of class TDAmut with expression data, mutation data, nerve complexes, mutational load, and mutational load localization data.}
 
-\item{features}{genes of interest. By default is NA.}
+\item{type}{type of data for given features. Can take values 'mutation', 'mutational_load', 'expression', or 'none' to plot complexes with no label. By default is 'none'}
 
-\item{feature_table}{table with feature information such as mutation or expression table. By default is NA.}
+\item{features}{genes of interest in character vector. Only applies if 'mutation' or 'expression' data is selected. By default is NULL}
 
-\item{mutational_load}{vector of mutational load for each sample. By default is NA.}
+\item{which_complexes}{vector of interval and percent combinations specificying which nerve complexes to plot, such as c(int1, percent1, int2, percent2 ...). Can plot all complexes by setting to 'All'. By default is NULL which chooses 3 complexes in the middle of the parameter ranges.}
+
+\item{colorbar_low}{color of colorbar for lower-range values. By default is 'blue'}
+
+\item{colorbar_high}{color of colorbar for upper-range values. By default is 'red'}
+
+\item{include_embedding}{plot desired features on embedding used to create nerve complexes. By default is FALSE}
+
+\item{seed}{seed value when plotting nerve complex. By default is 121.}
 }
 \value{
-Returns labeled plot of nerve complex with given feature
+Returns plot of nerve complex or embedding with desired features
 }
 \description{
-Plots features on Mapper graph
+Plots features on nerve complexes and embeddings
 }

@@ -1,5 +1,5 @@
 #' Creates network representations of the expression space of a patient cohort across grid of Mapper parameters
-#' 
+#'
 #' @param TDAmut_object TDAmut class with expression data
 #' @param var_threshold number of most variable genes to use from input expression table. By default is 4500.
 #' @param filter_method filter function to create embedding used by TDAmapper. Includes UMAP, KNN, and PCA. By default is set to UMAP.
@@ -10,33 +10,35 @@
 #' @param min_percent_overlap minimum percentage overlap between intervals. By default is 20.
 #' @param max_percent_overlap maximum percentage overlap between intervals
 #' @param percent_step step size between percentages in grid of Mapper parameters. By default is 10.
-#' @param recompute if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.
 #' @param num_bins an integer controlling clustering within the same level set. By default is 10.
-#' 
+#' @param recompute if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.
+#'
 #' @return Returns a TDAmut object populated with nerve complexes
+#'
+#' @export
 
 
-compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method = 'UMAP', k = 30,
+compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method = 'KNN', k = 30,
                               min_interval = 10, max_interval = 80, interval_step = 10,
                               min_percent_overlap = 20, max_percent_overlap = 90, percent_step = 10,
                               num_bins = 10, recompute = FALSE) {
-  
+
   ######## APPLYING FILTER FUNCTION ########
-  
+
   if (is_empty(TDAmut_object@expression_table)){
     stop('Run create_TDAmut_object first to populate object with expression and mutation data')
   }
-  
+
   exp_table <- TDAmut_object@expression_table
-  
+
   if (recompute != FALSE){
     min_samples <- TDAmut_object@min_mutated_samples
     exp_table <- exp_table[!(rownames(exp_table) %in% min_samples), ]
     TDAmut_object@expression_table <- exp_table
   }
-  
+
   exp_table_top <- exp_table[ , order(-apply(exp_table, 2, var))][ , 1:var_threshold]
-  dist_matrix <- as.matrix(cor.dist(as.matrix(exp_table_top)))
+  dist_matrix <- as.matrix(bioDist::cor.dist(as.matrix(exp_table_top)))
 
   if(filter_method == "UMAP") {
     emb <- umap(dist_matrix)$layout %>% as.data.frame
@@ -52,49 +54,30 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
   else {
     stop("Not a valid filter method. Select 'UMAP', 'PCA', or 'KNN'")
   }
-  
+
   ######## CREATING NERVE COMPLEXES ########
-  
+
   interval_range <- seq(min_interval, max_interval, by = interval_step)
   percent_range <- seq(min_percent_overlap, max_percent_overlap, by = percent_step)
-  #percent_range <- c(33,60,71.4,77.8,81.8,84.6,86.7,88.2)
-  #percent_range <- c(33, 60, 71.4, 77.8, 81.8, 84.6)
-  
-  # Checks user input...fix
-  # if (!((max_interval - min_interval) %% interval_step)){
-  #   interval_range <- c(interval_range, max_interval)
-  # }
-  #
-  # if (!((max_percent_overlap - min_percent_overlap) %% percent_step)){
-  #   percent_range <- c(percent_range, max_percent_overlap)
-  # }
-  # if (length(interval_range) != length(percent_range)){
-  #   warning('(Interval range) x (Percent range) is not symmetric')
-  # }
-  
+
   count = 0
   num_complexes <- length(interval_range) * length(percent_range)
   nerve_complexes <- vector('list', length = num_complexes)
-  
+
   for(i in interval_range){
     for(p in percent_range){
       count = count + 1
       message(paste("Creating Nerve Complex", count, "of", num_complexes))
-      
+
       invisible(capture.output(mapperObj <- mapper2D(dist_matrix, emb, c(i,i), p, num_bins_when_clustering = num_bins)))
       gg <- nerve_complex(mapperObj$points_in_vertex)
       nerve_complexes[[count]] <- gg
     }
   }
-  
+
   TDAmut_object@mapper_intervals <- interval_range
   TDAmut_object@mapper_percents <- percent_range
   TDAmut_object@filter_embedding <- emb
   TDAmut_object@nerve_complexes <- nerve_complexes
   return(TDAmut_object)
 }
-
-
-
-
-

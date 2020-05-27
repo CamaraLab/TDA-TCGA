@@ -15,41 +15,25 @@
 #' @import dbscan
 #' @import RayleighSelection
 #' @import cccd
-#' @import maftools
 #' @import fields
 #' @import reshape2
-#' @import philentropy
+#' @import Rcpp
+#' @import parallel
+#'
+#' @return Creates a TDAmut object populated with expression and mutation data
 #'
 #' @export
-
-library(igraph)
-library(Matrix)
-library(ggplot2)
-library(dplyr)
-library(purrr)
-library(bioDist)
-library(dimRed)
-library(TDAmapper)
-library(umap)
-library(dbscan)
-library(RayleighSelection)
-library(cccd)
-library(maftools)
-library(fields)
-library(reshape2)
 
 create_TDAmut_object <- function(exp_table, mut_table) {
 
   ######## INPUT AND CLEAN ########
 
-  exp_table <- read.csv("/home/rstudio/documents/TDA-TCGA/data/LGG_Full_TPM_MAYBE.csv", row.names = 1, header = T, stringsAsFactors = F)
-  rownames(exp_table) <- substr(rownames(exp_table), 1, 16)
-  #exp_table <- exp_table[!(rownames(exp_table) %in% no_mut_data),]
-  mut_table <- read.csv('/home/rstudio/documents/TDA-TCGA/data/LGG_Muts.txt', row.names = 1, header = T, stringsAsFactors = F)
-  # exp_table <- (read.csv(exp_table, row.names=1, header=T, stringsAsFactors=F, na.strings=c("NA","NaN", " ", "?")))
-  # mut_table <- read.csv(mut_table, row.names=1, header=T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?")
-  
-  
+  # exp_table <- read.csv("/home/rstudio/documents/TDA-TCGA/data/LGG_Full_TPM.csv", row.names = 1, header = T, stringsAsFactors = F)
+  # rownames(exp_table) <- substr(rownames(exp_table), 1, 16)
+  # mut_table <- read.csv('/home/rstudio/documents/TDA-TCGA/data/LGG_Muts.txt', row.names = 1, header = T, stringsAsFactors = F)
+  exp_table <- read.csv(exp_table, row.names = 1, header = T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?"))
+  mut_table <- read.csv(mut_table, row.names = 1, header = T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?"))
+
   if(any(duplicated(rownames(exp_table)))) {
     exp_table <- exp_table[!duplicated(rownames(exp_table)), ]
     message('Removed duplicated samples detected in expression data')
@@ -64,7 +48,7 @@ create_TDAmut_object <- function(exp_table, mut_table) {
     no_exp_data <- mut_table$Sample[!(unique(mut_table$Sample) %in% rownames(exp_table))]
     mut_table <- mut_table[!(mut_table$Sample %in% no_exp_data), ]
     message('Removed samples in mutation data not in expression data: ', paste("'",no_exp_data,"'",collapse=", ",sep=""))
-  } 
+  }
   else if(!(all(rownames(exp_table) %in% unique(mut_table$Sample)))) {
     no_mut_data <- rownames(exp_table[!(rownames(exp_table) %in% unique(mut_table$Sample)), ])
     exp_table <- exp_table[!(rownames(exp_table) %in% no_mut_data), ]
@@ -73,20 +57,20 @@ create_TDAmut_object <- function(exp_table, mut_table) {
   else {
     message("Samples match between expression and mutation data")
   }
-  
+
   if (!all(unique(mut_table$Gene) %in% colnames(exp_table))){
     missing_genes_exp <- unique(mut_table$Gene[!(mut_table$Gene %in% colnames(exp_table))])
-    warning('The following genes have mutation data but no expression data, which limits the optional filtering of negative correlations later in the TDAmut pipeline: ',
+    message('The following genes have mutation data but no expression data. They will not be considered for optional filtering of negative correlations later in the TDAmut pipeline: ',
             paste("'", missing_genes_exp, "'", collapse = ", ", sep = ""))
   }
 
   ######## CREATING AND POPULATING OBJECT ########
-  
+
   TDAmut_object <- new(
     Class = 'TDAmut',
-    expression_table = log2(1+exp_table),
+    expression_table = exp_table,
     mutation_table = mut_table
   )
-  
+
   return(TDAmut_object)
 }

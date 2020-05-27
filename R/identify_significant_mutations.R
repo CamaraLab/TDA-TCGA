@@ -36,29 +36,20 @@ identify_significant_mutations <- function(TDAmut_object, q_threshold_localizati
   ######## SUMMARIZING RESULTS ########
   
   # Genes with significant localization
-  message('\nThe following mutated genes were identified as significant given the input localization q value threshold: ')
-  
-  message(paste("'", rownames(sig_genes), "'", collapse = ", ", sep = ""))
+  message('The following mutated genes were identified as significant given the input localization q value threshold: \n', 
+          paste("'", rownames(sig_genes), "'", collapse = ", ", sep = ""))
   
   # Genes with negative correlations
-  message('\nThe following mutated genes were discarded due to negative correlations in expression and mutation profiles: ')
-  
-  message(paste("'", neg_cor_genes, "'", collapse = ", ", sep = ""))
+  message('The following mutated genes were discarded due to negative correlations in expression and mutation profiles: \n',
+          paste("'", neg_cor_genes, "'", collapse = ", ", sep = ""))
   
   # Genes with nonsignificant localization
   excluded_genes <- localization_q_bygene[!(rownames(localization_q_bygene) %in% rownames(sig_genes)), ]
   
-  message('\nThe following mutated genes did not display significant localization: ')
-  
-  message(paste("'", rownames(excluded_genes), "'", collapse = ", ", sep = ""))
-
+  message('The following mutated genes did not display significant localization: \n',
+          paste("'", rownames(excluded_genes), "'", collapse = ", ", sep = ""))
   
   TDAmut_object@significant_genes <- sig_genes
   
   return(TDAmut_object)
 }
-
-
-
-
-

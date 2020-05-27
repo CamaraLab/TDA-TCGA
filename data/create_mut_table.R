@@ -1,12 +1,9 @@
 #' For internal use. Creates mutation table used in examples.
 
-
 library(maftools)
 
+# CREATING INPUT MUTATION TABLE
 
-# CREATING INPUT MUTATION TABLE -------------------------------------------
-
-#setwd("/home/rstudio/documents/Messy_test_data/LGG_maf_files")
 files <- list.files(pattern = "TCGA-*")
 
 syn_muts <- data.frame("Sample"= NA,"Gene" = NA,"Mutation" = NA, "Type" = NA)
@@ -20,7 +17,6 @@ for(maf in files){
   Mutation <- nonsyn$Protein_Change
   Type <- nonsyn$Variant_Classification
   nonsyn_muts <- rbind(nonsyn_muts,data.frame(Sample,Gene,Mutation,Type))
-
 
   syn <- update@maf.silent
   Sample <- substr(syn$Tumor_Sample_Barcode, 1,16)
