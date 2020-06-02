@@ -31,6 +31,11 @@ mut_table <- "data/LGG_Muts.txt"
 LGG_object <- create_TDAmut_object(exp_matrix, mut_table)
 ```
 
+``` {r display_data}
+LGG_object@expression_table[1:5, 1:5]
+LGG_object@mutation_table[1:5, ]
+```
+
 ## Creating topological representations of expression data
 
 The `LGG_object` is passed to compute_complexes, which uses TDAmapper and RayleighSelection R packages to create nerve complexes across a grid of Mapper parameters (2D intervals and their percent overlap). We create several nerve complexes across a broad range of parameters to ensure stable results.
