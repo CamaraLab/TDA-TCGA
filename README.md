@@ -1,7 +1,7 @@
 # TDAmut
-Pipeline for the identification of novel driver genes using TDA on TCGA data used in:
+R package for the identification of cancer-associated mutated genes using gene expression and mutation data.
 
-Rabadan R, Mohamedi Y, Rubin U, Chu T, Elliott O, Ares L, Cal S, Obaya AJ, Levine AJ, and Camara PG, _"Identification of Relevant Genetic Alterations in Cancer using Topological Data Analysis"_. Submitted.
+Rabadan R., Mohamedi Y., Rubin U., Chu T., Alghalith A. N., Elliott O., Arnes L., Cal S., Obaya A. J., Levine A. J., and Camara P. G., _"Identification of Relevant Genetic Alterations in Cancer using Topological Data Analysis"_. Nature Communications 11 (2020) 3808. [DOI: 10.1038/s41467-020-17659-7](https:doi.org/10.1038/s41467-020-17659-7).
 
 
 Using TDAmut to analyze low grade glioma data
