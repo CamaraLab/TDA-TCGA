@@ -21,6 +21,14 @@ The user is afforded several options in each function of `TDAmut`. We
 implemented default options which can be a helpful starting point for
 the user.
 
+Install and load `TDAmut`:
+
+``` r
+devtools::install_github("CamaraLab/TDA-TCGA")
+library(TDAmut)
+```
+
+
 ## Creating TDAmut object for use throughout the pipeline
 
 Here, we are creating a `TDAmut` object to be used as an intermediate
