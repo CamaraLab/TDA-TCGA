@@ -27,7 +27,13 @@ Install and load `TDAmut`:
 devtools::install_github("CamaraLab/TDA-TCGA")
 library(TDAmut)
 ```
+Alternatively, you may use our Docker image camaralab/tdamut to run an RStudio server (v4.1) with `TDAmut` already installed:
 
+```
+docker run -d --rm -p 8787:8787 -v "<dir_path>:/home/rstudio/<dir_name>" -e USER=rstudio -e PASSWORD=<password> camaralab/tdamut
+```
+
+After running the above command, RStudio should be available at `localhost:8787` in your browser with the local directory at `<dir_path>` mounted in `home`.
 
 ## Creating TDAmut object for use throughout the pipeline
 
