@@ -37,9 +37,9 @@ After running the above command, RStudio should be available at `localhost:8787`
 
 ## Creating TDAmut object for use throughout the pipeline
 
-Here, we are creating a `TDAmut` object to be used as an intermediate
-across all functions. This object holds data and topological
-representations produced in this pipeline.
+`TDAmut` takes as input the gene expression matrix and mutation table of the tumor cohort. The expected format for these two files can be seen in the example
+files in the folder `data`. The first step in the `TDAmut` pipeline is to create a `TDAmut` object. The `TDAmut` object is used as an intermediate across all functions
+and holds data and topological representations produced in this pipeline.
 
 ``` r
 exp_matrix <- "data/LGG_Full_TPM_matrix.csv"
