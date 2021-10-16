@@ -11,19 +11,15 @@
 #' @param max_percent_overlap maximum percentage overlap between intervals
 #' @param percent_step step size between percentages in grid of Mapper parameters. By default is 10.
 #' @param num_bins an integer controlling clustering within the same level set. By default is 10.
-#' @param num_permutations number of permutations used to create null distribution when assessing significance of mutations across the nerve complexes. By default is 10,000
-#' @param num_cores number of cores to be used in computation of mutational load significance. By default is 1.
-#' @param seed integer specifying the seed used to initialize the generator of permutations for the computation of the significance of mutational load. By default is 121
 #'
 #' @return Returns a TDAmut object populated with nerve complexes.
 #'
 #' @export
 
-
 compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method = 'KNN', k = 30,
                               min_interval = 10, max_interval = 80, interval_step = 10,
                               min_percent_overlap = 20, max_percent_overlap = 90, percent_step = 10,
-                              num_bins = 10, num_permutations = 10000, num_cores = 5, seed = 121) {
+                              num_bins = 10) {
 
   ######## APPLYING FILTER FUNCTION ########
 
@@ -77,19 +73,6 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
   TDAmut_object@mapper_percents <- percent_range
   TDAmut_object@filter_embedding <- emb
   TDAmut_object@nerve_complexes <- nerve_complexes
-
-  ######## COMPUTING LOCALIZATION OF MUTATIONAL LOAD ########
-
-  # message("Computing Significance of Mutational Load Across the Complexes")
-  #
-  # mutload <- TDAmut_object@mutational_load
-  #
-  # mutload_mat <- t(mutload) %>% as.data.frame
-  # num_complexes <- length(nerve_complexes)
-  #
-  # mut_load_loc <- rayleigh_selection(nerve_complexes, mutload_mat, num_perm = num_permutations, one_forms = FALSE, seed = seed)
-  #
-  # TDAmut_object@mutational_load_localization <- mut_load_loc
 
   return(TDAmut_object)
 }
