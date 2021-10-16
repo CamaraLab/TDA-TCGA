@@ -3,19 +3,17 @@
 #' @param TDAmut_object object of class TDAmut with expression data, mutation data, nerve complexes
 #' @param freq_threshold threshold mutation frequency. Genes below this value are not considered in analysis. By default is 0.02
 #' @param top_nonsyn_fraction number of genes to keep with greatest nonsyn/nonsyn+syn fraction. By default is 350.
-#' @param negative_correlations if TRUE, assesses negative correlations between mutations rates and expression of a gene. By default is TRUE.
-#' @param num_permutations if negative_correlations = TRUE, number of permutations used to create null distribution when identifying negative correlations between expression and mutation data. By default is 2000
-#' @param num_cores number of cores to be used in computation. By default is 1.
-#' @param seed integer specifying the seed used to initialize the generator of permutations. By default is 121
+#' @param upper_correlations_threshold upper q value theshold to keep genes displaying positive correlations between mutation and expression data. Genes with a median q value across all complexes exceeding this threshold are considered for further analysis. By default is 0.9.
+#' @param lower_correlations_threshold lower q value theshold to keep genes displaying negative correlations between mutation and expression data. Genes with a median q value across all complexes below this threshold are considered for further analysis. By default is 1e-4.
 #'
 #' @return Returns a TDAmut object populated with filtered genes to consider in compute_gene_localization. Optionally returns p and q values quantifying negative correlations between expression and mutation profiles of filtered genes.
 #'
 #' @export
 
-filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fraction = 350, negative_correlations = TRUE, num_permutations = 2000, num_cores = 1, seed = 121) {
+filter_genes <- function(TDAmut_object, freq_threshold = 0.02, top_nonsyn_fraction = 350, upper_correlations_threshold = 0.9, lower_correlations_threshold = 1e-4) {
 
-  if (is_empty(TDAmut_object@nerve_complexes) || is_empty(TDAmut_object@nonsyn_mutations)){
-    stop('Run compute_complexes and compute_mut_load first to populate object with nerve complexes and formatted mutation data')
+  if (is_empty(TDAmut_object@nerve_complexes)){
+    stop('Run compute_complexes first to populate object with nerve complexes')
   }
 
   nerve_complexes <- TDAmut_object@nerve_complexes
@@ -40,134 +38,79 @@ filter_genes <- function(TDAmut_object, freq_threshold = 0.01, top_nonsyn_fracti
 
   genes <- colnames(nonsyn_mat)
 
-  ######## IDENTIFYING NEGATIVE CORRELATIONS ########
-
-  dist4p <- function(m) { # Adapted from https://stackoverflow.com/questions/29050368/which-r-implementation-gives-the-fastest-jsd-matrix-computation
-    ncol <- ncol(m)
-
-    m2 <- ifelse(is.finite(log2(2*m)), m * log2(2 * m), 0)
-
-    xlogx <- matrix(colSums(m2), ncol, ncol)
-    xlogx2 <- xlogx + t(xlogx)
-    xlogx2[upper.tri(xlogx2, diag=TRUE)] <- 0
-
-    xx <- lapply(seq_len(ncol)[-1], function(i, m) {
-      j <- seq_len(i - 1L)
-      xy <- m[, i] + m[, j, drop=FALSE]
-      xy <- ifelse(is.finite(log2(xy)), xy*log2(xy),0)
-      colSums(xy)
-    }, m)
-
-    xylogxy <- matrix(0, ncol, ncol)
-    xylogxy[upper.tri(xylogxy, diag=FALSE)] <- unlist(xx)
-
-    (0.5 * (xlogx2 - t(xylogxy)))
-  }
-
-  worker <- function(genes){
-
-    exp_table_ofinterest <- exp_table[ , genes, drop = FALSE] %>% as.matrix
-    mut_bin_ofinterest <- mut_bin[ , genes, drop = FALSE] %>% as.matrix
-
-    for (graph in vertices_in_graphs){
-
-      count = count + 1
-      # message('Graph ', count)
-
-      avg_exp <- sapply(graph, function(x) colMeans(exp_table_ofinterest[x, , drop = FALSE], na.rm = TRUE))
-
-      if (length(genes) == 1){
-        avg_exp_norm <- list(avg_exp / sum(avg_exp))
-      } else {
-        avg_exp_norm <- sweep(avg_exp, 1, rowSums(avg_exp), `/`)
-        avg_exp_norm <- avg_exp_norm %>% split(seq(nrow(avg_exp_norm)))
-      }
-
-      p_list <- rep(NA, length(genes)) %>% as.list
-      mut_freq <- matrix(NA, num_permutations, length(graph))
-      jsdiv_mat <- matrix(NA, num_permutations, num_permutations)
-
-      for (gene in seq_along(genes)) {
-
-        # message('Assessing ', genes[gene])
-
-        mut_freq <- pushCpp(as.numeric(mut_bin_ofinterest[ , gene]), graph, num_permutations)
-        mut_freq_norm <- sweep(mut_freq[[1]], 1, rowSums(mut_freq[[1]]), `/`)
-
-        avg_exp_norm[[gene]][which(is.na(avg_exp_norm[[gene]]))] <- 0
-
-        jsdiv_mat <- dist4p(cbind(avg_exp_norm[[gene]], t(mut_freq_norm)))
-
-        jsdiv <- jsdiv_mat[2,1]
-        p_list[[gene]] <- sum(tail(jsdiv_mat[ , 1], -2) >= jsdiv) / num_permutations
-      }
-
-      neg_cor_list[[count]] <- data.frame('Gene' = genes, 'p' = unlist(p_list))
-
-
-    }
-
-    return(neg_cor_list)
-
-  }
-
-
   if (!all(genes %in% colnames(exp_table))){
     missing_genes <- genes[!genes %in% colnames(exp_table)]
     genes <- genes[!genes %in% missing_genes]
     message('Not considering the following genes with no expression data: ', paste("'", missing_genes, "'", collapse = ", ", sep = ""))
   }
 
-  # Isolating sample indices within vertices of each nerve complex
-  vertices_in_graphs <- lapply(nerve_complexes, function(x) {
-    x <- x$points_in_vertex
-    return(x)
-  })
+  ######## COMPUTING CORRELATIONS ########
 
-  neg_cor_list <- replicate(length(nerve_complexes), data.frame('Gene' = NULL, 'p' = NULL), simplify = F) %>% set_names(1:length(nerve_complexes))
+  num_complexes <- length(nerve_complexes)
+  cor_list <- replicate(num_complexes, data.frame('Gene' = NULL, 'p' = NULL), simplify = F) %>% set_names(1:num_complexes)
+  rho_list <- replicate(num_complexes, data.frame('Gene' = NULL, 'rho' = NULL), simplify = F) %>% set_names(1:num_complexes)
+
+  # auxiliary function, used below for computing the mean value of some feature over the network
+  push <- function(g2, lo, pushforward) {
+    return(as.numeric(lapply(g2$points_in_vertex, function(idx) pushforward(lo[idx]))))
+  }
+
   count = 0
-  RNGkind("L'Ecuyer-CMRG") # For reproducible random number generation with forking parallelization
-  set.seed(seed)
+  for (complex in nerve_complexes) {
+    count = count + 1
 
-  # Splitting genes among cores
-  work <- list()
+    message(paste("Computing Correlations Between Gene Expression and Gene Mutation In Complex", count, "of", num_complexes))
 
-  if (num_cores > length(genes)) {
-    num_cores <- length(genes)
+    ps <- rep(NA, length(genes)) %>% as.list
+    rhos <- rep(NA, length(genes)) %>% as.list
+
+    gene_count = 1
+    for (gene in genes) {
+      mut_mean <- as.numeric(push(g2=complex, lo=mut_mat[, colnames(mut_mat) == gene], pushforward = mean))
+      exp_mean <- as.numeric(push(g2=complex, lo=exp_table[, colnames(exp_table) == gene], pushforward = mean))
+
+      spearman_cor <- tryCatch(
+        {
+          suppressWarnings(cor.test(mut_mean, exp_mean, method="spearman", alternative="less")) # alternative = “less”, so lower p-val means more negatively correlated
+        },
+        error=function(cond) {
+          message(paste("Error in complex", count, "with gene", gene))
+          message(cond)
+          message("\n")
+          return(1)
+        })
+
+      ps[[gene_count]] <- spearman_cor$p.value
+      rhos[[gene_count]] <- spearman_cor$estimate
+      gene_count = gene_count + 1
+    }
+
+    cor_list[[count]] <- data.frame('Gene' = genes, 'p' = unlist(ps))
+    rho_list[[count]] <- data.frame('Gene' = genes, 'rho' = unlist(rhos))
   }
 
-  if (num_cores == 1 || length(genes) == 1) {
-    work[[1]] <- genes
-  } else {
-    wv <- floor(length(genes)/num_cores)
-    wr <- length(genes) - wv*num_cores
-    if (wr>0) {
-      for (m in 1:wr) {
-        work[[m]] <- (genes[(1+(m-1)*(wv+1)):(m*(wv+1))])
-      }
-      for (m in (wr+1):num_cores) {
-        work[[m]] <- (genes[(1+wr+(m-1)*wv):(wr+m*wv)])
-      }
-    }
-    else {
-      for (m in 1:num_cores) {
-        work[[m]] <- (genes[(1+(m-1)*wv):(m*wv)])
-      }
-    }
-  }
-
-  core_results <- mclapply(work, worker, mc.cores = num_cores)
-  # core_results <- lapply(work, worker)
-
-  no_q <- suppressWarnings(do.call(function(...) mapply(bind_rows, ..., SIMPLIFY = FALSE), args = (core_results)))
-
-  neg_cor_list <- lapply(no_q, function(x) {
+  cor_list <- lapply(cor_list, function(x) {
     q <- p.adjust(x$p, method = 'BH')
     x <- cbind(x, q)
   })
 
+  TDAmut_object@correlations <- cor_list
+  TDAmut_object@correlation_rhos <- rho_list
+
+  ######## FILTERING OUT GENES BY CORRELATION ########
+
+  if (!(is.null(upper_correlations_threshold)| is.null(lower_correlations_threshold))){
+    # Rearranging scores by gene instead of by nerve complex
+    collapsed <- bind_rows(cor_list)
+    cor_q_bygene <- matrix(collapsed$q, length(genes), length(nerve_complexes), dimnames = list(unique(collapsed$Gene), NULL), byrow = FALSE) %>% as.data.frame # genes x complexes
+    weak_cor_genes <- cor_q_bygene[apply(cor_q_bygene, 1, function(x) (median(x) < upper_correlations_threshold & median(x) > lower_correlations_threshold)), ]
+
+    genes <- genes[!(genes %in% rownames(weak_cor_genes))] # Not considering genes with correlation q val in between upper threshold and lower threshold
+
+    message('Not considering the following ', nrow(weak_cor_genes), ' genes not displaying strong correlations/anticorrelations between mutation and expression data: ', paste("'", rownames(weak_cor_genes), "'", collapse = ", ", sep = ""))
+  }
+
   TDAmut_object@filtered_genes <- genes
-  TDAmut_object@negative_correlations <- neg_cor_list
 
   return(TDAmut_object)
 
