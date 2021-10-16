@@ -1,4 +1,4 @@
-#' Creates object of class TDAmut to use throughout pipeline
+#' Creates object of class TDAmut to use throughout pipeline 
 #'
 #' @param exp_table transcriptomic data from cohort with format samples x genes
 #' @param mut_table mutation data from cohort as a data.frame with columns Sample, Gene, Mutation, Type
