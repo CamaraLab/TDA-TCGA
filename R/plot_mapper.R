@@ -1,18 +1,18 @@
-#' #' Plots features on nerve complexes and embeddings
-#' #'
-#' #' @param TDAmut_object object of class TDAmut with expression data, mutation data, nerve complexes, mutational load, and mutational load localization data.
-#' #' @param type type of data for given features. Can take values 'mutation', 'mutational_load', 'expression', or 'none' to plot complexes with no label. By default is 'none'
-#' #' @param features genes of interest in character vector. Only applies if 'mutation' or 'expression' data is selected. By default is NULL
-#' #' @param which_complexes vector of interval and percent combinations specificying which nerve complexes to plot, such as c(int1, percent1, int2, percent2 ...). Can plot all complexes by setting to 'All'. By default is NULL which chooses 3 complexes in the middle of the parameter ranges.
-#' #' @param colorbar_low color of colorbar for lower-range values. By default is 'blue'
-#' #' @param colorbar_high color of colorbar for upper-range values. By default is 'red'
-#' #' @param seed seed value when plotting nerve complex. By default is 121.
-#' #'
-#' #' @return Returns plot of nerve complex or embedding with desired features
-#' #'
-#' #' @export
+#' Plots features on nerve complexes and embeddings
+#'
+#' @param TDAmut_object object of class TDAmut with expression data, mutation data, nerve complexes, mutational load, and mutational load localization data.
+#' @param type type of data for given features. Can take values 'mutation', 'mutational_load', 'expression', or 'none' to plot complexes with no label. By default is 'none'
+#' @param features genes of interest in character vector. Only applies if 'mutation' or 'expression' data is selected. By default is NULL
+#' @param which_complexes vector of interval and percent combinations specificying which nerve complexes to plot, such as c(int1, percent1, int2, percent2 ...). Can plot all complexes by setting to 'All'. By default is NULL which chooses 3 complexes in the middle of the parameter ranges.
+#' @param colorbar_low color of colorbar for lower-range values. By default is 'blue'
+#' @param colorbar_high color of colorbar for upper-range values. By default is 'red'
+#' @param seed seed value when plotting nerve complex. By default is 121.
+#'
+#' @return Returns plot of nerve complex or embedding with desired features
+#'
+#' @export
 
-plot_mapper = function(TDAmut_object, type = 'none', features = NULL, which_complexes = NULL, colorbar_low = 'blue', colorbar_high = 'red', include_embedding = FALSE, seed = 121) {
+plot_mapper = function(TDAmut_object, type = 'none', features = NULL, which_complexes = NULL, colorbar_low = 'blue', colorbar_high = 'red', seed = 121) {
 
   if (is_empty(TDAmut_object@nerve_complexes)){
     stop('Run compute_complexes first to populate object with nerve complexes')
