@@ -41,7 +41,6 @@ compute_gene_localization <- function(TDAmut_object, num_permutations = 10000, n
   message(paste("Gene Scores Computed. Formatting Output"))
 
   summary_mat <- gene_scores[order(gene_scores$combined.p0), colnames(gene_scores)=="combined.p0" | colnames(gene_scores)=="q0"]
-  #sig_p_vals <- p_vals[p_vals$combined.p0 <= p_threshold_localization, ]
 
   # compute sumamry statistics on expression for each gene
   exp_table <- TDAmut_object@expression_table
