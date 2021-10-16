@@ -11,9 +11,11 @@
 #' @param max_percent_overlap maximum percentage overlap between intervals
 #' @param percent_step step size between percentages in grid of Mapper parameters. By default is 10.
 #' @param num_bins an integer controlling clustering within the same level set. By default is 10.
-#' @param recompute if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.
+#' @param num_permutations number of permutations used to create null distribution when assessing significance of mutations across the nerve complexes. By default is 10,000
+#' @param num_cores number of cores to be used in computation of mutational load significance. By default is 1.
+#' @param seed integer specifying the seed used to initialize the generator of permutations for the computation of the significance of mutational load. By default is 121
 #'
-#' @return Returns a TDAmut object populated with nerve complexes
+#' @return Returns a TDAmut object populated with nerve complexes.
 #'
 #' @export
 
@@ -21,21 +23,15 @@
 compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method = 'KNN', k = 30,
                               min_interval = 10, max_interval = 80, interval_step = 10,
                               min_percent_overlap = 20, max_percent_overlap = 90, percent_step = 10,
-                              num_bins = 10, recompute = FALSE) {
+                              num_bins = 10, num_permutations = 10000, num_cores = 5, seed = 121) {
 
   ######## APPLYING FILTER FUNCTION ########
 
   if (is_empty(TDAmut_object@expression_table)){
-    stop('Run create_TDAmut_object first to populate object with expression and mutation data')
+    stop('Run create_TDAmut_object first to populate object with expression data')
   }
 
   exp_table <- TDAmut_object@expression_table
-
-  if (recompute != FALSE){
-    min_samples <- TDAmut_object@min_mutated_samples
-    exp_table <- exp_table[!(rownames(exp_table) %in% min_samples), ]
-    TDAmut_object@expression_table <- exp_table
-  }
 
   exp_table_top <- exp_table[ , order(-apply(exp_table, 2, var))][ , 1:var_threshold]
   dist_matrix <- as.matrix(bioDist::cor.dist(as.matrix(exp_table_top)))
@@ -47,7 +43,7 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
     emb <- autoplot(prcomp(dist_matrix))$data[ , 1:2]
   }
   else if(filter_method == "KNN") {
-    knn_graph <- nng(dist_matrix, k = k)
+    knn_graph <- cccd::nng(dist_matrix, k = k)
     knn_dist <- shortest.paths(knn_graph)
     emb <- cmdscale(knn_dist, 2) %>% as.data.frame
   }
@@ -75,9 +71,26 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
     }
   }
 
+  message("Nerve Complexes Created!")
+
   TDAmut_object@mapper_intervals <- interval_range
   TDAmut_object@mapper_percents <- percent_range
   TDAmut_object@filter_embedding <- emb
   TDAmut_object@nerve_complexes <- nerve_complexes
+
+  ######## COMPUTING LOCALIZATION OF MUTATIONAL LOAD ########
+
+  # message("Computing Significance of Mutational Load Across the Complexes")
+  #
+  # mutload <- TDAmut_object@mutational_load
+  #
+  # mutload_mat <- t(mutload) %>% as.data.frame
+  # num_complexes <- length(nerve_complexes)
+  #
+  # mut_load_loc <- rayleigh_selection(nerve_complexes, mutload_mat, num_perm = num_permutations, one_forms = FALSE, seed = seed)
+  #
+  # TDAmut_object@mutational_load_localization <- mut_load_loc
+
   return(TDAmut_object)
 }
+
