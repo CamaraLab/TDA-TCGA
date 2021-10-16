@@ -28,10 +28,6 @@
 create_TDAmut_object <- function(exp_table, mut_table, samples_to_exclude = NULL) {
 
   ######## INPUT AND CLEAN ########
-
-  # exp_table <- read.csv("/home/rstudio/documents/TDA-TCGA/data/LGG_Full_TPM.csv", row.names = 1, header = T, stringsAsFactors = F)
-  # rownames(exp_table) <- substr(rownames(exp_table), 1, 16)
-  # mut_table <- read.csv('/home/rstudio/documents/TDA-TCGA/data/LGG_Muts.txt', row.names = 1, header = T, stringsAsFactors = F)
   exp_table <- read.csv(exp_table, row.names = 1, header = T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?"))
   mut_table <- read.csv(mut_table, row.names = 1, header = T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?"))
 
