@@ -7,7 +7,7 @@ Rabadan R., Mohamedi Y., Rubin U., Chu T., Alghalith A. N., Elliott O., Arnes L.
 Using TDAmut to analyze low grade glioma data
 ================
 
-*Please note that this package is undergoing revision. As such, the current tutorial is not complete. It will be updated shortly. For now, what follows displays a potential workflow for using this pipeline.*
+*Please note that this package is being refactored and largely updated. As such, the current tutorial is not complete. It will be updated shortly. For now, what follows displays a partial workflow for using this package.*
 
 ## Getting Started
 
