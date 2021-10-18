@@ -11,31 +11,23 @@
 #' @param max_percent_overlap maximum percentage overlap between intervals
 #' @param percent_step step size between percentages in grid of Mapper parameters. By default is 10.
 #' @param num_bins an integer controlling clustering within the same level set. By default is 10.
-#' @param recompute if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.
 #'
-#' @return Returns a TDAmut object populated with nerve complexes
+#' @return Returns a TDAmut object populated with nerve complexes.
 #'
 #' @export
-
 
 compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method = 'KNN', k = 30,
                               min_interval = 10, max_interval = 80, interval_step = 10,
                               min_percent_overlap = 20, max_percent_overlap = 90, percent_step = 10,
-                              num_bins = 10, recompute = FALSE) {
+                              num_bins = 10) {
 
   ######## APPLYING FILTER FUNCTION ########
 
   if (is_empty(TDAmut_object@expression_table)){
-    stop('Run create_TDAmut_object first to populate object with expression and mutation data')
+    stop('Run create_TDAmut_object first to populate object with expression data')
   }
 
   exp_table <- TDAmut_object@expression_table
-
-  if (recompute != FALSE){
-    min_samples <- TDAmut_object@min_mutated_samples
-    exp_table <- exp_table[!(rownames(exp_table) %in% min_samples), ]
-    TDAmut_object@expression_table <- exp_table
-  }
 
   exp_table_top <- exp_table[ , order(-apply(exp_table, 2, var))][ , 1:var_threshold]
   dist_matrix <- as.matrix(bioDist::cor.dist(as.matrix(exp_table_top)))
@@ -47,7 +39,7 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
     emb <- autoplot(prcomp(dist_matrix))$data[ , 1:2]
   }
   else if(filter_method == "KNN") {
-    knn_graph <- nng(dist_matrix, k = k)
+    knn_graph <- cccd::nng(dist_matrix, k = k)
     knn_dist <- shortest.paths(knn_graph)
     emb <- cmdscale(knn_dist, 2) %>% as.data.frame
   }
@@ -75,9 +67,13 @@ compute_complexes <- function(TDAmut_object, var_threshold = 4500, filter_method
     }
   }
 
+  message("Nerve Complexes Created!")
+
   TDAmut_object@mapper_intervals <- interval_range
   TDAmut_object@mapper_percents <- percent_range
   TDAmut_object@filter_embedding <- emb
   TDAmut_object@nerve_complexes <- nerve_complexes
+
   return(TDAmut_object)
 }
+
