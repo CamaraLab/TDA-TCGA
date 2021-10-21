@@ -6,7 +6,7 @@ Author@R: c(person('Adam', 'Alghalith', email='aalgh@sas.upenn.edu', role=c('aut
              person('Jake', 'Gurevitch', email='jakegure@sas.upenn.edu', role=c('aut'))
 Author: Adam Alghalith [aut],
   Jake Gurevitch [aut]
-Maintainer: The package maintainer <yourself@somewhere.net>
+Maintainer: Pablo G. Cámara <pcamara@pennmedicine.upenn.edu>
 Description: TDAmut is a pipeline for identifying candidate driver mutations and genetic alterations in 
     cancer from transcriptomic and genetic data. TDAmut constructs a network representation of the
     expression subspace using TDAMapper, implements controls for spurious correlations between gene
