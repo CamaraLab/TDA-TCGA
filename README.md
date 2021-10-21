@@ -162,3 +162,19 @@ TDAmut_object. Genes with a median localization q value below a
 user-defined threshold should be considered significant. These genes 
 are predicted to be associated with global expression patterns over a 
 subset of tumors.
+
+
+``` r
+LGG_object@summary_matrix[1:8,]
+```
+
+    ##              combined.p0           q0 expression_first_quartile expression_median expression_third_quartile cor_median_p cor_median_q cor_median_rho nonsyn_count
+    ## ATRX.546    0.000000e+00 0.0000000000                  3.060450           3.72140                  4.425275 2.146322e-76 5.172635e-74     -0.7005306          204
+    ## CIC.23152   0.000000e+00 0.0000000000                  4.821300           5.16165                  5.496125 4.439870e-61 5.350044e-59     -0.6486133          113
+    ## EGFR.1956   0.000000e+00 0.0000000000                  4.331775           5.32795                  6.205900 1.000000e+00 1.000000e+00      0.3216203           36
+    ## FUBP1.8880  0.000000e+00 0.0000000000                  4.586700           5.03025                  5.417500 9.635606e-30 7.641520e-28     -0.4790635           48
+    ## NF1.4763    0.000000e+00 0.0000000000                  4.817325           5.15865                  5.509025 3.979206e-16 1.917977e-14     -0.3743460           34
+    ## PTEN.5728   0.000000e+00 0.0000000000                  4.211950           4.49610                  4.748700 2.804993e-23 1.690008e-21     -0.4442587           24
+    ## TP53.7157   0.000000e+00 0.0000000000                  5.190550           5.65895                  6.052850 7.916889e-10 3.193411e-08     -0.2878403          261
+    ## NOTCH1.4851 2.785176e-05 0.0005152575                  5.065250           5.64145                  6.078500 9.999999e-01 1.000000e+00      0.2156026           44
+
