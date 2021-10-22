@@ -97,17 +97,12 @@ create_TDAmut_object <- function(exp_table, mut_table, samples_to_exclude = NULL
     mut_mat <- mut_mat[order(rownames(mut_mat)), order(colnames(mut_mat))]
 
     # Assigning syn and nonsyn mutations
-    if(is.null(nonsyn_muts) || is.null(syn_muts)){
-      nonsyn_type <- c("Missense_Mutation", "Nonsense_Mutation", "Splice_Site",
-                       "Frame_Shift_Del", "In_Frame_Del", "Frame_Shift_Ins",
-                       "In_Frame_Ins", "Nonstop_Mutation")
+    nonsyn_type <- c("Missense_Mutation", "Nonsense_Mutation", "Splice_Site",
+                     "Frame_Shift_Del", "In_Frame_Del", "Frame_Shift_Ins",
+                     "In_Frame_Ins", "Nonstop_Mutation")
 
-      nonsyn_muts <- mut_table[mut_table$Type %in% nonsyn_type,]
-      syn_muts <- mut_table[!(mut_table$Type %in% nonsyn_type),]
-    } else {
-      nonsyn_muts <- read.csv(nonsyn_muts, row.names = 1, header = T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?"))
-      syn_muts <- read.csv(syn_muts, row.names = 1, header = T, stringsAsFactors = F, na.strings=c("NA","NaN", " ", "?"))
-    }
+    nonsyn_muts <- mut_table[mut_table$Type %in% nonsyn_type,]
+    syn_muts <- mut_table[!(mut_table$Type %in% nonsyn_type),]
 
     # Reformatting nonsynonymous and synonymous mutations into matrices
     nonsyn_mat <- matrix(0,length(samples),length(gene_names)) %>% as.data.frame

@@ -7,7 +7,7 @@
 compute_complexes(
   TDAmut_object,
   var_threshold = 4500,
-  filter_method = "UMAP",
+  filter_method = "KNN",
   k = 30,
   min_interval = 10,
   max_interval = 80,
@@ -15,8 +15,7 @@ compute_complexes(
   min_percent_overlap = 20,
   max_percent_overlap = 90,
   percent_step = 10,
-  num_bins = 10,
-  recompute = FALSE
+  num_bins = 10
 )
 }
 \arguments{
@@ -41,11 +40,9 @@ compute_complexes(
 \item{percent_step}{step size between percentages in grid of Mapper parameters. By default is 10.}
 
 \item{num_bins}{an integer controlling clustering within the same level set. By default is 10.}
-
-\item{recompute}{if TRUE, recomputes nerve complexes without samples falling short of threshold mutational load identified in compute_mut_load.}
 }
 \value{
-Returns a TDAmut object populated with nerve complexes
+Returns a TDAmut object populated with nerve complexes.
 }
 \description{
 Creates network representations of the expression space of a patient cohort across grid of Mapper parameters

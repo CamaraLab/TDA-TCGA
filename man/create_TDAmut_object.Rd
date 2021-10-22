@@ -4,15 +4,17 @@
 \alias{create_TDAmut_object}
 \title{Creates object of class TDAmut to use throughout pipeline}
 \usage{
-create_TDAmut_object(exp_table, mut_table)
+create_TDAmut_object(exp_table, mut_table, samples_to_exclude = NULL)
 }
 \arguments{
 \item{exp_table}{transcriptomic data from cohort with format samples x genes}
 
 \item{mut_table}{mutation data from cohort as a data.frame with columns Sample, Gene, Mutation, Type}
+
+\item{samples_to_use}{optional list of samples names to excluded from the analysis}
 }
 \value{
-Creates a TDAmut object populated with expression and mutation data
+Creates a TDAmut object populated with expression data, mutation data, and data frames of nonsynonymous mutations, synonymous mutations, and mutational load of samples
 }
 \description{
 Creates object of class TDAmut to use throughout pipeline

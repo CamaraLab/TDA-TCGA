@@ -2,16 +2,19 @@ Package: TDAmut
 Type: Package
 Title: An R package for identification of relevant genetic alterations in cancer using topological data analysis
 Version: 0.0.0
-Author@R: person('Adam', 'Alghalith', email='aalgh@sas.upenn.edu', role=c('aut'))
-Maintainer: The package maintainer <yourself@somewhere.net>
+Author@R: c(person('Adam', 'Alghalith', email='aalgh@sas.upenn.edu', role=c('aut')), 
+             person('Jake', 'Gurevitch', email='jakegure@sas.upenn.edu', role=c('aut'))
+Author: Adam Alghalith [aut],
+  Jake Gurevitch [aut]
+Maintainer: Pablo G. Cámara <pcamara@pennmedicine.upenn.edu>
 Description: TDAmut is a pipeline for identifying candidate driver mutations and genetic alterations in 
     cancer from transcriptomic and genetic data. TDAmut constructs a network representation of the
     expression subspace using TDAMapper, implements controls for spurious correlations between gene
     expression and mutation, and assesses localization of genetic alterations using RayleighSelection.
-License: What license is it under?
+License: GNU General Public License v3.0
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.2
 LinkingTo: 
     Rcpp,
     RcppArmadillo
@@ -28,6 +31,5 @@ Imports:
     umap,
     RayleighSelection,
     cccd,
-    fields,
     reshape2,
     parallel

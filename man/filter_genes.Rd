@@ -6,12 +6,10 @@
 \usage{
 filter_genes(
   TDAmut_object,
-  freq_threshold = 0.01,
+  freq_threshold = 0.02,
   top_nonsyn_fraction = 350,
-  negative_correlations = TRUE,
-  num_permutations = 2000,
-  num_cores = 1,
-  seed = 121
+  upper_correlations_threshold = 0.9,
+  lower_correlations_threshold = 1e-04
 )
 }
 \arguments{
@@ -21,13 +19,9 @@ filter_genes(
 
 \item{top_nonsyn_fraction}{number of genes to keep with greatest nonsyn/nonsyn+syn fraction. By default is 350.}
 
-\item{negative_correlations}{if TRUE, assesses negative correlations between mutations rates and expression of a gene. By default is TRUE.}
+\item{upper_correlations_threshold}{upper q value theshold to keep genes displaying positive correlations between mutation and expression data. Genes with a median q value across all complexes exceeding this threshold are considered for further analysis. By default is 0.9.}
 
-\item{num_permutations}{if negative_correlations = TRUE, number of permutations used to create null distribution when identifying negative correlations between expression and mutation data. By default is 2000}
-
-\item{num_cores}{number of cores to be used in computation. By default is 1.}
-
-\item{seed}{integer specifying the seed used to initialize the generator of permutations. By default is 121}
+\item{lower_correlations_threshold}{lower q value theshold to keep genes displaying negative correlations between mutation and expression data. Genes with a median q value across all complexes below this threshold are considered for further analysis. By default is 1e-4.}
 }
 \value{
 Returns a TDAmut object populated with filtered genes to consider in compute_gene_localization. Optionally returns p and q values quantifying negative correlations between expression and mutation profiles of filtered genes.

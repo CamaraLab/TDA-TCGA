@@ -4,9 +4,9 @@
 \name{TDAmut-class}
 \alias{TDAmut-class}
 \alias{TDAmut_object}
-\title{Class to handle all information in TDA.TCGA pipeline}
+\title{Class to handle all information in the TDAmut pipeline}
 \description{
-Class to handle all information in TDA.TCGA pipeline
+Class to handle all information in the TDAmut pipeline
 }
 \section{Slots}{
 
@@ -23,24 +23,22 @@ Class to handle all information in TDA.TCGA pipeline
 
 \item{\code{filter_embedding}}{Embedding used to create topological representations in TDAmapper (compute_complexes)}
 
-\item{\code{mutation_matrix}}{Reformatted mutation data (compute_mut_load)}
+\item{\code{mutation_matrix}}{Reformatted mutation data (create_TDAmut_object)}
 
-\item{\code{nonsyn_mutations}}{Reformatted nonsynonymous mutation data (compute_mut_load)}
+\item{\code{nonsyn_mutations}}{Reformatted nonsynonymous mutation data (create_TDAmut_object)}
 
-\item{\code{syn_mutations}}{Reformatted synonymous mutation data (compute_mut_load)}
+\item{\code{syn_mutations}}{Reformatted synonymous mutation data (create_TDAmut_object)}
 
-\item{\code{mutational_load}}{Total mutations per sample (compute_mut_load)}
+\item{\code{mutational_load}}{Total mutations per sample (create_TDAmut_object)}
 
-\item{\code{min_mutated_samples}}{Samples with mutational load below a user-defined threshold (compute_mut_load)}
+\item{\code{mutational_load_localization}}{p and q values indicating significance of mutational load localization across the parameter space (compute_complexes)}
 
-\item{\code{mutational_load_localization}}{p and q values indicating significance of mutational load localization across the parameter space (compute_mut_load)}
+\item{\code{correlations}}{p and q values indicating significance of negative correlation between expression and mutation data of a given gene across the parameter space (filter_genes)}
 
-\item{\code{negative_correlations}}{p and q values indicating significance of correlation between expression and mutation data of a given gene across the parameter space (filter_genes)}
-
-\item{\code{filtered_genes}}{Genes passing user-defined thresholds on mutational frequency and ratio of nonsynonymous / total mutations}
+\item{\code{filtered_genes}}{Genes passing user-defined thresholds on mutational frequency, ratio of nonsynonymous / total mutations, and correlation q values (filter_genes)}
 
 \item{\code{gene_scores}}{p and q values indicating significance of localization of nonsynonymously mutated genes across the parameter space (compute_gene_localization)}
 
-\item{\code{significant_genes}}{Genes passing user-defined median q value threshold across the parameter space (identify_significant_mutations)}
+\item{\code{summary_matrix}}{Matrix summarizing the results of the pipelinesin the computation (compute_gene_localization)}
 }}
 

@@ -11,7 +11,6 @@ plot_mapper(
   which_complexes = NULL,
   colorbar_low = "blue",
   colorbar_high = "red",
-  include_embedding = FALSE,
   seed = 121
 )
 }
@@ -27,8 +26,6 @@ plot_mapper(
 \item{colorbar_low}{color of colorbar for lower-range values. By default is 'blue'}
 
 \item{colorbar_high}{color of colorbar for upper-range values. By default is 'red'}
-
-\item{include_embedding}{plot desired features on embedding used to create nerve complexes. By default is FALSE}
 
 \item{seed}{seed value when plotting nerve complex. By default is 121.}
 }

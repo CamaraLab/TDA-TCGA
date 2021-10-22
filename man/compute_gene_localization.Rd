@@ -6,9 +6,8 @@
 \usage{
 compute_gene_localization(
   TDAmut_object,
-  negative_correlations_threshold = 0.8,
   num_permutations = 10000,
-  num_cores = 5,
+  num_cores = 1,
   seed = 121
 )
 }
@@ -20,11 +19,9 @@ compute_gene_localization(
 \item{num_cores}{number of cores to be used in computation. By default is 1.}
 
 \item{seed}{integer specifying the seed used to initialize the generator of permutations. By default is 121}
-
-\item{neg_correlations_threshold}{q value theshold to remove genes displaying correlations between mutation and expression data. Genes with a median q value across all complexes exceeding this threshold are not considered. If NULL, negative correlations will be ignored. By default is 0.8.}
 }
 \value{
-Returns TDAmut object populated with Laplacian scores, p values, and q values for localization of genes passing thresholds of filter_genes
+Returns TDAmut object populated with Laplacian scores, p values, and q values for localization of genes passing thresholds of filter_genes. Outputs genes which are significantly localized.
 }
 \description{
 Computes localization of nonsynonymously mutated genes passing thresholds of filter_genes
