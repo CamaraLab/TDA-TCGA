@@ -30,5 +30,6 @@ Imports:
     TDAmapper,
     umap,
     RayleighSelection,
+    cccd,
     reshape2,
     parallel
