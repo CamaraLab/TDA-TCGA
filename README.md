@@ -29,7 +29,7 @@ Install and load `TDAmut`:
 devtools::install_github("CamaraLab/TDA-TCGA")
 library(TDAmut)
 ```
-Note that depending on your system this command may require installation of additional packages (e.g., bioDist from BioConductor, RayleighSelection from the CamaraLab GitHub) in order to succeed.
+Note that this package requires prior installation of additional packages not available via CRAN (e.g., bioDist from BioConductor, RayleighSelection from the CamaraLab GitHub) in order to succeed. If these packages are not currently available on your system, they will need to be installed prior to installing the `TDAmut` package.
 
 ## Creating TDAmut object for use throughout the pipeline
 
