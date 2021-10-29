@@ -7,7 +7,7 @@ Rabadan R., Mohamedi Y., Rubin U., Chu T., Alghalith A. N., Elliott O., Arnes L.
 Using TDAmut to analyze low grade glioma data
 ================
 
-*Please note that this package is being refactored and largely updated. As such, the current tutorial is not complete. It will be updated shortly. For now, what follows displays a partial workflow for using this package.*
+*Updates to this tutorial are ongoing. What follows displays a near-complete workflow for using this package.*
 
 ## Getting Started
 
@@ -23,7 +23,13 @@ The user is afforded several options in each function of `TDAmut`. We
 implemented default options which can be a helpful starting point for
 the user.
 
-*Previous installation methods may no longer work properly/may give you an outdated version of the package. Please be patient as we refactor the codebase. If you are interested in using the most recent version of the package, please use the files located in the /R directory of this respository.*
+Install and load `TDAmut`:
+
+``` r
+devtools::install_github("CamaraLab/TDA-TCGA")
+library(TDAmut)
+```
+Note that this package requires prior installation of additional packages not available via CRAN (e.g., bioDist from BioConductor, RayleighSelection from the CamaraLab GitHub) in order to succeed. If these packages are not currently available on your system, they will need to be installed prior to installing the `TDAmut` package.
 
 ## Creating TDAmut object for use throughout the pipeline
 
