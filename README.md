@@ -23,7 +23,13 @@ The user is afforded several options in each function of `TDAmut`. We
 implemented default options which can be a helpful starting point for
 the user.
 
-*Previous installation methods may no longer work properly/may give you an outdated version of the package. Please be patient as we refactor the codebase. If you are interested in using the most recent version of the package, please use the files located in the /R directory of this respository.*
+Install and load `TDAmut`:
+
+``` r
+devtools::install_github("CamaraLab/TDA-TCGA")
+library(TDAmut)
+```
+Note that depending on your system this command may require installation of additional packages (e.g., bioDist from BioConductor, RayleighSelection from the CamaraLab GitHub) in order to succeed.
 
 ## Creating TDAmut object for use throughout the pipeline
 
